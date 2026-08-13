@@ -1,0 +1,10 @@
+{
+  "name": "@brash-twin/database-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@brash-twin/migrations": "*",
+    "@brash-twin/persistence": "*"
+  }
+}

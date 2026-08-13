@@ -1,0 +1,49 @@
+{
+  "name": "brash-mapping-twin-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Vendor-neutral mapping and digital-twin workspace for Brash Robotics.",
+  "engines": {
+    "node": ">=18.18"
+  },
+  "workspaces": [
+    "apps/studio-web",
+    "packages/contracts",
+    "packages/coordinate-frames",
+    "packages/domain",
+    "packages/artifact-store",
+    "packages/application",
+    "packages/importers",
+    "packages/persistence",
+    "packages/migrations",
+    "packages/validation",
+    "packages/viewer-sdk",
+    "packages/spatial-editor",
+    "packages/manual-twin",
+    "tools/map-bundle-cli",
+    "tools/dataset-cli",
+    "tools/database-cli",
+    "services/twin-api"
+  ],
+  "scripts": {
+    "lint": "node tools/check.mjs",
+    "test": "node --test tests/unit/*.test.js tests/contract/*.test.js tests/integration/*.test.js tests/e2e/*.test.js",
+    "test:unit": "node --test tests/unit/*.test.js",
+    "test:contract": "node --test tests/contract/*.test.js",
+    "test:integration": "node --test tests/integration/*.test.js",
+    "test:e2e": "node --test tests/e2e/*.test.js",
+    "test:web": "npm run test --workspace @brash-twin/studio-web",
+    "typecheck:web": "npm run typecheck --workspace @brash-twin/studio-web",
+    "build:web": "npm run build --workspace @brash-twin/studio-web",
+    "test:postgres": "node --test tests/integration/postgres-live.test.js",
+    "db:migrate": "node tools/database-cli/cli.js migrate",
+    "db:status": "node tools/database-cli/cli.js status",
+    "dataset:verify": "node tools/dataset-cli/cli.js verify",
+    "dataset:inspect": "node tools/dataset-cli/cli.js inspect",
+    "validate:fixture": "node tools/map-bundle-cli/cli.js validate tests/fixtures/bundles/demo-plant@1",
+    "dev:api": "node services/twin-api/server.js",
+    "check:web": "npm run typecheck:web && npm run test:web && npm run build:web",
+    "check": "npm run lint && npm test && npm run check:web && npm run validate:fixture"
+  }
+}

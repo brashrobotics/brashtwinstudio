@@ -1,0 +1,10 @@
+{
+  "name": "@brash-twin/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./schemas/*": "./schemas/*"
+  }
+}

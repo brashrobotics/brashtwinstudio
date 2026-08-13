@@ -1,0 +1,724 @@
+openapi: 3.1.0
+info:
+  title: Brash Twin API
+  version: 0.1.0
+  description: Catalog and map-draft lifecycle API for Brash Mapping & Twin Studio.
+servers:
+  - url: http://127.0.0.1:4380
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service is ready.
+        "503":
+          description: A required dependency is not ready.
+  /health/live:
+    get:
+      operationId: getLiveness
+      responses:
+        "200":
+          description: Process is alive.
+  /health/ready:
+    get:
+      operationId: getReadiness
+      responses:
+        "200":
+          description: Required dependencies are ready.
+        "503":
+          description: A required dependency is not ready.
+  /api/v1/sites:
+    get:
+      operationId: listSites
+      responses:
+        "200":
+          description: Site catalog.
+    post:
+      operationId: createSite
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSite"
+      responses:
+        "201":
+          description: Site created.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/sites/{siteId}/buildings:
+    parameters:
+      - $ref: "#/components/parameters/SiteId"
+    get:
+      operationId: listBuildings
+      responses:
+        "200":
+          description: Buildings in the site.
+    post:
+      operationId: createBuilding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBuilding"
+      responses:
+        "201":
+          description: Building created.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/sites/{siteId}/buildings/{buildingId}/floors:
+    parameters:
+      - $ref: "#/components/parameters/SiteId"
+      - $ref: "#/components/parameters/BuildingId"
+    post:
+      operationId: createFloor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFloor"
+      responses:
+        "201":
+          description: Floor created.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/floors:
+    get:
+      operationId: listFloors
+      parameters:
+        - name: siteId
+          in: query
+          schema:
+            $ref: "#/components/schemas/Identifier"
+      responses:
+        "200":
+          description: Floor catalog.
+  /api/v1/map-families:
+    get:
+      operationId: listMapFamilies
+      parameters:
+        - name: floorId
+          in: query
+          schema:
+            $ref: "#/components/schemas/Identifier"
+      responses:
+        "200":
+          description: Map-family catalog.
+    post:
+      operationId: createMapFamily
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMapFamily"
+      responses:
+        "201":
+          description: Map family created.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/map-drafts:
+    get:
+      operationId: listMapDrafts
+      parameters:
+        - name: familyId
+          in: query
+          schema:
+            $ref: "#/components/schemas/Identifier"
+      responses:
+        "200":
+          description: Draft catalog.
+    post:
+      operationId: createMapDraft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMapDraft"
+      responses:
+        "201":
+          description: Draft created.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/map-drafts/{draftId}:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+    get:
+      operationId: getMapDraft
+      responses:
+        "200":
+          description: Draft metadata.
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/map-drafts/{draftId}/submit-review:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+    post:
+      operationId: submitMapDraftForReview
+      requestBody:
+        $ref: "#/components/requestBodies/OperatorAction"
+      responses:
+        "200":
+          description: Draft entered review.
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/map-drafts/{draftId}/return-to-draft:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+    post:
+      operationId: returnMapDraftToDraft
+      requestBody:
+        $ref: "#/components/requestBodies/OperatorAction"
+      responses:
+        "200":
+          description: Draft returned for editing.
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/map-drafts/{draftId}/validation-jobs:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+    get:
+      operationId: listDraftValidationJobs
+      responses:
+        "200":
+          description: Validation jobs created from immutable snapshots of this draft.
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createDraftValidationJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateValidationJob"
+      responses:
+        "201":
+          description: Validation job created from the current reviewed draft snapshot.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/validation-jobs/{jobId}:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    get:
+      operationId: getDraftValidationJob
+      responses:
+        "200":
+          description: Validation job state and report result.
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/validation-jobs/{jobId}/run:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    post:
+      operationId: runDraftValidationJob
+      requestBody:
+        $ref: "#/components/requestBodies/OperatorAction"
+      responses:
+        "200":
+          description: Validation completed and its report was stored with immutable provenance.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/map-drafts/{draftId}/artifacts:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+    get:
+      operationId: listDraftArtifacts
+      responses:
+        "200":
+          description: Append-only source and derived artifact provenance for the draft.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [artifacts]
+                properties:
+                  artifacts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DraftArtifactBinding"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: bindDraftArtifact
+      description: Binds a completed, integrity-verified upload to an editable draft with immutable provenance.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BindDraftArtifact"
+      responses:
+        "201":
+          description: Artifact provenance binding created.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [artifact]
+                properties:
+                  artifact:
+                    $ref: "#/components/schemas/DraftArtifactBinding"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/uploads:
+    get:
+      operationId: listUploadSessions
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/UploadStatus"
+      responses:
+        "200":
+          description: Upload session catalog.
+    post:
+      operationId: initiateUploadSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InitiateUpload"
+      responses:
+        "201":
+          description: Upload intent and multipart data-plane instructions created.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/uploads/{uploadId}:
+    parameters:
+      - $ref: "#/components/parameters/UploadId"
+    get:
+      operationId: getUploadSession
+      responses:
+        "200":
+          description: Upload session metadata.
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/uploads/{uploadId}/complete:
+    parameters:
+      - $ref: "#/components/parameters/UploadId"
+    post:
+      operationId: completeUploadSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteUpload"
+      responses:
+        "200":
+          description: Upload completed or quarantined after integrity verification.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/uploads/{uploadId}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/UploadId"
+    post:
+      operationId: cancelUploadSession
+      requestBody:
+        $ref: "#/components/requestBodies/OperatorAction"
+      responses:
+        "200":
+          description: Upload cancelled and staging data removed.
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/releases:
+    get:
+      operationId: listMapReleases
+      responses:
+        "200":
+          description: Immutable release manifests.
+  /api/v1/releases/{releaseId}:
+    parameters:
+      - name: releaseId
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*@[1-9][0-9]*$"
+    get:
+      operationId: getMapRelease
+      responses:
+        "200":
+          description: Immutable release manifest.
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  parameters:
+    SiteId:
+      name: siteId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Identifier"
+    BuildingId:
+      name: buildingId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Identifier"
+    DraftId:
+      name: draftId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Identifier"
+    UploadId:
+      name: uploadId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Identifier"
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Identifier"
+  requestBodies:
+    OperatorAction:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [operatorId]
+            properties:
+              operatorId:
+                type: string
+                minLength: 1
+  responses:
+    BadRequest:
+      description: Invalid request.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Identity, lifecycle, or concurrency conflict.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    Identifier:
+      type: string
+      pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    Sha256:
+      type: string
+      pattern: "^[a-f0-9]{64}$"
+    CreateSite:
+      type: object
+      additionalProperties: false
+      required: [siteId, displayName, timezone, operatorId]
+      properties:
+        siteId:
+          $ref: "#/components/schemas/Identifier"
+        displayName:
+          type: string
+          minLength: 1
+        timezone:
+          type: string
+          minLength: 1
+        operatorId:
+          type: string
+          minLength: 1
+    CreateBuilding:
+      type: object
+      additionalProperties: false
+      required: [buildingId, displayName, operatorId]
+      properties:
+        buildingId:
+          $ref: "#/components/schemas/Identifier"
+        displayName:
+          type: string
+          minLength: 1
+        operatorId:
+          type: string
+          minLength: 1
+    CreateFloor:
+      type: object
+      additionalProperties: false
+      required: [floorId, displayName, operatorId]
+      properties:
+        floorId:
+          $ref: "#/components/schemas/Identifier"
+        displayName:
+          type: string
+          minLength: 1
+        elevationMeters:
+          type: number
+          default: 0
+        operatorId:
+          type: string
+          minLength: 1
+    CreateMapFamily:
+      type: object
+      additionalProperties: false
+      required: [familyId, floorId, displayName, operatorId]
+      properties:
+        familyId:
+          $ref: "#/components/schemas/Identifier"
+        floorId:
+          $ref: "#/components/schemas/Identifier"
+        displayName:
+          type: string
+          minLength: 1
+        operatorId:
+          type: string
+          minLength: 1
+    CreateMapDraft:
+      type: object
+      additionalProperties: false
+      required: [draftId, familyId, revision, canonicalFrameId, operatorId]
+      properties:
+        draftId:
+          $ref: "#/components/schemas/Identifier"
+        familyId:
+          $ref: "#/components/schemas/Identifier"
+        revision:
+          type: integer
+          minimum: 1
+        canonicalFrameId:
+          type: string
+          minLength: 1
+        operatorId:
+          type: string
+          minLength: 1
+    CreateValidationJob:
+      type: object
+      additionalProperties: false
+      required: [operatorId]
+      properties:
+        jobId:
+          $ref: "#/components/schemas/Identifier"
+        operatorId:
+          type: string
+          minLength: 1
+    DraftArtifactRole:
+      type: string
+      enum:
+        - BIM_SOURCE
+        - FLOORPLAN_SOURCE
+        - POINT_CLOUD_SOURCE
+        - TRAJECTORY_SOURCE
+        - CAMERA_SOURCE
+        - CALIBRATION_SOURCE
+        - REGISTERED_POINT_CLOUD
+        - RECONSTRUCTED_MESH
+        - OCCUPANCY
+        - ELEVATION
+        - SCENE_TILESET
+        - IMPORT_REPORT
+        - REGISTRATION_REPORT
+        - VALIDATION_REPORT
+    ArtifactProducer:
+      type: object
+      additionalProperties: false
+      required: [name, version, parametersSha256]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        version:
+          type: string
+          minLength: 1
+        parametersSha256:
+          $ref: "#/components/schemas/Sha256"
+    BindDraftArtifact:
+      type: object
+      additionalProperties: false
+      required: [uploadId, role, operatorId]
+      properties:
+        bindingId:
+          $ref: "#/components/schemas/Identifier"
+        uploadId:
+          $ref: "#/components/schemas/Identifier"
+        role:
+          $ref: "#/components/schemas/DraftArtifactRole"
+        coordinateFrameId:
+          type: string
+          minLength: 1
+        inputBindingIds:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/Identifier"
+        producer:
+          $ref: "#/components/schemas/ArtifactProducer"
+        operatorId:
+          type: string
+          minLength: 1
+    DraftArtifactBinding:
+      type: object
+      additionalProperties: false
+      required:
+        - bindingId
+        - draftId
+        - uploadId
+        - artifactSha256
+        - role
+        - kind
+        - coordinateFrameId
+        - inputBindings
+        - producer
+        - createdBy
+        - createdAt
+      properties:
+        bindingId:
+          $ref: "#/components/schemas/Identifier"
+        draftId:
+          $ref: "#/components/schemas/Identifier"
+        uploadId:
+          $ref: "#/components/schemas/Identifier"
+        artifactSha256:
+          $ref: "#/components/schemas/Sha256"
+        role:
+          $ref: "#/components/schemas/DraftArtifactRole"
+        kind:
+          type: string
+          enum: [SOURCE, DERIVED]
+        coordinateFrameId:
+          type: [string, "null"]
+        inputBindings:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [bindingId, artifactSha256]
+            properties:
+              bindingId:
+                $ref: "#/components/schemas/Identifier"
+              artifactSha256:
+                $ref: "#/components/schemas/Sha256"
+        producer:
+          oneOf:
+            - $ref: "#/components/schemas/ArtifactProducer"
+            - type: "null"
+        createdBy:
+          type: string
+          minLength: 1
+        createdAt:
+          type: string
+          format: date-time
+    UploadStatus:
+      type: string
+      enum: [INITIATED, UPLOADING, COMPLETED, QUARANTINED, CANCELLED, EXPIRED]
+    InitiateUpload:
+      type: object
+      additionalProperties: false
+      required: [expectedSha256, expectedBytes, mediaType, originalName, operatorId]
+      properties:
+        uploadId:
+          $ref: "#/components/schemas/Identifier"
+        expectedSha256:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+        expectedBytes:
+          type: integer
+          minimum: 1
+        mediaType:
+          type: string
+          minLength: 3
+          maxLength: 255
+        originalName:
+          type: string
+          minLength: 1
+          maxLength: 255
+        operatorId:
+          type: string
+          minLength: 1
+    CompleteUpload:
+      type: object
+      additionalProperties: false
+      required: [operatorId]
+      properties:
+        operatorId:
+          type: string
+          minLength: 1
+        parts:
+          type: array
+          maxItems: 10000
+          items:
+            type: object
+            additionalProperties: false
+            required: [partNumber, etag]
+            properties:
+              partNumber:
+                type: integer
+                minimum: 1
+                maximum: 10000
+              etag:
+                type: string
+                minLength: 1
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string

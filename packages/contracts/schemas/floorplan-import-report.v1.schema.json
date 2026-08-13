@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/floorplan-import-report/v1/schema.json",
+  "title": "Brash Floorplan Import Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "format",
+    "canonicalFrameId",
+    "units",
+    "source",
+    "configuration",
+    "sourceSpace",
+    "bounds",
+    "summary",
+    "issues",
+    "entities"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "brash.floorplan-import-report/v1" },
+    "format": { "const": "SVG" },
+    "canonicalFrameId": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "units": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["length", "angle"],
+      "properties": {
+        "length": { "const": "m" },
+        "angle": { "const": "rad" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mediaType", "bytes", "sha256"],
+      "properties": {
+        "mediaType": { "const": "image/svg+xml" },
+        "bytes": { "type": "integer", "minimum": 1, "maximum": 5242880 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "sourceUnit",
+        "metresPerUserUnit",
+        "pixelsPerInch",
+        "flipY",
+        "originMode",
+        "originMetres",
+        "layerId"
+      ],
+      "properties": {
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "sourceUnit": { "enum": ["ROOT_DIMENSIONS", "mm", "cm", "m", "in", "ft", "px"] },
+        "metresPerUserUnit": { "type": "number", "exclusiveMinimum": 0 },
+        "pixelsPerInch": { "type": "number", "minimum": 1, "maximum": 10000 },
+        "flipY": { "type": "boolean" },
+        "originMode": { "const": "VIEWBOX_CENTER" },
+        "originMetres": { "$ref": "#/$defs/vector3" },
+        "layerId": { "type": "string", "minLength": 1, "maxLength": 255 }
+      }
+    },
+    "sourceSpace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["viewBox", "rootWidth", "rootHeight"],
+      "properties": {
+        "viewBox": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["minX", "minY", "width", "height"],
+          "properties": {
+            "minX": { "type": "number" },
+            "minY": { "type": "number" },
+            "width": { "type": "number", "exclusiveMinimum": 0 },
+            "height": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "rootWidth": { "type": ["string", "null"] },
+        "rootHeight": { "type": ["string", "null"] }
+      }
+    },
+    "bounds": { "$ref": "#/$defs/bounds" },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entityCount", "pointCount", "warningCount", "shapeCounts"],
+      "properties": {
+        "entityCount": { "type": "integer", "minimum": 1, "maximum": 200000 },
+        "pointCount": { "type": "integer", "minimum": 2, "maximum": 200000 },
+        "warningCount": { "type": "integer", "minimum": 0, "maximum": 501 },
+        "shapeCounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "polyline", "polygon", "rect", "line"],
+          "properties": {
+            "path": { "type": "integer", "minimum": 0 },
+            "polyline": { "type": "integer", "minimum": 0 },
+            "polygon": { "type": "integer", "minimum": 0 },
+            "rect": { "type": "integer", "minimum": 0 },
+            "line": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "maxItems": 501,
+      "items": { "$ref": "#/$defs/issue" }
+    },
+    "entities": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 200000,
+      "items": { "$ref": "#/$defs/entity" }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "vector3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" }
+      }
+    },
+    "bounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum", "maximum"],
+      "properties": {
+        "minimum": { "$ref": "#/$defs/vector3" },
+        "maximum": { "$ref": "#/$defs/vector3" }
+      }
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severity", "code", "message"],
+      "properties": {
+        "severity": { "const": "WARNING" },
+        "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+        "message": { "type": "string", "minLength": 1 },
+        "elementRef": { "type": "string", "minLength": 1 }
+      }
+    },
+    "entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entityId", "layerId", "label", "position", "geometry"],
+      "properties": {
+        "entityId": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "layerId": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "label": { "type": "string", "minLength": 1 },
+        "position": { "$ref": "#/$defs/vector3" },
+        "rotationZ": { "type": "number" },
+        "geometry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "points", "closed"],
+          "properties": {
+            "type": { "const": "POLYLINE" },
+            "points": {
+              "type": "array",
+              "minItems": 2,
+              "items": { "$ref": "#/$defs/vector3" }
+            },
+            "closed": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  }
+}

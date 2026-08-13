@@ -1,0 +1,13 @@
+{
+  "name": "@brash-twin/map-bundle-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "brash-map-bundle": "./cli.js"
+  },
+  "dependencies": {
+    "@brash-twin/artifact-store": "*",
+    "@brash-twin/validation": "*"
+  }
+}

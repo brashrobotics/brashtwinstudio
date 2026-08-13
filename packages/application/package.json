@@ -1,0 +1,19 @@
+{
+  "name": "@brash-twin/application",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./draft-artifacts": "./draft-artifacts.js",
+    "./publications": "./publications.js",
+    "./uploads": "./uploads.js",
+    "./validation-jobs": "./validation-jobs.js"
+  },
+  "dependencies": {
+    "@brash-twin/artifact-store": "*",
+    "@brash-twin/domain": "*",
+    "@brash-twin/persistence": "*",
+    "@brash-twin/validation": "*"
+  }
+}

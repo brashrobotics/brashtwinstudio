@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "brash.external-dataset/v1",
+  "datasetId": "conslam-bim-gt-poses-2024",
+  "title": "ConSLAM BIM and GT Poses",
+  "source": {
+    "landingPage": "https://mediatum.ub.tum.de/1743877",
+    "doi": "https://doi.org/10.14459/2024mp1743877",
+    "upstreamDataset": "https://github.com/mac137/ConSLAM",
+    "citation": "Vega-Torres, Braun and Borrmann (2024), ConSLAM BIM and GT Poses"
+  },
+  "rights": {
+    "license": "CC-BY-NC-4.0",
+    "purpose": "DEVELOPMENT_EVALUATION_ONLY",
+    "redistributionAllowed": false,
+    "notice": "Do not redistribute with Brash binaries, containers, releases, or customer map bundles."
+  },
+  "files": [
+    {
+      "path": "ConSLAM_Building_00_GroundTruth_V9_wall_segment.ifc",
+      "role": "BIM_REFERENCE",
+      "mediaType": "application/x-step",
+      "bytes": 8956981,
+      "sha512": "55ceb265f2cb06dc3ca047adda94eb01b87cf8c36ba02bc20a783e97146ad64206eb86199ab0b7c82c598e9d860a2eb62441b9749a9cd8c2855727ad623c241e"
+    },
+    {
+      "path": "S2_All_LiDAR_poses_v5_denser_T31.tum",
+      "role": "REFERENCE_TRAJECTORY",
+      "sessionId": "conslam-session-2",
+      "mediaType": "text/plain",
+      "positionUnit": "m",
+      "bytes": 63817,
+      "sha512": "2517d2d020e6135edf541d240ef4bd7142fa29dd27d11739cb13b47edb4056764c95afe087d1dbb85d52e2adf30d31f8e05e01578a704a85636c4504017566c8"
+    },
+    {
+      "path": "S3_resulted_poses_FinalICP.tum",
+      "role": "REFERENCE_TRAJECTORY",
+      "sessionId": "conslam-session-3",
+      "mediaType": "text/plain",
+      "positionUnit": "m",
+      "bytes": 75846,
+      "sha512": "95c4f496e21710a6fafb6394510cdd563ec70a1c83f00c199521418bfca92f1d0f1aeea8088aada8575a984bc6dfde84d3e4a071c04836e778a1e16120c0fd83"
+    },
+    {
+      "path": "S4_resulted_poses_FinalICP.tum",
+      "role": "REFERENCE_TRAJECTORY",
+      "sessionId": "conslam-session-4",
+      "mediaType": "text/plain",
+      "positionUnit": "m",
+      "bytes": 64169,
+      "sha512": "1c1ef3c91baaef367e0a746932199c1685142795c62d2c6c11cdcda4c31734a1a41319fdf3c4592a0eca758c7541104563ccddced47ecd32a0ac558def5c8879"
+    },
+    {
+      "path": "S5_resulted_poses_FinalICP.tum",
+      "role": "REFERENCE_TRAJECTORY",
+      "sessionId": "conslam-session-5",
+      "mediaType": "text/plain",
+      "positionUnit": "m",
+      "bytes": 75447,
+      "sha512": "cfb8366c8cc52ead3cbf9efd894eb4317ba8e5faca080cb70799f81d42cb3aa4d26c2f2cfaae81f9f630183140c967fa1119b152c2e2ec26c290306848c633ff"
+    }
+  ]
+}

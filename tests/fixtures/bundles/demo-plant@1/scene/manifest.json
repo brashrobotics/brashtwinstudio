@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "brash.scene-manifest/v1",
+  "mapReleaseId": "demo-plant@1",
+  "frameId": "demo-plant/floor-1",
+  "bounds": {
+    "minimum": { "x": 0, "y": 0, "z": 0 },
+    "maximum": { "x": 30, "y": 20, "z": 5 }
+  },
+  "tiles": []
+}

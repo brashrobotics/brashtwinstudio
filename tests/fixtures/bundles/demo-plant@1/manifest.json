@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "brash.twin-map-bundle/v1",
+  "bundleId": "bundle-demo-plant-1",
+  "mapReleaseId": "demo-plant@1",
+  "familyId": "demo-plant",
+  "revision": 1,
+  "status": "PUBLISHED",
+  "createdAt": "2026-08-13T13:00:00.000Z",
+  "canonicalFrameId": "demo-plant/floor-1",
+  "units": {
+    "length": "m",
+    "angle": "rad"
+  },
+  "bounds": {
+    "minimum": { "x": 0, "y": 0, "z": 0 },
+    "maximum": { "x": 30, "y": 20, "z": 5 }
+  },
+  "artifacts": [
+    {
+      "role": "COORDINATE_FRAMES",
+      "path": "coordinate-frames.json",
+      "mediaType": "application/json",
+      "sha256": "9358c7778c6c368db8ba5fa9433499b31d1531661027353ab38cc2510f4a75d2",
+      "bytes": 765
+    },
+    {
+      "role": "NAVIGATION_TOPOLOGY",
+      "path": "topology.json",
+      "mediaType": "application/json",
+      "sha256": "3865ad049cff19f39d271535667cbacd85b4e5c879099013a7b917e394a0d6df",
+      "bytes": 2050
+    },
+    {
+      "role": "TWIN_ASSETS",
+      "path": "assets.json",
+      "mediaType": "application/json",
+      "sha256": "5e2cfce9ebf099511a0e97d86ea4ac5e181ba7dd5c50a1a80f495ee4c6ae2ea8",
+      "bytes": 2083
+    },
+    {
+      "role": "SEMANTIC_ZONES",
+      "path": "zones.geojson",
+      "mediaType": "application/geo+json",
+      "sha256": "b9428bed9847b0763e32518f490f0119315dd3d486f63ec0efc5ab76f6c4135b",
+      "bytes": 760
+    },
+    {
+      "role": "SCENE_MANIFEST",
+      "path": "scene/manifest.json",
+      "mediaType": "application/json",
+      "sha256": "612abe5cc12beee76db5ef28017724d4ae9777ceef580b9c7b14133e33ae598e",
+      "bytes": 239
+    }
+  ],
+  "compatibility": {
+    "navigationTopologyContract": "brash.navigation-topology/v1",
+    "sceneManifestContract": "brash.scene-manifest/v1",
+    "fleetLiveOverlayContract": "brash.fleet-live-overlay/v1"
+  }
+}

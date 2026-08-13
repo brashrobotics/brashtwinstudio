@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/coordinate-frames.v1.schema.json",
+  "title": "Brash Coordinate Frames v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "mapReleaseId", "canonicalFrameId", "frames"],
+  "properties": {
+    "schemaVersion": { "const": "brash.coordinate-frames/v1" },
+    "mapReleaseId": { "type": "string", "minLength": 1 },
+    "canonicalFrameId": { "type": "string", "minLength": 1 },
+    "frames": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["frameId", "parentFrameId", "transformToParent"],
+        "properties": {
+          "frameId": { "type": "string", "minLength": 1 },
+          "parentFrameId": { "type": ["string", "null"] },
+          "source": { "enum": ["CANONICAL", "CAD", "SLAM", "VENDOR_MAP", "SENSOR"] },
+          "transformToParent": { "$ref": "#/$defs/transform" },
+          "registrationRmseMeters": { "type": "number", "minimum": 0 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["translation", "rotation", "scale"],
+      "properties": {
+        "translation": { "$ref": "#/$defs/vector3" },
+        "rotation": { "$ref": "#/$defs/quaternion" },
+        "scale": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "vector3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z"],
+      "properties": { "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" } }
+    },
+    "quaternion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z", "w"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" },
+        "w": { "type": "number" }
+      }
+    }
+  }
+}

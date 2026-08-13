@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="30000mm"
+     height="20000mm"
+     viewBox="0 0 30000 20000"
+     aria-label="Synthetic production floor">
+  <title>Synthetic production floor</title>
+  <rect id="building-shell" x="0" y="0" width="30000" height="20000" fill="none" stroke="#222"/>
+  <path id="north-office" d="M 1500 1500 H 9000 V 6500 H 1500 Z" fill="none" stroke="#222"/>
+  <polyline id="material-aisle" points="2000,15000 10000,15000 16000,12000 27500,12000" fill="none" stroke="#555"/>
+  <polygon id="assembly-cell" points="17500,2000 27000,2000 27000,8500 17500,8500" fill="none" stroke="#555"/>
+  <g id="service-bay" transform="translate(500 250)">
+    <line id="service-divider" x1="12000" y1="1000" x2="12000" y2="8000" stroke="#777"/>
+  </g>
+  <path id="unsupported-curve" d="M 1000 1000 C 2000 2000 3000 3000 4000 4000" fill="none" stroke="#999"/>
+</svg>

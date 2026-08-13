@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/twin-assets.v1.schema.json",
+  "title": "Brash Twin Assets v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "mapReleaseId", "assets"],
+  "properties": {
+    "schemaVersion": { "const": "brash.twin-assets/v1" },
+    "mapReleaseId": { "type": "string", "minLength": 1 },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "assetId",
+          "displayName",
+          "semanticClass",
+          "mobilityClass",
+          "frameId",
+          "pose",
+          "footprint",
+          "bounds3d",
+          "properties",
+          "topologyBindings"
+        ],
+        "properties": {
+          "assetId": { "type": "string", "minLength": 1 },
+          "displayName": { "type": "string", "minLength": 1 },
+          "semanticClass": { "type": "string", "minLength": 1 },
+          "mobilityClass": { "enum": ["STATIC", "SEMI_STATIC", "MOBILE"] },
+          "frameId": { "type": "string", "minLength": 1 },
+          "pose": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["position", "orientation"],
+            "properties": {
+              "position": { "$ref": "#/$defs/vector3" },
+              "orientation": { "$ref": "#/$defs/quaternion" }
+            }
+          },
+          "footprint": {
+            "type": "array",
+            "minItems": 3,
+            "items": { "$ref": "#/$defs/point2" }
+          },
+          "bounds3d": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["minimum", "maximum"],
+            "properties": {
+              "minimum": { "$ref": "#/$defs/vector3" },
+              "maximum": { "$ref": "#/$defs/vector3" }
+            }
+          },
+          "properties": { "type": "object" },
+          "topologyBindings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "targetId"],
+              "properties": {
+                "kind": { "enum": ["NODE", "EDGE", "ZONE"] },
+                "targetId": { "type": "string", "minLength": 1 }
+              }
+            }
+          },
+          "changePolicy": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["positionToleranceMeters", "minimumConfidence", "requiredConfirmations"],
+            "properties": {
+              "positionToleranceMeters": { "type": "number", "minimum": 0 },
+              "minimumConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+              "requiredConfirmations": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "point2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": { "x": { "type": "number" }, "y": { "type": "number" } }
+    },
+    "vector3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z"],
+      "properties": { "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" } }
+    },
+    "quaternion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z", "w"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" },
+        "w": { "type": "number" }
+      }
+    }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/registration-report/v1/schema.json",
+  "title": "Brash Registration Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "sourceFrameId", "canonicalFrameId", "solver", "transform", "residuals", "metrics"],
+  "properties": {
+    "schemaVersion": { "const": "brash.registration-report/v1" },
+    "sourceFrameId": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "canonicalFrameId": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "solver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "configurationSha256", "allowScale"],
+      "properties": {
+        "name": { "const": "brash.similarity-2d" },
+        "version": { "type": "string", "minLength": 1 },
+        "configurationSha256": { "$ref": "#/$defs/sha256" },
+        "allowScale": { "type": "boolean" }
+      }
+    },
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scale", "rotationRadians", "translation"],
+      "properties": {
+        "scale": { "type": "number", "exclusiveMinimum": 0, "maximum": 100 },
+        "rotationRadians": { "type": "number" },
+        "translation": { "$ref": "#/$defs/point2" }
+      }
+    },
+    "residuals": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["controlPointId", "source", "target", "transformed", "dxMetres", "dyMetres", "errorMetres"],
+        "properties": {
+          "controlPointId": { "type": "string", "minLength": 1, "maxLength": 255 },
+          "source": { "$ref": "#/$defs/point2" },
+          "target": { "$ref": "#/$defs/point2" },
+          "transformed": { "$ref": "#/$defs/point2" },
+          "dxMetres": { "type": "number" },
+          "dyMetres": { "type": "number" },
+          "errorMetres": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["controlPointCount", "rmseMetres", "maximumErrorMetres", "meanErrorMetres", "scaleDeviation"],
+      "properties": {
+        "controlPointCount": { "type": "integer", "minimum": 3, "maximum": 1000 },
+        "rmseMetres": { "type": "number", "minimum": 0 },
+        "maximumErrorMetres": { "type": "number", "minimum": 0 },
+        "meanErrorMetres": { "type": "number", "minimum": 0 },
+        "scaleDeviation": { "type": "number", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "point2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": { "x": { "type": "number" }, "y": { "type": "number" } }
+    }
+  }
+}

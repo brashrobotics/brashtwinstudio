@@ -1,0 +1,12 @@
+{
+  "name": "@brash-twin/manual-twin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./index.ts",
+  "dependencies": {
+    "@brash-twin/importers": "*",
+    "@brash-twin/spatial-editor": "*",
+    "@brash-twin/viewer-sdk": "*"
+  }
+}

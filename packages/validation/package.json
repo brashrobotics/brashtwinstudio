@@ -1,0 +1,14 @@
+{
+  "name": "@brash-twin/validation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./draft": "./draft.js"
+  },
+  "dependencies": {
+    "@brash-twin/contracts": "*",
+    "@brash-twin/coordinate-frames": "*"
+  }
+}

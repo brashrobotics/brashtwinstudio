@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/raw-survey-package.v1.schema.json",
+  "title": "Brash Raw Survey Package v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "surveyId",
+    "siteId",
+    "floorId",
+    "robotId",
+    "startedAt",
+    "completedAt",
+    "clock",
+    "sensors",
+    "recordings"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "brash.raw-survey-package/v1" },
+    "surveyId": { "type": "string", "minLength": 1 },
+    "siteId": { "type": "string", "minLength": 1 },
+    "floorId": { "type": "string", "minLength": 1 },
+    "robotId": { "type": "string", "minLength": 1 },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "completedAt": { "type": "string", "format": "date-time" },
+    "clock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "synchronized", "maximumOffsetMilliseconds"],
+      "properties": {
+        "source": { "type": "string", "minLength": 1 },
+        "synchronized": { "type": "boolean" },
+        "maximumOffsetMilliseconds": { "type": "number", "minimum": 0 }
+      }
+    },
+    "sensors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sensorId", "type", "frameId", "calibrationArtifact"],
+        "properties": {
+          "sensorId": { "type": "string", "minLength": 1 },
+          "type": { "enum": ["LIDAR_2D", "LIDAR_3D", "RGB_CAMERA", "DEPTH_CAMERA", "IMU", "ODOMETRY"] },
+          "frameId": { "type": "string", "minLength": 1 },
+          "calibrationArtifact": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "recordings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "mediaType", "sha256", "bytes"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "mediaType": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "bytes": { "type": "integer", "minimum": 1 }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+node_modules/
+coverage/
+dist/
+.cache/
+.DS_Store
+*.log
+*.pyc
+__pycache__/
+.env
+.local/
+
+# Survey and generated spatial data must live outside source control.
+*.bag
+*.db3
+*.las
+*.laz
+*.pcd
+*.ply
+*.e57
+*.glb
+*.gltf
+*.ifc
+*.dxf
+raw-surveys/
+processed/

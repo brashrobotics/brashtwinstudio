@@ -1,0 +1,23 @@
+# Versioned Schemas
+
+The schemas in this directory define Twin Studio file and integration boundaries.
+
+- `raw-survey-package.v1.schema.json`: Sensor collection manifest.
+- `twin-map-bundle.v1.schema.json`: Published release manifest.
+- `coordinate-frames.v1.schema.json`: Spatial frame tree.
+- `navigation-topology.v1.schema.json`: Fleet-compatible driving graph.
+- `twin-assets.v1.schema.json`: 2D/3D semantic asset catalog.
+- `scene-manifest.v1.schema.json`: Optimized scene and LOD parts.
+- `fleet-live-overlay.v1.schema.json`: Future live 3D visualization boundary.
+- `draft-validation-report.v1.schema.json`: Immutable validation evidence,
+  deterministic validator identity, issue severity, and UI-ready spatial or
+  document locations.
+- `floorplan-import-report.v1.schema.json`: Deterministic SVG source and
+  configuration provenance, metre-normalized floorplan geometry, bounds, and
+  non-fatal import warnings.
+- `registration-report.v1.schema.json`: Control-point inputs, deterministic 2D
+  solver identity, canonical transform, per-point residuals, RMSE, maximum
+  error, and scale deviation.
+
+Published schemas are extended only in backward-compatible ways. Changes to
+meaning or required fields require a new major version.

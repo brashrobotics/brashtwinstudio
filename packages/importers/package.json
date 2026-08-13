@@ -1,0 +1,13 @@
+{
+  "name": "@brash-twin/importers",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./svg-floorplan": "./svg-floorplan.ts"
+  },
+  "dependencies": {
+    "@brash-twin/viewer-sdk": "*"
+  }
+}

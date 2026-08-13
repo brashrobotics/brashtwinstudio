@@ -1,0 +1,18 @@
+{
+  "name": "@brash-twin/persistence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./draft-artifacts": "./draft-artifacts.js",
+    "./outbox": "./outbox.js",
+    "./postgres": "./postgres.js",
+    "./publications": "./publications.js",
+    "./uploads": "./uploads.js",
+    "./validation-jobs": "./validation-jobs.js"
+  },
+  "dependencies": {
+    "pg": "^8.23.0"
+  }
+}

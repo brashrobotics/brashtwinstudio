@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "brash.coordinate-frames/v1",
+  "mapReleaseId": "demo-plant@1",
+  "canonicalFrameId": "demo-plant/floor-1",
+  "frames": [
+    {
+      "frameId": "demo-plant/floor-1",
+      "parentFrameId": null,
+      "source": "CANONICAL",
+      "transformToParent": {
+        "translation": { "x": 0, "y": 0, "z": 0 },
+        "rotation": { "x": 0, "y": 0, "z": 0, "w": 1 },
+        "scale": 1
+      }
+    },
+    {
+      "frameId": "cad/floor-1",
+      "parentFrameId": "demo-plant/floor-1",
+      "source": "CAD",
+      "transformToParent": {
+        "translation": { "x": 0.15, "y": -0.08, "z": 0 },
+        "rotation": { "x": 0, "y": 0, "z": 0.0087265355, "w": 0.9999619231 },
+        "scale": 1
+      },
+      "registrationRmseMeters": 0.041
+    }
+  ]
+}

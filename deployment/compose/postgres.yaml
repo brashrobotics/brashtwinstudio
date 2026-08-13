@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${TWIN_POSTGRES_USER:-twin}
+      POSTGRES_PASSWORD: ${TWIN_POSTGRES_PASSWORD:-twin-local-only}
+      POSTGRES_DB: ${TWIN_POSTGRES_DATABASE:-brash_twin}
+    ports:
+      - "127.0.0.1:${TWIN_POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - twin-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  twin-postgres-data:

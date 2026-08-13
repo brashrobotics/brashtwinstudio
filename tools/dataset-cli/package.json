@@ -1,0 +1,9 @@
+{
+  "name": "@brash-twin/dataset-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@brash-twin/importers": "0.1.0"
+  }
+}

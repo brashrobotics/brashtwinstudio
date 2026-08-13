@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/fleet-live-overlay.v1.schema.json",
+  "title": "Brash Fleet Live Overlay v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "mapReleaseId", "sequence", "observedAt", "robots", "routes", "alarms"],
+  "properties": {
+    "schemaVersion": { "const": "brash.fleet-live-overlay/v1" },
+    "mapReleaseId": { "type": "string", "minLength": 1 },
+    "sequence": { "type": "integer", "minimum": 0 },
+    "observedAt": { "type": "string", "format": "date-time" },
+    "robots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["robotId", "frameId", "position", "orientation", "state", "poseObservedAt"],
+        "properties": {
+          "robotId": { "type": "string", "minLength": 1 },
+          "frameId": { "type": "string", "minLength": 1 },
+          "position": { "$ref": "#/$defs/vector3" },
+          "orientation": { "$ref": "#/$defs/quaternion" },
+          "state": { "type": "string", "minLength": 1 },
+          "missionId": { "type": ["string", "null"] },
+          "poseObservedAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["routeId", "robotId", "edgeIds", "state"],
+        "properties": {
+          "routeId": { "type": "string", "minLength": 1 },
+          "robotId": { "type": "string", "minLength": 1 },
+          "edgeIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "state": { "enum": ["PLANNED", "RESERVED", "ACTIVE", "DELAYED", "SAFETY_HOLD"] }
+        }
+      }
+    },
+    "alarms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["alarmId", "severity", "message"],
+        "properties": {
+          "alarmId": { "type": "string", "minLength": 1 },
+          "severity": { "enum": ["INFO", "WARNING", "CRITICAL"] },
+          "message": { "type": "string", "minLength": 1 },
+          "robotId": { "type": "string" },
+          "assetId": { "type": "string" },
+          "edgeId": { "type": "string" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "vector3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z"],
+      "properties": { "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" } }
+    },
+    "quaternion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z", "w"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" },
+        "w": { "type": "number" }
+      }
+    }
+  }
+}
