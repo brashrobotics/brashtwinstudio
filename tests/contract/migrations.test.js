@@ -23,6 +23,7 @@ test("metadata migrations are ordered, transactional, and forward-only", async (
     "013_registration_acceptance.sql",
     "014_survey_quality_review.sql",
     "015_semantic_asset_candidates.sql",
+    "016_twin_asset_promotion_changes.sql",
   ]);
 
   for (const file of files) {
@@ -31,6 +32,14 @@ test("metadata migrations are ordered, transactional, and forward-only", async (
     assert.match(sql, /COMMIT;\s*$/);
     assert.doesNotMatch(sql, /\b(?:DROP\s+TABLE|TRUNCATE|DELETE\s+FROM)\b/i);
   }
+});
+
+test("Twin asset promotion and change reports extend immutable spatial provenance", async () => {
+  const sql = await readFile(`${migrationDirectory}/016_twin_asset_promotion_changes.sql`, "utf8");
+  assert.match(sql, /'TWIN_ASSETS'/);
+  assert.match(sql, /'ASSET_CHANGE_REPORT'/);
+  assert.match(sql, /artifact_kind = 'DERIVED'/);
+  assert.match(sql, /twin_draft_artifacts_spatial_frame_check/);
 });
 
 test("semantic observations and reviewed asset candidates extend immutable provenance", async () => {

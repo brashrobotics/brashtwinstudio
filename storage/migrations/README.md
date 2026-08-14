@@ -51,6 +51,9 @@ Published releases and audit history must never be deleted during migration.
   operator acceptance roles derived from one materialization preview.
 - `015_semantic_asset_candidates.sql`: Derived semantic observations, canonical
   asset-candidate reports, and immutable operator-review provenance roles.
+- `016_twin_asset_promotion_changes.sql`: Spatial, derived `TWIN_ASSETS` revision
+  and `ASSET_CHANGE_REPORT` roles protected by the append-only draft provenance
+  graph.
 
 PostgreSQL triggers prevent updates and deletes to primary release records,
 release-artifact bindings, and asset revisions linked to a release. Draft artifact

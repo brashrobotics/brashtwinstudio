@@ -13,6 +13,7 @@ import { SurveyIntakeService } from "@brash-twin/application/survey-intakes";
 import { SurveyMaterializationService } from "@brash-twin/application/survey-materializations";
 import { SurveyQualityReviewService } from "@brash-twin/application/survey-quality-reviews";
 import { SemanticCandidateService } from "@brash-twin/application/semantic-candidates";
+import { TwinAssetService } from "@brash-twin/application/twin-assets";
 import { SurveyRegistrationService } from "@brash-twin/application/survey-registrations";
 import {
   ImmutableReleaseStore,
@@ -82,6 +83,13 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
     uploadSystem,
     { clock: () => new Date("2026-08-13T14:00:00.000Z") },
   );
+  const twinAssets = memoryTwinAssets(
+    catalog,
+    semanticCandidates,
+    draftArtifacts,
+    uploadSystem,
+    { clock: () => new Date("2026-08-13T14:00:00.000Z") },
+  );
   const api = new TwinApi({
     catalog,
     uploads: uploadSystem.uploads,
@@ -91,6 +99,7 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
     surveyQualityReviews,
     surveyRegistrations,
     semanticCandidates,
+    twinAssets,
     validationJobs,
     releaseStore,
   });
@@ -489,6 +498,82 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
         .body.candidateSets[0].review.report.decisions[0].displayName,
       "Main Electrical Panel",
     );
+    const promotedAssets = await request(baseUrl, "POST", "/api/v1/map-drafts/draft-demo-2/twin-assets", {
+      assetSetId: "asset-set-1",
+      candidateSetId: "candidate-set-1",
+      operatorId: "asset-curator-1",
+    });
+    assert.equal(promotedAssets.status, 201);
+    assert.equal(promotedAssets.body.assetSet.report.revision, 1);
+    assert.equal(promotedAssets.body.assetSet.report.assets[0].displayName, "Main Electrical Panel");
+    assert.equal(
+      (await request(baseUrl, "GET", "/api/v1/map-drafts/draft-demo-2/twin-assets")).body.assetSets.length,
+      1,
+    );
+
+    const laterObservationContent = Buffer.from(`${JSON.stringify({
+      schemaVersion: "brash.semantic-observations/v1",
+      observationSetId: "observation-set-2",
+      sourceFrameId: "slam-map",
+      model: semanticModel,
+      observations: [{
+        observationId: "panel-observation-2",
+        classId: "electrical-panel",
+        confidence: 0.97,
+        position: [2, 2, 1.2],
+        dimensions: [0.8, 0.4, 1.8],
+        evidence: [{
+          bindingId: materializationRun.body.job.output.previewBindingId,
+          artifactSha256: materializationRun.body.job.output.previewSha256,
+        }],
+      }, {
+        observationId: "barrier-observation-1",
+        classId: "safety-barrier",
+        confidence: 0.9,
+        position: [3, 3, 1],
+        dimensions: [1.5, 0.2, 1],
+        evidence: [{
+          bindingId: materializationRun.body.job.output.previewBindingId,
+          artifactSha256: materializationRun.body.job.output.previewSha256,
+        }],
+      }],
+    }, null, 2)}\n`);
+    await uploadThroughApi(
+      baseUrl,
+      uploadSystem.multipartStore,
+      "semantic-observations-upload-2",
+      laterObservationContent,
+      "application/json",
+      "semantic-observations-2.json",
+    );
+    assert.equal((await request(baseUrl, "POST", "/api/v1/map-drafts/draft-demo-2/artifacts", {
+      bindingId: "semantic-observations-2",
+      uploadId: "semantic-observations-upload-2",
+      role: "SEMANTIC_OBSERVATIONS",
+      coordinateFrameId: "slam-map",
+      inputBindingIds: [materializationRun.body.job.output.previewBindingId],
+      producer: semanticModel,
+      operatorId: "semantic-worker-1",
+    })).status, 201);
+    assert.equal((await request(baseUrl, "POST", "/api/v1/map-drafts/draft-demo-2/semantic-candidates", {
+      candidateSetId: "candidate-set-2",
+      registrationId: "survey-registration-1",
+      observationBindingId: "semantic-observations-2",
+      operatorId: "semantic-operator-1",
+    })).status, 201);
+    const detectedChanges = await request(baseUrl, "POST", "/api/v1/map-drafts/draft-demo-2/asset-changes", {
+      changeSetId: "change-set-1",
+      candidateSetId: "candidate-set-2",
+      operatorId: "change-worker-1",
+    });
+    assert.equal(detectedChanges.status, 201);
+    assert.equal(detectedChanges.body.changeSet.report.summary.movedCount, 1);
+    assert.equal(detectedChanges.body.changeSet.report.summary.appearedCount, 1);
+    assert.ok(detectedChanges.body.changeSet.report.changes.every((change) => change.reviewStatus === "REVIEW_REQUIRED"));
+    assert.equal(
+      (await request(baseUrl, "GET", "/api/v1/map-drafts/draft-demo-2/asset-changes")).body.changeSets.length,
+      1,
+    );
 
     const reportContent = Buffer.from("deterministic IFC import report");
     const reportSha256 = createHash("sha256").update(reportContent).digest("hex");
@@ -543,18 +628,24 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
           "SEMANTIC_OBSERVATIONS",
           "ASSET_CANDIDATE_REPORT",
           "ASSET_CANDIDATE_REVIEW",
+          "TWIN_ASSETS",
+          "ASSET_CHANGE_REPORT",
         ].includes(artifact.role))
         .map((artifact) => artifact.bindingId),
       [
         "asset-candidate-report-candidate-set-1",
+        "asset-candidate-report-candidate-set-2",
         "asset-candidate-review-candidate-set-1",
+        "asset-change-report-change-set-1",
         "import-report-1",
         "semantic-observations-1",
+        "semantic-observations-2",
         "source-ifc-1",
         "survey-quality-acceptance-survey-quality-1",
         "survey-quality-report-survey-quality-1",
         "survey-registration-acceptance-survey-registration-1",
         "survey-registration-report-survey-registration-1",
+        "twin-assets-asset-set-1",
       ],
     );
 
@@ -598,6 +689,7 @@ test("HTTP boundary rejects malformed JSON without invoking application logic", 
   const surveyQualityReviews = memorySurveyQualityReviews(catalog, surveyMaterializations, draftArtifacts, uploadSystem);
   const surveyRegistrations = memorySurveyRegistrations(catalog, surveyMaterializations, draftArtifacts, uploadSystem, surveyQualityReviews);
   const semanticCandidates = memorySemanticCandidates(catalog, surveyRegistrations, draftArtifacts, uploadSystem);
+  const twinAssets = memoryTwinAssets(catalog, semanticCandidates, draftArtifacts, uploadSystem);
   const api = new TwinApi({
     catalog,
     uploads: uploadSystem.uploads,
@@ -607,6 +699,7 @@ test("HTTP boundary rejects malformed JSON without invoking application logic", 
     surveyQualityReviews,
     surveyRegistrations,
     semanticCandidates,
+    twinAssets,
     validationJobs: memoryValidationJobs(catalog, draftArtifacts, uploadSystem),
     releaseStore: new ImmutableReleaseStore(storeRoot),
   });
@@ -716,6 +809,17 @@ function memorySemanticCandidates(catalog, registrations, draftArtifacts, upload
   return new SemanticCandidateService({
     catalog,
     registrations,
+    draftArtifacts,
+    uploads: uploadSystem.uploads,
+    multipartStore: uploadSystem.multipartStore,
+    ...options,
+  });
+}
+
+function memoryTwinAssets(catalog, semanticCandidates, draftArtifacts, uploadSystem, options = {}) {
+  return new TwinAssetService({
+    catalog,
+    semanticCandidates,
     draftArtifacts,
     uploads: uploadSystem.uploads,
     multipartStore: uploadSystem.multipartStore,

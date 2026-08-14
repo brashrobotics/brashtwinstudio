@@ -1663,6 +1663,27 @@ gating, and the synthetic idempotent demo cover observation-to-review
 provenance. Permanent asset promotion, change detection, Fleet Control, and
 robot-side SLAM remain outside this increment.
 
+### Increment 21 — Versioned Twin assets and observed changes
+
+- Promote only accepted candidate decisions through an explicit audited command
+  into immutable `TWIN_ASSETS` draft revisions
+- Preserve stable asset identity, canonical 2D/3D geometry, change policy,
+  source observation, candidate report, review, and predecessor lineage
+- Compare a later approved-registration candidate report with the latest asset
+  baseline using deterministic class-nearest matching
+- Emit immutable review-required `MOVED`, `MISSING`, and `APPEARED` evidence
+  without mutating the baseline or any published release
+- Bound missing detection to the declared observed envelope and disclose this
+  heuristic in both the report and Studio until explicit visibility evidence is
+  available
+- Render promoted assets and change markers in the shared Studio 2D/3D world
+
+**Status:** Completed on August 14, 2026. Versioned JSON Schemas, OpenAPI,
+PostgreSQL migration 016, application/API/viewer tests, and the deterministic
+demo cover review-to-asset promotion and later-observation comparison. Change
+confirmation, notifications, Fleet Control, and robot-side SLAM remain outside
+this increment.
+
 ---
 
 ## 30. Karar kapıları

@@ -75,6 +75,11 @@ The operator interface for mapping and digital-twin workflows.
 - Unreviewed and accepted candidates render on the shared Assets layer in both
   2D and 3D; rejected observations are hidden and no review silently promotes a
   candidate into a permanent Twin asset.
+- Explicit accepted-candidate promotion into predecessor-linked Twin asset
+  revisions, rendered as canonical 2D/3D asset geometry.
+- Later-observation comparison controls and moved/missing/appeared summaries;
+  every change remains review-required, and approximate missing-envelope
+  evidence is disclosed in the operator panel.
 
 The milestone publication button creates a browser-local acceptance preview. It
 does not replace the production Twin API publication service, durable object

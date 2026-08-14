@@ -4,6 +4,8 @@ import type { TwinApiClient } from "../../api/client";
 import type {
   DraftArtifactBinding,
   AssetCandidateSetRecord,
+  AssetChangeSetRecord,
+  DraftTwinAssetSetRecord,
   ReviewAssetCandidateSetInput,
   MapDraft,
   MapDraftStatus,
@@ -74,6 +76,16 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
     queryFn: ({ signal }) => api.listSemanticCandidateSets(draftId, signal),
     enabled: draftId !== "",
   });
+  const twinAssetSets = useQuery({
+    queryKey: ["twin-assets", draftId],
+    queryFn: ({ signal }) => api.listDraftTwinAssetSets(draftId, signal),
+    enabled: draftId !== "",
+  });
+  const assetChangeSets = useQuery({
+    queryKey: ["asset-changes", draftId],
+    queryFn: ({ signal }) => api.listDraftAssetChangeSets(draftId, signal),
+    enabled: draftId !== "",
+  });
   const releases = useQuery({
     queryKey: ["releases"],
     queryFn: ({ signal }) => api.listReleases(signal),
@@ -113,6 +125,27 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
     () => latestSemanticCandidateSet(semanticCandidateSets.data ?? []),
     [semanticCandidateSets.data],
   );
+  const latestAssetSet = useMemo(() => latestTwinAssetSet(twinAssetSets.data ?? []), [twinAssetSets.data]);
+  const latestChangeSet = useMemo(() => latestAssetChangeSet(assetChangeSets.data ?? []), [assetChangeSets.data]);
+  const promotableCandidateSet = useMemo(() => {
+    const promoted = new Set((latestAssetSet?.report.assets ?? []).map((asset) => asset.source.candidateSetId));
+    const compared = new Set((assetChangeSets.data ?? []).map((changeSet) => changeSet.report.observations.candidateSetId));
+    return [...(semanticCandidateSets.data ?? [])].reverse().find((candidateSet) => (
+      candidateSet.review !== null
+      && candidateSet.review.report.summary.acceptedCount > 0
+      && !promoted.has(candidateSet.report.candidateSetId)
+      && !compared.has(candidateSet.report.candidateSetId)
+    )) ?? null;
+  }, [assetChangeSets.data, latestAssetSet, semanticCandidateSets.data]);
+  const changeCandidateSet = useMemo(() => {
+    if (!latestAssetSet) return null;
+    const baselineSources = new Set(latestAssetSet.report.assets.map((asset) => asset.source.candidateSetId));
+    const compared = new Set((assetChangeSets.data ?? []).map((changeSet) => changeSet.report.observations.candidateSetId));
+    return [...(semanticCandidateSets.data ?? [])].reverse().find((candidateSet) => (
+      !baselineSources.has(candidateSet.report.candidateSetId)
+      && !compared.has(candidateSet.report.candidateSetId)
+    )) ?? null;
+  }, [assetChangeSets.data, latestAssetSet, semanticCandidateSets.data]);
   const createQuality = useMutation({
     mutationFn: () => api.createSurveyQualityReview(draftId, {
       materializationJobId: latestMaterialization!.jobId,
@@ -160,6 +193,26 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
       input,
     ),
     onSuccess: async () => queryClient.invalidateQueries({ queryKey: ["semantic-candidates", draftId] }),
+  });
+  const promoteAssets = useMutation({
+    mutationFn: () => api.promoteDraftTwinAssets(draftId, {
+      candidateSetId: promotableCandidateSet!.report.candidateSetId,
+      operatorId: identity.subject,
+    }),
+    onSuccess: async () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["twin-assets", draftId] }),
+      queryClient.invalidateQueries({ queryKey: ["draft-artifacts", draftId] }),
+    ]),
+  });
+  const detectChanges = useMutation({
+    mutationFn: () => api.detectDraftAssetChanges(draftId, {
+      candidateSetId: changeCandidateSet!.report.candidateSetId,
+      operatorId: identity.subject,
+    }),
+    onSuccess: async () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["asset-changes", draftId] }),
+      queryClient.invalidateQueries({ queryKey: ["draft-artifacts", draftId] }),
+    ]),
   });
   const registrationTargets = useMemo(() => (draftArtifacts.data ?? []).filter(
     (artifact) => ["BIM_SOURCE", "FLOORPLAN_SOURCE"].includes(artifact.role)
@@ -244,6 +297,8 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
               surveyRegistration={latestRegistration?.report ?? null}
               surveyQuality={latestQuality?.report ?? null}
               semanticCandidateSet={latestCandidateSet}
+              twinAssetSet={latestAssetSet}
+              assetChangeSet={latestChangeSet}
             />
           </Suspense>
 
@@ -287,10 +342,22 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
               onCreate={(observationBindingId) => createCandidateSet.mutateAsync(observationBindingId)}
               onReview={(input) => reviewCandidateSet.mutateAsync(input)}
             />
+            <TwinAssetsPanel
+              assetSet={latestAssetSet}
+              changeSet={latestChangeSet}
+              promotableCandidateSet={promotableCandidateSet}
+              changeCandidateSet={changeCandidateSet}
+              busy={promoteAssets.isPending || detectChanges.isPending}
+              error={[promoteAssets.error, detectChanges.error].find(
+                (candidate) => candidate instanceof Error,
+              )?.message ?? null}
+              onPromote={() => promoteAssets.mutateAsync()}
+              onDetectChanges={() => detectChanges.mutateAsync()}
+            />
             <ValidationPanel job={latestValidation} loading={validationJobs.isPending && draftId !== ""} />
             <section className="panel release-panel">
               <div className="panel-heading compact">
-                <div><p className="section-index">09 / OUTPUT</p><h3>{t("latestReleases")}</h3></div>
+                <div><p className="section-index">10 / OUTPUT</p><h3>{t("latestReleases")}</h3></div>
                 <span className="count-chip">{releases.data?.length ?? 0}</span>
               </div>
               {(releases.data?.length ?? 0) === 0 ? <p className="muted-copy">{t("noReleases")}</p> : (
@@ -349,13 +416,86 @@ function DraftPanel({ draft }: { draft: MapDraft | null }) {
   );
 }
 
+function TwinAssetsPanel({
+  assetSet,
+  changeSet,
+  promotableCandidateSet,
+  changeCandidateSet,
+  busy,
+  error,
+  onPromote,
+  onDetectChanges,
+}: {
+  assetSet: DraftTwinAssetSetRecord | null;
+  changeSet: AssetChangeSetRecord | null;
+  promotableCandidateSet: AssetCandidateSetRecord | null;
+  changeCandidateSet: AssetCandidateSetRecord | null;
+  busy: boolean;
+  error: string | null;
+  onPromote(): Promise<unknown>;
+  onDetectChanges(): Promise<unknown>;
+}) {
+  const { t } = useI18n();
+  return (
+    <section className="panel twin-assets-panel">
+      <div className="panel-heading compact">
+        <div><p className="section-index">08 / TWIN ASSETS</p><h3>{t("twinAssets")}</h3></div>
+        {assetSet && <span className="job-state job-succeeded">r{assetSet.report.revision}</span>}
+      </div>
+      {!assetSet && !promotableCandidateSet ? (
+        <p className="muted-copy">{t("twinAssetsNeedReview")}</p>
+      ) : (
+        <>
+          {assetSet && (
+            <dl className="metadata-list">
+              <div><dt>{t("assetRevision")}</dt><dd>r{assetSet.report.revision}</dd></div>
+              <div><dt>{t("assetCount")}</dt><dd>{assetSet.report.assets.length}</dd></div>
+              <div className="metadata-wide"><dt>{t("promotedBy")}</dt><dd>{assetSet.report.promotedBy}</dd></div>
+            </dl>
+          )}
+          {promotableCandidateSet && (
+            <button className="registration-submit" type="button" disabled={busy} onClick={() => void onPromote()}>
+              {assetSet ? t("promoteAssetRevision") : t("promoteTwinAssets")}
+            </button>
+          )}
+          {assetSet && changeCandidateSet && (
+            <button className="registration-submit" type="button" disabled={busy} onClick={() => void onDetectChanges()}>
+              {t("detectAssetChanges")}
+            </button>
+          )}
+          {assetSet && !changeCandidateSet && !changeSet && <p className="muted-copy">{t("assetChangesNeedLaterScan")}</p>}
+        </>
+      )}
+      {changeSet && (
+        <div className="asset-change-summary">
+          <p className="job-id">{changeSet.report.changeSetId} · {t("reviewRequired")}</p>
+          <dl className="metadata-list">
+            <div><dt>{t("movedAssets")}</dt><dd>{changeSet.report.summary.movedCount}</dd></div>
+            <div><dt>{t("missingAssets")}</dt><dd>{changeSet.report.summary.missingCount}</dd></div>
+            <div><dt>{t("appearedAssets")}</dt><dd>{changeSet.report.summary.appearedCount}</dd></div>
+            <div><dt>{t("unchangedAssets")}</dt><dd>{changeSet.report.summary.unchangedCount}</dd></div>
+          </dl>
+          <ul className="semantic-review-list">{changeSet.report.changes.map((change) => (
+            <li key={change.changeId}>
+              <strong>{change.semanticClass}</strong>
+              <span>{change.changeType} · {(change.confidence * 100).toFixed(0)}%</span>
+            </li>
+          ))}</ul>
+          <p className="muted-copy">{t("assetChangeEnvelopeNotice")}</p>
+        </div>
+      )}
+      {error && <p className="registration-error" role="alert">{error}</p>}
+    </section>
+  );
+}
+
 function ValidationPanel({ job, loading }: { job: ValidationJob | null; loading: boolean }) {
   const { t } = useI18n();
   const summary = job?.output?.summary;
   return (
     <section className="panel validation-panel">
       <div className="panel-heading compact">
-        <div><p className="section-index">08 / VALIDATE</p><h3>{t("validation")}</h3></div>
+        <div><p className="section-index">09 / VALIDATE</p><h3>{t("validation")}</h3></div>
         {job && <span className={`job-state job-${job.status.toLowerCase()}`}>{job.status}</span>}
       </div>
       {loading ? <div className="skeleton-row" /> : job ? (
@@ -771,5 +911,15 @@ function latestSurveyQualityReview(reviews: SurveyQualityRecord[], materializati
 
 function latestSemanticCandidateSet(candidateSets: AssetCandidateSetRecord[]): AssetCandidateSetRecord | null {
   return [...candidateSets]
-    .sort((left, right) => right.report.createdAt.localeCompare(left.report.createdAt))[0] ?? null;
+    .sort((left, right) => right.report.createdAt.localeCompare(left.report.createdAt)
+      || right.report.candidateSetId.localeCompare(left.report.candidateSetId))[0] ?? null;
+}
+
+function latestTwinAssetSet(assetSets: DraftTwinAssetSetRecord[]): DraftTwinAssetSetRecord | null {
+  return [...assetSets].sort((left, right) => right.report.revision - left.report.revision)[0] ?? null;
+}
+
+function latestAssetChangeSet(changeSets: AssetChangeSetRecord[]): AssetChangeSetRecord | null {
+  return [...changeSets].sort((left, right) => right.report.createdAt.localeCompare(left.report.createdAt)
+    || right.report.changeSetId.localeCompare(left.report.changeSetId))[0] ?? null;
 }

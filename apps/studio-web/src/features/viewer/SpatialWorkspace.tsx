@@ -19,14 +19,14 @@ import {
 } from "@brash-twin/manual-twin";
 import { useEffect, useRef, useState, useSyncExternalStore, type ChangeEvent } from "react";
 import { useI18n } from "../../i18n/i18n";
-import type { AssetCandidateSetRecord, SurveyMaterializationPreview, SurveyQualityReport, SurveyRegistrationReport } from "../../api/types";
+import type { AssetCandidateSetRecord, AssetChangeSetRecord, DraftTwinAssetSetRecord, SurveyMaterializationPreview, SurveyQualityReport, SurveyRegistrationReport } from "../../api/types";
 import { diagnosticEntities, diagnosticLayers } from "./diagnosticWorld";
 import { diagnosticEditorFeatures } from "./editorSeed";
 import { EditorToolbar, FeatureInspector } from "./EditorControls";
 import { ManualTwinMilestone } from "./ManualTwinMilestone";
 import { ThreeWorldRuntime, type WorldInteraction } from "./threeRuntime";
 import { surveyCoverageWorldEntities, surveyPreviewWorldEntities } from "./surveyPreviewWorld";
-import { semanticCandidateWorldEntities } from "./semanticCandidateWorld";
+import { assetChangeWorldEntities, draftTwinAssetWorldEntities, semanticCandidateWorldEntities } from "./semanticCandidateWorld";
 
 export function SpatialWorkspace({
   canonicalFrameId,
@@ -36,6 +36,8 @@ export function SpatialWorkspace({
   surveyRegistration,
   surveyQuality,
   semanticCandidateSet,
+  twinAssetSet,
+  assetChangeSet,
 }: {
   canonicalFrameId: string;
   familyId: string;
@@ -44,6 +46,8 @@ export function SpatialWorkspace({
   surveyRegistration: SurveyRegistrationReport | null;
   surveyQuality: SurveyQualityReport | null;
   semanticCandidateSet: AssetCandidateSetRecord | null;
+  twinAssetSet: DraftTwinAssetSetRecord | null;
+  assetChangeSet: AssetChangeSetRecord | null;
 }) {
   const { t } = useI18n();
   const [editorStore] = useState<SpatialEditorStore>(() => createSpatialEditorStore(diagnosticEditorFeatures));
@@ -188,7 +192,10 @@ export function SpatialWorkspace({
       ...alignedCad,
       ...registeredSurvey,
       ...registeredCoverage,
-      ...(semanticCandidateSet ? semanticCandidateWorldEntities(semanticCandidateSet) : []),
+      ...(twinAssetSet
+        ? draftTwinAssetWorldEntities(twinAssetSet)
+        : semanticCandidateSet ? semanticCandidateWorldEntities(semanticCandidateSet) : []),
+      ...(assetChangeSet ? assetChangeWorldEntities(assetChangeSet) : []),
       ...evidence,
       ...spatialFeaturesToWorldEntities(editorSnapshot.document.features),
       ...zonePreviewEntities(zoneDraftPoints),
@@ -209,6 +216,8 @@ export function SpatialWorkspace({
     surveyRegistration,
     surveyQuality,
     semanticCandidateSet,
+    twinAssetSet,
+    assetChangeSet,
     surveySourceView,
     zoneDraftPoints,
   ]);

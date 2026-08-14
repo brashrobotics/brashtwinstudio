@@ -43,6 +43,8 @@ must not run in it.
 - `POST /api/v1/map-drafts/:draftId/survey-registrations/:registrationId/acceptance`
 - `GET|POST /api/v1/map-drafts/:draftId/semantic-candidates`
 - `POST /api/v1/map-drafts/:draftId/semantic-candidates/:candidateSetId/review`
+- `GET|POST /api/v1/map-drafts/:draftId/twin-assets`
+- `GET|POST /api/v1/map-drafts/:draftId/asset-changes`
 - `GET|POST /api/v1/map-drafts/:draftId/validation-jobs`
 - `GET /api/v1/validation-jobs/:jobId`
 - `POST /api/v1/validation-jobs/:jobId/run`
@@ -56,7 +58,7 @@ must not run in it.
 The generic artifact binding endpoint accepts source data and externally
 produced map derivatives. Workflow evidence roles such as survey previews,
 quality decisions, registration decisions, semantic candidate reports/reviews,
-and validation reports are
+Twin asset revisions, change reports, and validation reports are
 system-managed and can only be created by their dedicated application
 workflows. This prevents clients from forging evidence used by later gates.
 
@@ -65,6 +67,10 @@ derived artifact: it must name same-draft camera/LiDAR/survey inputs and carry a
 model producer/configuration identity. The semantic-candidate workflow verifies
 those inputs and an approved registration before emitting canonical candidates.
 Review records operator decisions but does not create permanent Twin assets.
+The dedicated promotion command creates a new immutable draft asset revision
+from accepted decisions. Change detection reads a later approved-registration
+candidate report, compares it with the latest revision, and emits only
+review-required evidence; it never edits that baseline.
 
 Release publication does not accept a server filesystem path through the API.
 The bootstrap now constructs the trusted publication application service for

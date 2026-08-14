@@ -3,10 +3,11 @@
 Creates a compact, deterministic factory survey in a running development Twin
 API. The command exercises the real upload, survey intake, verification,
 materialization, provenance, and survey-to-CAD registration boundaries.
-It also seals independent quality/registration approvals, uploads two synthetic
-provenance-backed semantic observations, and creates an unreviewed canonical
-candidate set. The Studio can then be used to name, type, accept, or reject the
-panel and conveyor candidates.
+It also seals independent quality/registration approvals, reviews two synthetic
+semantic candidates, promotes the accepted electrical panel into asset revision
+1, and creates a later observation set with moved/appeared review candidates.
+The Studio opens with both the canonical Twin asset and the immutable change
+report visible in 2D or 3D.
 
 Start the API and Studio with a dedicated local object-store directory:
 

@@ -59,11 +59,11 @@ test("real PostgreSQL persists the catalog and survives repository recreation", 
     const secondRunner = new PostgresMigrationRunner({ database, migrationDirectory });
     const beforeMigration = await firstRunner.status();
     assert.equal(beforeMigration.currentVersion, 0);
-    assert.equal(beforeMigration.pendingCount, 15);
+    assert.equal(beforeMigration.pendingCount, 16);
     const concurrentResults = await Promise.all([firstRunner.migrate(), secondRunner.migrate()]);
     assert.deepEqual(
       concurrentResults.map((result) => result.appliedNow.length).sort((left, right) => left - right),
-      [0, 15],
+      [0, 16],
     );
     const migrationStatus = await firstRunner.status();
     assert.equal(migrationStatus.pendingCount, 0);
@@ -71,7 +71,7 @@ test("real PostgreSQL persists the catalog and survives repository recreation", 
       migrationStatus.entries.map((entry) => entry.state),
       [
         "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED",
-        "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED",
+        "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED",
       ],
     );
 
@@ -93,8 +93,8 @@ test("real PostgreSQL persists the catalog and survives repository recreation", 
       assert.equal(readiness.body.persistence.mode, "postgres");
       assert.deepEqual(readiness.body.persistence.migrations, {
         ready: true,
-        currentVersion: 15,
-        latestVersion: 15,
+        currentVersion: 16,
+        latestVersion: 16,
         pendingCount: 0,
       });
     } finally {

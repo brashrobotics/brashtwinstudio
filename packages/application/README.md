@@ -55,6 +55,16 @@ observation into the canonical draft frame. Its candidate report remains
 separate from the immutable operator review; accepted names, types, and scalar
 properties are review evidence and are not promoted to Twin assets yet.
 
+`twin-assets.js` performs that promotion only through an explicit command over
+sealed candidate-report and candidate-review identities. Every promotion writes
+a new immutable `TWIN_ASSETS` revision and links its predecessor instead of
+editing an existing catalog. The same service compares a later canonical
+candidate report with the latest baseline, emitting review-required `MOVED`,
+`MISSING`, and `APPEARED` evidence. Missing detection is deliberately bounded to
+the observed spatial envelope; it cannot directly alert or update a draft.
+Candidate sets already used by change detection are blocked from direct
+promotion so a moved observation cannot silently become a duplicate asset.
+
 `validation-jobs.js` creates a sealed validation snapshot while a draft is
 `IN_REVIEW`, runs the deterministic validator, streams its JSON report through
 the multipart object-store boundary, and binds the report with producer/config

@@ -224,6 +224,9 @@ button:focus-visible, select:focus-visible { box-shadow: 0 0 0 2px var(--bg), 0 
 .semantic-candidate-list select, .semantic-candidate-list input, .semantic-candidate-list textarea { min-width: 0; width: 100%; padding: 6px; color: #dce7e8; background: rgba(6,14,16,.85); border: 1px solid rgba(133,153,160,.24); border-radius: 3px; font: 8px ui-monospace, monospace; }
 .semantic-candidate-list select, .semantic-candidate-list textarea { grid-column: 1 / -1; }
 .semantic-candidate-list textarea { min-height: 48px; resize: vertical; }
+.twin-assets-panel .registration-submit + .registration-submit { margin-top: 7px; }
+.asset-change-summary { display: grid; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(185,242,39,.14); }
+.asset-change-summary .semantic-review-list li span { color: #d8ff52; }
 .semantic-review-list { display: grid; gap: 5px; margin: 9px 0; padding: 0; list-style: none; }
 .semantic-review-list li { display: flex; justify-content: space-between; gap: 8px; padding: 7px; border: 1px solid rgba(133,153,160,.15); border-radius: 4px; }
 .semantic-review-list strong { color: #dce7e8; font-size: 8px; }

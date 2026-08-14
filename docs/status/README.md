@@ -238,15 +238,25 @@ Phase 2 — Survey review and semantic evidence.
   properties, plus accepted/unreviewed candidate rendering on the 2D/3D Assets layer
 - PostgreSQL migration 015 and API protection preventing generic clients from
   forging candidate report or review evidence
+- Explicit accepted-candidate promotion into immutable, predecessor-linked
+  `TWIN_ASSETS` draft revisions with stable asset identity and canonical geometry
+- Later registered-observation comparison against the latest promoted baseline,
+  producing immutable review-required `MOVED`, `MISSING`, and `APPEARED` reports
+- Studio promotion/change controls and shared 2D/3D rendering for promoted
+  assets and spatial change markers
+- PostgreSQL migration 016 and managed API roles preventing clients from forging
+  asset revisions or change evidence
 
 ## Next development increment
 
-Phase 2 continues with asset promotion and observed-change evidence:
+Phase 2 continues with controlled change decisions and notifications:
 
-1. Promote accepted candidate decisions into a versioned `TWIN_ASSETS` draft
-   artifact through an explicit, auditable command.
-2. Compare later registered observations with promoted assets to create
-   moved/missing/new change candidates without mutating a published release.
+1. Seal independent operator confirmation or dismissal for every detected
+   change; approximate missing evidence must remain visibly qualified.
+2. Apply confirmed changes only by creating another `TWIN_ASSETS` revision and
+   emit an outbox event that a future notification adapter can consume.
+3. Replace the observed-envelope missing heuristic with explicit sensor
+   visibility/coverage evidence before production alerts are enabled.
 
 ## Deliberately deferred
 
@@ -263,10 +273,10 @@ lifecycle are stable.
 
 ```text
 npm run check
-syntax/json: 261 files passed
-backend tests: 111 total, 108 passed, 3 conditionally skipped, 0 failed
-web tests: 40/40 passed with strict TypeScript and production build
-latest migration contract: schema version 15; last live PostgreSQL 16 gate passed with schema version 12
+syntax/json: 266 files passed
+backend tests: 115 total, 112 passed, 3 conditionally skipped, 0 failed
+web tests: 42/42 passed with strict TypeScript and production build
+latest migration contract: schema version 16; last live PostgreSQL 16 gate passed with schema version 12
 live GrandTour ETH-2 SHA-256/preview gate: passed against the 290,764,702-byte base selection
 ConSLAM/IfcOpenShell gate: last passed August 13, 2026 and remains opt-in
 fixture: demo-plant@1 valid

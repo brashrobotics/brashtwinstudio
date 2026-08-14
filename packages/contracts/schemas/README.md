@@ -48,6 +48,11 @@ The schemas in this directory define Twin Studio file and integration boundaries
   one approved registration while preserving source observation evidence.
 - `asset-candidate-review.v1.schema.json`: Immutable operator accept/reject,
   name, type, and scalar-property decisions without automatic asset promotion.
+- `draft-twin-assets.v1.schema.json`: Immutable draft asset-set revision with
+  predecessor, accepted-review, canonical geometry, policy, and source-observation lineage.
+- `asset-change-report.v1.schema.json`: Later-observation comparison against one
+  asset baseline, including bounded coverage and review-required moved, missing,
+  and appeared candidates.
 
 Published schemas are extended only in backward-compatible ways. Changes to
 meaning or required fields require a new major version.

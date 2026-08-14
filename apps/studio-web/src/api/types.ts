@@ -410,6 +410,108 @@ export interface ReviewAssetCandidateSetInput {
   }>;
 }
 
+export interface DraftTwinAsset {
+  assetId: string;
+  displayName: string;
+  semanticClass: string;
+  mobilityClass: "STATIC" | "SEMI_STATIC" | "MOBILE";
+  frameId: string;
+  pose: {
+    position: { x: number; y: number; z: number };
+    orientation: { x: number; y: number; z: number; w: number };
+  };
+  footprint: Array<{ x: number; y: number }>;
+  bounds3d: {
+    minimum: { x: number; y: number; z: number };
+    maximum: { x: number; y: number; z: number };
+  };
+  properties: Record<string, string | number | boolean>;
+  topologyBindings: Array<{ kind: "NODE" | "EDGE" | "ZONE"; targetId: string }>;
+  changePolicy: {
+    positionToleranceMeters: number;
+    minimumConfidence: number;
+    requiredConfirmations: number;
+  };
+  source: {
+    candidateSetId: string;
+    candidateId: string;
+    sourceObservationId: string;
+    suggestedClass: string;
+  };
+}
+
+export interface DraftTwinAssetSetReport {
+  schemaVersion: "brash.draft-twin-assets/v1";
+  assetSetId: string;
+  draftId: string;
+  revision: number;
+  canonicalFrameId: string;
+  predecessor: null | { assetSetId: string; revision: number; bindingId: string; sha256: string };
+  sourceCandidateSet: {
+    candidateSetId: string;
+    report: { bindingId: string; sha256: string };
+    review: { bindingId: string; sha256: string };
+  };
+  assets: DraftTwinAsset[];
+  promotedBy: string;
+  promotedAt: string;
+}
+
+export interface DraftTwinAssetSetRecord {
+  reportBindingId: string;
+  reportUploadId: string;
+  reportSha256: string;
+  report: DraftTwinAssetSetReport;
+}
+
+export type AssetChangeType = "MOVED" | "MISSING" | "APPEARED";
+
+export interface AssetChange {
+  changeId: string;
+  changeType: AssetChangeType;
+  assetId: string | null;
+  candidateId: string | null;
+  semanticClass: string;
+  confidence: number;
+  fromPosition: [number, number, number] | null;
+  toPosition: [number, number, number] | null;
+  distanceMeters: number | null;
+  reviewStatus: "REVIEW_REQUIRED";
+}
+
+export interface AssetChangeSetReport {
+  schemaVersion: "brash.asset-change-report/v1";
+  changeSetId: string;
+  draftId: string;
+  canonicalFrameId: string;
+  baseline: { assetSetId: string; revision: number; bindingId: string; sha256: string };
+  observations: { candidateSetId: string; bindingId: string; sha256: string };
+  policy: {
+    matchingAlgorithm: "CLASS_NEAREST_NEIGHBOR";
+    maximumMatchDistanceMeters: number;
+    coverageMode: "OBSERVED_ENVELOPE";
+    coveragePaddingMeters: number;
+  };
+  coverage: { minimum: [number, number, number]; maximum: [number, number, number]; baselineAssetsEvaluated: number };
+  summary: {
+    movedCount: number;
+    missingCount: number;
+    appearedCount: number;
+    unchangedCount: number;
+    ignoredObservationCount: number;
+  };
+  changes: AssetChange[];
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface AssetChangeSetRecord {
+  reportBindingId: string;
+  reportUploadId: string;
+  reportSha256: string;
+  report: AssetChangeSetReport;
+}
+
 export interface ReleaseManifest {
   schemaVersion: "brash.twin-map-bundle/v1";
   bundleId: string;

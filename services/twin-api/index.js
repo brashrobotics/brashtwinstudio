@@ -6,6 +6,7 @@ import { SurveyIntakeError } from "@brash-twin/application/survey-intakes";
 import { SurveyMaterializationError } from "@brash-twin/application/survey-materializations";
 import { SurveyQualityReviewError } from "@brash-twin/application/survey-quality-reviews";
 import { SemanticCandidateError } from "@brash-twin/application/semantic-candidates";
+import { TwinAssetError } from "@brash-twin/application/twin-assets";
 import { SurveyRegistrationError } from "@brash-twin/application/survey-registrations";
 import { ArtifactStoreError } from "@brash-twin/artifact-store";
 
@@ -17,6 +18,8 @@ const MANAGED_ARTIFACT_ROLES = new Set([
   "REGISTRATION_ACCEPTANCE",
   "ASSET_CANDIDATE_REPORT",
   "ASSET_CANDIDATE_REVIEW",
+  "TWIN_ASSETS",
+  "ASSET_CHANGE_REPORT",
   "VALIDATION_REPORT",
 ]);
 
@@ -29,6 +32,7 @@ export class TwinApi {
   #surveyQualityReviews;
   #surveyRegistrations;
   #semanticCandidates;
+  #twinAssets;
   #validationJobs;
   #releaseStore;
   #readiness;
@@ -42,6 +46,7 @@ export class TwinApi {
     surveyQualityReviews,
     surveyRegistrations,
     semanticCandidates,
+    twinAssets,
     validationJobs,
     releaseStore,
     readiness = async () => ({ ready: true, mode: "memory" }),
@@ -54,6 +59,7 @@ export class TwinApi {
     if (!surveyQualityReviews) throw new TypeError("Survey quality review service is required.");
     if (!surveyRegistrations) throw new TypeError("Survey registration service is required.");
     if (!semanticCandidates) throw new TypeError("Semantic candidate service is required.");
+    if (!twinAssets) throw new TypeError("Twin asset service is required.");
     if (!validationJobs) throw new TypeError("Validation job service is required.");
     if (!releaseStore) throw new TypeError("Release store is required.");
     if (typeof readiness !== "function") throw new TypeError("Readiness probe must be a function.");
@@ -65,6 +71,7 @@ export class TwinApi {
     this.#surveyQualityReviews = surveyQualityReviews;
     this.#surveyRegistrations = surveyRegistrations;
     this.#semanticCandidates = semanticCandidates;
+    this.#twinAssets = twinAssets;
     this.#validationJobs = validationJobs;
     this.#releaseStore = releaseStore;
     this.#readiness = readiness;
@@ -319,6 +326,32 @@ export class TwinApi {
       return response(201, { review });
     }
 
+    const twinAssetsMatch = pathname.match(/^\/api\/v1\/map-drafts\/([^/]+)\/twin-assets$/);
+    if (twinAssetsMatch) {
+      const draftId = segment(twinAssetsMatch[1]);
+      if (method === "GET") return response(200, { assetSets: await this.#twinAssets.list(draftId) });
+      if (method === "POST") {
+        const assetSet = await this.#twinAssets.promote(
+          draftId,
+          objectBody(body, ["assetSetId", "candidateSetId", "operatorId"]),
+        );
+        return response(201, { assetSet });
+      }
+    }
+
+    const assetChangesMatch = pathname.match(/^\/api\/v1\/map-drafts\/([^/]+)\/asset-changes$/);
+    if (assetChangesMatch) {
+      const draftId = segment(assetChangesMatch[1]);
+      if (method === "GET") return response(200, { changeSets: await this.#twinAssets.listChanges(draftId) });
+      if (method === "POST") {
+        const changeSet = await this.#twinAssets.detectChanges(
+          draftId,
+          objectBody(body, ["changeSetId", "candidateSetId", "operatorId"]),
+        );
+        return response(201, { changeSet });
+      }
+    }
+
     const surveyIntakeMaterializationsMatch = pathname.match(
       /^\/api\/v1\/survey-intakes\/([^/]+)\/materializations$/,
     );
@@ -523,6 +556,11 @@ function errorResponse(error) {
       error: { code: error.code, message: error.message },
     });
   }
+  if (error instanceof TwinAssetError) {
+    return response(statusForTwinAssetError(error.code), {
+      error: { code: error.code, message: error.message },
+    });
+  }
   if (error instanceof ArtifactStoreError) {
     const status = error.code === "RELEASE_ID_INVALID" ? 400 : 500;
     return response(status, { error: { code: error.code, message: error.message } });
@@ -660,5 +698,21 @@ function statusForSemanticCandidateError(code) {
     "SEMANTIC_CANDIDATE_REVIEWER_CONFLICT",
   ].includes(code)) return 409;
   if (code === "SEMANTIC_CANDIDATE_INTEGRITY_FAILED") return 422;
+  return 400;
+}
+
+function statusForTwinAssetError(code) {
+  if (code === "TWIN_ASSET_CANDIDATE_NOT_FOUND") return 404;
+  if ([
+    "TWIN_ASSET_PROMOTION_CONFLICT",
+    "TWIN_ASSET_CHANGE_CONFLICT",
+    "TWIN_ASSET_DRAFT_LOCKED",
+    "TWIN_ASSET_REVIEW_REQUIRED",
+    "TWIN_ASSET_ACCEPTED_CANDIDATE_REQUIRED",
+    "TWIN_ASSET_BASELINE_REQUIRED",
+    "TWIN_ASSET_CHANGE_INPUT_INVALID",
+    "TWIN_ASSET_CHANGE_WORKFLOW_REQUIRED",
+  ].includes(code)) return 409;
+  if (code === "TWIN_ASSET_INTEGRITY_FAILED") return 422;
   return 400;
 }

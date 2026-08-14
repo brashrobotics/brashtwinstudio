@@ -6,5 +6,7 @@ The versioned external contract for the Twin Studio HTTP API.
 lifecycle, multipart upload sessions, append-only draft artifact provenance, and
 the read-only release catalog. It also exposes trusted quality, registration,
 and semantic candidate workflows while reserving their evidence roles from the
-generic artifact endpoint. It intentionally excludes endpoints that stream
+generic artifact endpoint. It also exposes explicit draft asset promotion and
+later-observation change detection; neither endpoint mutates a published release
+or confirms a change. It intentionally excludes endpoints that stream
 large geometry through the API process or publish from a server filesystem path.

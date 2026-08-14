@@ -1,5 +1,5 @@
 import type { WorldEntity } from "@brash-twin/viewer-sdk";
-import type { AssetCandidateSetRecord } from "../../api/types";
+import type { AssetCandidateSetRecord, AssetChangeSetRecord, DraftTwinAssetSetRecord } from "../../api/types";
 
 export function semanticCandidateWorldEntities(candidateSet: AssetCandidateSetRecord): WorldEntity[] {
   const decisions = new Map(
@@ -24,4 +24,34 @@ export function semanticCandidateWorldEntities(candidateSet: AssetCandidateSetRe
         },
       };
     });
+}
+
+export function draftTwinAssetWorldEntities(assetSet: DraftTwinAssetSetRecord): WorldEntity[] {
+  return assetSet.report.assets.map((asset) => ({
+    entityId: `twin-asset-${asset.assetId}`,
+    layerId: "assets",
+    label: asset.displayName,
+    position: { ...asset.pose.position },
+    geometry: {
+      type: "BOX" as const,
+      size: {
+        x: asset.bounds3d.maximum.x - asset.bounds3d.minimum.x,
+        y: asset.bounds3d.maximum.y - asset.bounds3d.minimum.y,
+        z: asset.bounds3d.maximum.z - asset.bounds3d.minimum.z,
+      },
+    },
+  }));
+}
+
+export function assetChangeWorldEntities(changeSet: AssetChangeSetRecord): WorldEntity[] {
+  return changeSet.report.changes.map((change) => {
+    const position = change.toPosition ?? change.fromPosition ?? [0, 0, 0];
+    return {
+      entityId: `asset-change-${change.changeId}`,
+      layerId: "assets",
+      label: `${change.changeType} · ${change.semanticClass} · ${(change.confidence * 100).toFixed(0)}%`,
+      position: { x: position[0], y: position[1], z: position[2] },
+      geometry: { type: "POINT" as const, radius: change.changeType === "MISSING" ? 0.5 : 0.35 },
+    };
+  });
 }

@@ -23,6 +23,11 @@ input identities, approved-registration dependency, deterministic canonical
 coordinates, immutable all-candidate review, operator names/types/properties,
 and 2D/3D accepted/rejected rendering behavior.
 
+The Twin asset gate covers explicit reviewed-candidate promotion,
+predecessor-linked immutable revisions, canonical asset geometry, duplicate
+promotion rejection, later-scan nearest-class comparison, bounded missing
+coverage, moved/missing/appeared output, HTTP routes, and 2D/3D rendering.
+
 The validation quality gate covers deterministic reports, UI-ready issue
 locations, sealed input snapshots, multipart report storage, HTTP job execution,
 real PostgreSQL job/run transactions, report-binding consistency triggers, and

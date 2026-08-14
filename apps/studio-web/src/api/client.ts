@@ -17,6 +17,8 @@ import type {
   AssetCandidateSetRecord,
   AssetCandidateReviewRecord,
   ReviewAssetCandidateSetInput,
+  DraftTwinAssetSetRecord,
+  AssetChangeSetRecord,
   TwinApiErrorBody,
   ValidationJob,
 } from "./types";
@@ -51,6 +53,10 @@ export interface TwinApiClient {
   listSemanticCandidateSets(draftId: string, signal?: AbortSignal): Promise<AssetCandidateSetRecord[]>;
   createSemanticCandidateSet(draftId: string, input: { registrationId: string; observationBindingId: string; operatorId: string }, signal?: AbortSignal): Promise<AssetCandidateSetRecord>;
   reviewSemanticCandidateSet(draftId: string, candidateSetId: string, input: ReviewAssetCandidateSetInput, signal?: AbortSignal): Promise<AssetCandidateReviewRecord>;
+  listDraftTwinAssetSets(draftId: string, signal?: AbortSignal): Promise<DraftTwinAssetSetRecord[]>;
+  promoteDraftTwinAssets(draftId: string, input: { candidateSetId: string; operatorId: string }, signal?: AbortSignal): Promise<DraftTwinAssetSetRecord>;
+  listDraftAssetChangeSets(draftId: string, signal?: AbortSignal): Promise<AssetChangeSetRecord[]>;
+  detectDraftAssetChanges(draftId: string, input: { candidateSetId: string; operatorId: string }, signal?: AbortSignal): Promise<AssetChangeSetRecord>;
   listReleases(signal?: AbortSignal): Promise<ReleaseManifest[]>;
 }
 
@@ -195,6 +201,32 @@ export function createTwinApiClient({
         { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) },
       )
     ).review,
+    listDraftTwinAssetSets: async (draftId, signal) => (
+      await request<{ assetSets: DraftTwinAssetSetRecord[] }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/twin-assets`,
+        signal,
+      )
+    ).assetSets,
+    promoteDraftTwinAssets: async (draftId, input, signal) => (
+      await request<{ assetSet: DraftTwinAssetSetRecord }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/twin-assets`,
+        signal,
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) },
+      )
+    ).assetSet,
+    listDraftAssetChangeSets: async (draftId, signal) => (
+      await request<{ changeSets: AssetChangeSetRecord[] }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/asset-changes`,
+        signal,
+      )
+    ).changeSets,
+    detectDraftAssetChanges: async (draftId, input, signal) => (
+      await request<{ changeSet: AssetChangeSetRecord }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/asset-changes`,
+        signal,
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) },
+      )
+    ).changeSet,
     listReleases: async (signal) => (
       await request<{ releases: ReleaseManifest[] }>("/api/v1/releases", signal)
     ).releases,

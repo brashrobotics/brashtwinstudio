@@ -176,6 +176,97 @@ async function ensureSemanticCandidates(materializationOutput) {
       operatorId: "demo-semantic-operator",
     });
   }
+  const refreshedCandidateSets = await request("GET", "/api/v1/map-drafts/demo-draft-1/semantic-candidates");
+  const baselineCandidates = refreshedCandidateSets.candidateSets.find(
+    ({ report }) => report.candidateSetId === "demo-candidate-set-1",
+  );
+  if (!baselineCandidates.review) {
+    await request(
+      "POST",
+      "/api/v1/map-drafts/demo-draft-1/semantic-candidates/demo-candidate-set-1/review",
+      {
+        reviewerId: "demo-asset-reviewer",
+        decisions: baselineCandidates.report.candidates.map((candidate) => (
+          candidate.sourceObservationId === "electrical-panel-1" ? {
+            candidateId: candidate.candidateId,
+            decision: "ACCEPTED",
+            displayName: "Main Electrical Panel",
+            assetType: "electrical-panel",
+            properties: { voltage: 400, critical: true },
+          } : { candidateId: candidate.candidateId, decision: "REJECTED" }
+        )),
+      },
+    );
+  }
+
+  const assetSets = await request("GET", "/api/v1/map-drafts/demo-draft-1/twin-assets");
+  if (!assetSets.assetSets.some(({ report }) => report.assetSetId === "demo-asset-set-1")) {
+    await request("POST", "/api/v1/map-drafts/demo-draft-1/twin-assets", {
+      assetSetId: "demo-asset-set-1",
+      candidateSetId: "demo-candidate-set-1",
+      operatorId: "demo-asset-curator",
+    });
+  }
+
+  const laterObservations = Buffer.from(`${JSON.stringify({
+    schemaVersion: "brash.semantic-observations/v1",
+    observationSetId: "demo-observations-2",
+    sourceFrameId: materializationOutput.sourceFrameId,
+    model,
+    observations: [
+      {
+        observationId: "electrical-panel-2",
+        classId: "electrical-panel",
+        confidence: 0.97,
+        position: [-1.5, -1, 1.1],
+        dimensions: [0.9, 0.3, 1.8],
+        evidence: [{ bindingId: materializationOutput.previewBindingId, artifactSha256: materializationOutput.previewSha256 }],
+      },
+      {
+        observationId: "safety-barrier-1",
+        classId: "safety-barrier",
+        confidence: 0.9,
+        position: [0, -0.5, 0.6],
+        dimensions: [1.8, 0.2, 1.2],
+        evidence: [{ bindingId: materializationOutput.previewBindingId, artifactSha256: materializationOutput.previewSha256 }],
+      },
+    ],
+  }, null, 2)}\n`);
+  await upload(
+    "demo-semantic-observations-2",
+    laterObservations,
+    "application/json",
+    "demo-semantic-observations-2.json",
+  );
+  const refreshedArtifacts = await request("GET", "/api/v1/map-drafts/demo-draft-1/artifacts");
+  if (!refreshedArtifacts.artifacts.some(({ bindingId }) => bindingId === "demo-semantic-observations-2")) {
+    await request("POST", "/api/v1/map-drafts/demo-draft-1/artifacts", {
+      bindingId: "demo-semantic-observations-2",
+      uploadId: "demo-semantic-observations-2",
+      role: "SEMANTIC_OBSERVATIONS",
+      coordinateFrameId: materializationOutput.sourceFrameId,
+      inputBindingIds: [materializationOutput.previewBindingId],
+      producer: model,
+      operatorId: "demo-semantic-worker",
+    });
+  }
+  const laterCandidateSets = await request("GET", "/api/v1/map-drafts/demo-draft-1/semantic-candidates");
+  if (!laterCandidateSets.candidateSets.some(({ report }) => report.candidateSetId === "demo-candidate-set-2")) {
+    await request("POST", "/api/v1/map-drafts/demo-draft-1/semantic-candidates", {
+      candidateSetId: "demo-candidate-set-2",
+      registrationId: "demo-registration-1",
+      observationBindingId: "demo-semantic-observations-2",
+      operatorId: "demo-semantic-operator",
+    });
+  }
+  const changeSets = await request("GET", "/api/v1/map-drafts/demo-draft-1/asset-changes");
+  if (!changeSets.changeSets.some(({ report }) => report.changeSetId === "demo-change-set-1")) {
+    await request("POST", "/api/v1/map-drafts/demo-draft-1/asset-changes", {
+      changeSetId: "demo-change-set-1",
+      candidateSetId: "demo-candidate-set-2",
+      operatorId: "demo-change-worker",
+    });
+  }
 }
 
 console.log(JSON.stringify({
@@ -186,6 +277,9 @@ console.log(JSON.stringify({
   qualityReviewId: "demo-survey-quality-1",
   registrationId: "demo-registration-1",
   candidateSetId: "demo-candidate-set-1",
+  assetSetId: "demo-asset-set-1",
+  changeCandidateSetId: "demo-candidate-set-2",
+  changeSetId: "demo-change-set-1",
   studioUrl: "http://127.0.0.1:4390/",
 }, null, 2));
 

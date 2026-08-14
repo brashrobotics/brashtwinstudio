@@ -521,6 +521,62 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /api/v1/map-drafts/{draftId}/twin-assets:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+    get:
+      operationId: listDraftTwinAssetSets
+      responses:
+        "200":
+          description: Immutable versioned Twin asset sets for the draft.
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: promoteDraftTwinAssets
+      description: Promotes accepted candidate decisions into a new immutable asset-set revision.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PromoteDraftTwinAssets"
+      responses:
+        "201":
+          description: Versioned Twin asset set created from sealed review evidence.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/map-drafts/{draftId}/asset-changes:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+    get:
+      operationId: listDraftAssetChangeSets
+      responses:
+        "200":
+          description: Immutable moved, missing, and appeared change-candidate reports.
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: detectDraftAssetChanges
+      description: Compares later registered observations with the latest promoted asset baseline without mutating it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DetectDraftAssetChanges"
+      responses:
+        "201":
+          description: Immutable change candidates created with review-required status.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /api/v1/survey-intakes/{intakeId}/materializations:
     parameters:
       - $ref: "#/components/parameters/IntakeId"
@@ -1036,6 +1092,30 @@ components:
         note:
           type: string
           maxLength: 2000
+    PromoteDraftTwinAssets:
+      type: object
+      additionalProperties: false
+      required: [candidateSetId, operatorId]
+      properties:
+        assetSetId:
+          $ref: "#/components/schemas/Identifier"
+        candidateSetId:
+          $ref: "#/components/schemas/Identifier"
+        operatorId:
+          type: string
+          minLength: 1
+    DetectDraftAssetChanges:
+      type: object
+      additionalProperties: false
+      required: [candidateSetId, operatorId]
+      properties:
+        changeSetId:
+          $ref: "#/components/schemas/Identifier"
+        candidateSetId:
+          $ref: "#/components/schemas/Identifier"
+        operatorId:
+          type: string
+          minLength: 1
     DraftArtifactRole:
       type: string
       enum:
@@ -1052,6 +1132,8 @@ components:
         - SEMANTIC_OBSERVATIONS
         - ASSET_CANDIDATE_REPORT
         - ASSET_CANDIDATE_REVIEW
+        - TWIN_ASSETS
+        - ASSET_CHANGE_REPORT
         - REGISTERED_POINT_CLOUD
         - RECONSTRUCTED_MESH
         - OCCUPANCY

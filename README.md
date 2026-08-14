@@ -160,9 +160,13 @@ The first Phase 0 increment is implemented:
 - Provenance-backed semantic model observations are transformed through an
   approved registration into canonical asset candidates. Operators can name,
   type, annotate, accept, or reject them without prematurely creating assets.
+- An explicit audited command promotes accepted decisions into immutable,
+  predecessor-linked `TWIN_ASSETS` draft revisions. Later canonical observations
+  produce review-required moved, missing, and appeared reports without mutating
+  the asset baseline or a published release.
 - A compact local demo seed that exercises upload, intake, verification,
-  materialization, artifact lineage, registration, and semantic candidates
-  without downloading an external dataset.
+  materialization, artifact lineage, registration, semantic review, asset
+  promotion, and change detection without downloading an external dataset.
 - A bounded GrandTour ETH-2 seed that verifies the pinned real dataset, exports
   all 4,305 DLIO poses to the standard TUM boundary, preserves the original
   17-million-point PLY as source evidence, and opens it as a separate Studio
