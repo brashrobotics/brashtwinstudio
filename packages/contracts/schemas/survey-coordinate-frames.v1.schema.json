@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/survey-coordinate-frames.v1.schema.json",
+  "title": "Brash Survey Coordinate Frames v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "rootFrameId", "frames"],
+  "properties": {
+    "schemaVersion": { "const": "brash.survey-coordinate-frames/v1" },
+    "rootFrameId": { "$ref": "#/$defs/nonEmptyString" },
+    "frames": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["frameId", "parentFrameId", "transformToParent"],
+        "properties": {
+          "frameId": { "$ref": "#/$defs/nonEmptyString" },
+          "parentFrameId": { "oneOf": [{ "$ref": "#/$defs/nonEmptyString" }, { "type": "null" }] },
+          "transformToParent": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["translation", "rotation"],
+            "properties": {
+              "translation": { "$ref": "#/$defs/vector3" },
+              "rotation": { "$ref": "#/$defs/quaternion" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "vector3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" }
+      }
+    },
+    "quaternion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z", "w"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" },
+        "w": { "type": "number" }
+      }
+    }
+  }
+}

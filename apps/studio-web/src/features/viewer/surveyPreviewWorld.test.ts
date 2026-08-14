@@ -1,0 +1,63 @@
+import { describe, expect, it } from "vitest";
+import type { SurveyMaterializationPreview } from "../../api/types";
+import { surveyPreviewWorldEntities } from "./surveyPreviewWorld";
+
+describe("survey preview world adapter", () => {
+  it("creates bounded cloud, trajectory, and reconstruction extents in the source frame", () => {
+    const entities = surveyPreviewWorldEntities(preview());
+    expect(entities.map((entity) => entity.entityId)).toEqual([
+      "survey-point-cloud-preview",
+      "survey-trajectory-preview",
+      "survey-reconstruction-bounds",
+    ]);
+    expect(entities[0]?.geometry).toEqual(expect.objectContaining({
+      type: "POINT_CLOUD",
+      points: [{ x: -1, y: -2, z: 0 }, { x: 3, y: 2, z: 2 }],
+    }));
+    expect(entities[2]).toEqual(expect.objectContaining({
+      position: { x: 1, y: 0, z: 1 },
+      geometry: { type: "BOX", size: { x: 4, y: 4, z: 2 }, style: "WIREFRAME" },
+    }));
+  });
+});
+
+function preview(): SurveyMaterializationPreview {
+  return {
+    schemaVersion: "brash.survey-materialization-preview/v1",
+    source: { kind: "ACCEPTED_INTAKE", sourceId: "intake-1", revision: "a".repeat(64) },
+    coordinateSystem: {
+      rootFrameId: "slam-map",
+      lengthUnit: "METRE",
+      handedness: "RIGHT_HANDED",
+      upAxis: "Z",
+    },
+    trajectory: {
+      frameId: "slam-map",
+      sampleCount: 5,
+      pathLengthMetres: 4,
+      positionBounds: { minimum: [0, 0, 0], maximum: [2, 2, 0.2] },
+      preview: {
+        method: "STRIDE",
+        sourceStride: 1,
+        poses: [
+          { timestamp: 1, position: [0, 0, 0] },
+          { timestamp: 2, position: [2, 2, 0.2] },
+        ],
+      },
+    },
+    coordinateFrames: { frameId: "slam-map", sampleCount: 3 },
+    calibration: { calibrationId: "cal-1", sensorCount: 2, modalities: { LIDAR: 1, IMU: 1 } },
+    reconstruction: {
+      frameId: "slam-map",
+      vertexCount: 6,
+      bounds: { minimum: [-1, -2, 0], maximum: [3, 2, 2] },
+      preview: {
+        method: "STRIDE",
+        sourceStride: 1,
+        points: [[-1, -2, 0, 1], [3, 2, 2, 50]],
+      },
+    },
+    qualityWarnings: [],
+    generatedBy: { name: "materializer", version: "1" },
+  };
+}

@@ -12,6 +12,8 @@ export const CONTRACT_VERSIONS = Object.freeze({
   embodiedSurveyPackage: "brash.embodied-survey-package/v1",
   embodiedSurveyIngestReport: "brash.embodied-survey-ingest-report/v1",
   surveyMaterializationPreview: "brash.survey-materialization-preview/v1",
+  surveyCoordinateFrames: "brash.survey-coordinate-frames/v1",
+  surveyCalibration: "brash.survey-calibration/v1",
 });
 
 export const ARTIFACT_ROLES = Object.freeze({

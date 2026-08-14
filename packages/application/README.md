@@ -29,7 +29,11 @@ and seals an immutable accepted or rejected ingest report.
 accepted intake. It rechecks the bounded manifest and original validation-policy
 identity, joins server-owned upload mappings to declared artifacts, and seals a
 deterministic snapshot hash. Point clouds, images, meshes, and trajectories are
-not loaded while the job is created.
+not loaded while the job is created. Execution claims an expiring worker lease,
+streams the four standardized survey inputs under byte/record budgets, and
+publishes a deterministic content-addressed preview. Failed attempts use bounded
+exponential retry; a successful preview is re-read only after checksum, byte,
+schema, and lineage verification.
 
 `validation-jobs.js` creates a sealed validation snapshot while a draft is
 `IN_REVIEW`, runs the deterministic validator, streams its JSON report through

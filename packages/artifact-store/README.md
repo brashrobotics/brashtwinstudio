@@ -14,6 +14,11 @@ The Twin Studio boundary for large files and published release storage.
   and moves only valid content into content-addressed storage. Mismatches remain
   under quarantine, while a completion receipt makes retries idempotent.
 
+Both content-addressed local adapters expose `openReadStream(sha256)` for worker
+consumption. A stream opens only after regular-file and content-address checks,
+so bounded parsers do not need to load point clouds or recording archives into
+API memory.
+
 Release identifiers use `family-id@revision`. The same identity cannot be
 published twice. The store never modifies the source bundle or a published
 target.

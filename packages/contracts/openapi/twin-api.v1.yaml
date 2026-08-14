@@ -397,6 +397,40 @@ paths:
           description: Immutable materialization snapshot and current job status.
         "404":
           $ref: "#/components/responses/NotFound"
+  /api/v1/survey-materializations/{jobId}/run:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    post:
+      operationId: runSurveyMaterialization
+      description: Claims an eligible job lease, streams sealed standard survey artifacts, and persists a bounded preview artifact.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunSurveyMaterialization"
+      responses:
+        "200":
+          description: Materialization completed or an existing successful result was returned.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/survey-materializations/{jobId}/preview:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    get:
+      operationId: getSurveyMaterializationPreview
+      description: Reads the integrity-checked bounded preview of a successful materialization.
+      responses:
+        "200":
+          description: Trajectory and point-cloud preview in the original survey frame.
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /api/v1/uploads:
     get:
       operationId: listUploadSessions
@@ -695,9 +729,19 @@ components:
         operatorId:
           type: string
           minLength: 1
+    RunSurveyMaterialization:
+      type: object
+      additionalProperties: false
+      required: [workerId, operatorId]
+      properties:
+        workerId:
+          $ref: "#/components/schemas/Identifier"
+        operatorId:
+          type: string
+          minLength: 1
     SurveyMaterializationStatus:
       type: string
-      enum: [PENDING]
+      enum: [PENDING, RUNNING, SUCCEEDED, FAILED]
     DraftArtifactRole:
       type: string
       enum:

@@ -1575,6 +1575,26 @@ artifact execution remains worker-owned. PostgreSQL schema version 10, the full
 backend/web gate, and the opt-in real-data integration test passed. Fleet Control
 and robot-side SLAM sources were not changed.
 
+### Increment 16 — Leased materialization and source-frame Studio preview
+
+- Guarded `PENDING -> RUNNING -> SUCCEEDED|FAILED` execution with expiring
+  leases, stale-owner rejection, and three-attempt bounded retry
+- Standard coordinate-frame/calibration JSON, TUM trajectory, and binary XYZI
+  PLY streaming adapter with checksum, byte, record, and preview budgets
+- Deterministic content-addressed preview publication through completed upload
+  provenance, plus API run and integrity-checked preview operations
+- Shared 2D/3D trajectory, point-cloud sample, and reconstruction-bounds render
+  with automatic fit-to-bounds navigation
+- Explicit read-only source-frame mode that prevents unregistered SLAM survey
+  coordinates from being presented as canonical CAD coordinates
+
+**Status:** Completed on August 14, 2026. The synthetic accepted-intake flow
+passed from multipart source uploads through HTTP materialization and preview
+retrieval. Product execution contains no GrandTour/Zarr dependency, input
+snapshots remain immutable, and successful output references the exact completed
+upload and SHA-256 identity. Fleet Control and robot-side SLAM sources were not
+changed.
+
 ---
 
 ## 30. Karar kapıları
@@ -1639,7 +1659,7 @@ olması bundle/live-overlay demo ölçümünden sonra kararlaştırılır.
 - Kabul ölçütü sessizce gevşetilmez; waiver açık audit kararıdır.
 - Fleet Control entegrasyon kapsamı yalnız ortak contract kararıyla genişletilir.
 
-The next active work executes the immutable materialization snapshot in a leased
-worker, publishes its preview as a derived draft artifact, and renders the
-original SLAM-frame trajectory, bounds, sampled points, coverage, and quality
-warnings in Studio without running SLAM inside Twin Studio.
+The next active work binds the successful preview as a derived draft artifact,
+adds a versioned survey-to-CAD registration job/report, and exposes control-point
+residuals and review evidence before any source-frame survey layer can be fused
+with the canonical draft world.

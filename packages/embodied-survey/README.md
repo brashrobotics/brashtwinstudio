@@ -30,3 +30,16 @@ upload completion.
 `brash.embodied-survey-ingest-report/v1` evidence with manifest and policy
 SHA-256 identities. A rejected intake remains attached only as immutable audit
 evidence and is never promoted as accepted reconstruction input.
+
+## Materialization adapters
+
+`@brash-twin/embodied-survey/materialization` is the worker-side processed-data
+boundary. It accepts Brash survey-frame/calibration JSON, strictly increasing
+TUM trajectory text, and binary little-endian XYZI PLY. Every stream is rehashed
+and byte-counted against the accepted snapshot while parsing under explicit
+JSON, pose, point, and preview limits. The result is a bounded
+`brash.survey-materialization-preview/v1` document.
+
+GrandTour Zarr is intentionally absent from this runtime adapter. Dataset-specific
+conversion remains development tooling; Brash Embodied Controller owns production
+SLAM and emits the standardized artifacts consumed here.

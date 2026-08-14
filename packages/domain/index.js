@@ -30,6 +30,9 @@ export const SURVEY_INTAKE_STATUS = Object.freeze({
 
 export const SURVEY_MATERIALIZATION_STATUS = Object.freeze({
   pending: "PENDING",
+  running: "RUNNING",
+  succeeded: "SUCCEEDED",
+  failed: "FAILED",
 });
 
 export const DRAFT_ARTIFACT_KIND = Object.freeze({
@@ -811,6 +814,7 @@ export function createSurveyMaterializationJobRecord({
       "Materialization snapshot must match the accepted intake identity and contain bounded artifacts.",
     );
   }
+  const timestamp = isoDate(occurredAt, "occurredAt");
   return Object.freeze({
     jobId,
     intakeId: intake.intakeId,
@@ -819,9 +823,21 @@ export function createSurveyMaterializationJobRecord({
     manifestSha256: intake.manifestSha256,
     snapshotSha256,
     snapshot: Object.freeze(structuredClone(snapshot)),
+    output: null,
+    outputUploadId: null,
+    outputArtifactSha256: null,
+    attemptCount: 0,
+    maximumAttempts: 3,
+    nextAttemptAt: timestamp,
+    leaseOwner: null,
+    leaseExpiresAt: null,
+    startedAt: null,
+    completedAt: null,
+    failureReason: null,
     rowVersion: 1,
     createdBy: operatorId,
-    createdAt: isoDate(occurredAt, "occurredAt"),
+    createdAt: timestamp,
+    updatedAt: timestamp,
   });
 }
 

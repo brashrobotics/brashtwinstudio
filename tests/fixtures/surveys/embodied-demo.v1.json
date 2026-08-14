@@ -45,7 +45,7 @@
       "artifactId": "frames-1",
       "role": "COORDINATE_FRAMES",
       "path": "frames/coordinate-frames.json",
-      "mediaType": "application/json",
+      "mediaType": "application/vnd.brash.survey-coordinate-frames+json",
       "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
       "bytes": 1024
     },
@@ -53,15 +53,15 @@
       "artifactId": "calibration-1",
       "role": "CALIBRATION",
       "path": "calibration/sensors.json",
-      "mediaType": "application/json",
+      "mediaType": "application/vnd.brash.survey-calibration+json",
       "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
       "bytes": 512
     },
     {
       "artifactId": "trajectory-1",
       "role": "TRAJECTORY",
-      "path": "trajectory/poses.mcap",
-      "mediaType": "application/vnd.ros2.mcap",
+      "path": "trajectory/poses.tum",
+      "mediaType": "application/vnd.brash.trajectory+tum",
       "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
       "bytes": 2048,
       "frameId": "slam-map",

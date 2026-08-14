@@ -19,20 +19,24 @@ import {
 } from "@brash-twin/manual-twin";
 import { useEffect, useRef, useState, useSyncExternalStore, type ChangeEvent } from "react";
 import { useI18n } from "../../i18n/i18n";
+import type { SurveyMaterializationPreview } from "../../api/types";
 import { diagnosticEntities, diagnosticLayers } from "./diagnosticWorld";
 import { diagnosticEditorFeatures } from "./editorSeed";
 import { EditorToolbar, FeatureInspector } from "./EditorControls";
 import { ManualTwinMilestone } from "./ManualTwinMilestone";
 import { ThreeWorldRuntime, type WorldInteraction } from "./threeRuntime";
+import { surveyPreviewWorldEntities } from "./surveyPreviewWorld";
 
 export function SpatialWorkspace({
   canonicalFrameId,
   familyId,
   revision,
+  surveyPreview,
 }: {
   canonicalFrameId: string;
   familyId: string;
   revision: number;
+  surveyPreview: SurveyMaterializationPreview | null;
 }) {
   const { t } = useI18n();
   const [editorStore] = useState<SpatialEditorStore>(() => createSpatialEditorStore(diagnosticEditorFeatures));
@@ -61,14 +65,19 @@ export function SpatialWorkspace({
   const [registration, setRegistration] = useState<RegistrationReport | null>(null);
   const [release, setRelease] = useState<ManualTwinRelease | null>(null);
   const [releaseView, setReleaseView] = useState(false);
+  const [surveySourceView, setSurveySourceView] = useState(false);
   const activeToolRef = useRef(activeTool);
   const pendingEdgeRef = useRef(pendingEdgeNodeId);
   const editorSnapshotRef = useRef(editorSnapshot);
   const releaseViewRef = useRef(releaseView);
+  const surveySourceViewRef = useRef(surveySourceView);
+  const previousSurveySourceViewRef = useRef(false);
   activeToolRef.current = activeTool;
   pendingEdgeRef.current = pendingEdgeNodeId;
   editorSnapshotRef.current = editorSnapshot;
   releaseViewRef.current = releaseView;
+  surveySourceViewRef.current = surveySourceView;
+  const readOnlyView = releaseView || surveySourceView;
 
   function executeEditorCommand<T>(command: () => T): T | null {
     try {
@@ -82,7 +91,7 @@ export function SpatialWorkspace({
   }
 
   interactionHandlerRef.current = (interaction): boolean => {
-    if (releaseViewRef.current) return false;
+    if (releaseViewRef.current || surveySourceViewRef.current) return false;
     const tool = activeToolRef.current;
     if (tool === "SELECT") return false;
     if (tool === "EDGE") {
@@ -124,14 +133,32 @@ export function SpatialWorkspace({
   };
 
   const selected = snapshot.entities.find((entity) => entity.entityId === snapshot.selectedEntityId) ?? null;
-  const selectedFeature = releaseView ? null : findSpatialFeature(editorSnapshot.document.features, snapshot.selectedEntityId);
+  const selectedFeature = readOnlyView
+    ? null
+    : findSpatialFeature(editorSnapshot.document.features, snapshot.selectedEntityId);
   const coordinate = snapshot.pointerWorld;
 
   useEffect(() => {
-    if (canonicalFrameId) store.setCanonicalFrame(canonicalFrameId);
-  }, [canonicalFrameId, store]);
+    setSurveySourceView(surveyPreview !== null);
+    if (surveyPreview) setReleaseView(false);
+  }, [surveyPreview?.source.revision]);
 
   useEffect(() => {
+    const frameId = surveySourceView && surveyPreview
+      ? surveyPreview.coordinateSystem.rootFrameId
+      : canonicalFrameId;
+    if (frameId) store.setCanonicalFrame(frameId);
+  }, [canonicalFrameId, store, surveyPreview, surveySourceView]);
+
+  useEffect(() => {
+    if (surveySourceView && surveyPreview) {
+      store.setLayerVisibility("survey", true);
+      store.setEntities(surveyPreviewWorldEntities(surveyPreview));
+      runtimeRef.current?.sync(store.getSnapshot());
+      runtimeRef.current?.fitWorld();
+      previousSurveySourceViewRef.current = true;
+      return;
+    }
     if (releaseView && release) {
       store.setEntities(structuredClone(release.snapshot.worldEntities));
       return;
@@ -146,7 +173,22 @@ export function SpatialWorkspace({
       ...spatialFeaturesToWorldEntities(editorSnapshot.document.features),
       ...zonePreviewEntities(zoneDraftPoints),
     ]);
-  }, [editorSnapshot.document.revision, importReport, registration, release, releaseView, store, zoneDraftPoints]);
+    if (previousSurveySourceViewRef.current) {
+      runtimeRef.current?.sync(store.getSnapshot());
+      runtimeRef.current?.fitWorld();
+      previousSurveySourceViewRef.current = false;
+    }
+  }, [
+    editorSnapshot.document.revision,
+    importReport,
+    registration,
+    release,
+    releaseView,
+    store,
+    surveyPreview,
+    surveySourceView,
+    zoneDraftPoints,
+  ]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -178,7 +220,7 @@ export function SpatialWorkspace({
     const handleKeyDown = (event: KeyboardEvent): void => {
       const element = event.target as HTMLElement | null;
       if (element?.matches("input, textarea, select, [contenteditable='true']")) return;
-      if (releaseView) return;
+      if (releaseView || surveySourceView) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
         event.preventDefault();
         executeEditorCommand(() => event.shiftKey ? editorStore.redo() : editorStore.undo());
@@ -196,7 +238,7 @@ export function SpatialWorkspace({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [editorSnapshot.document.revision, editorStore, releaseView, selectedFeature]);
+  }, [editorSnapshot.document.revision, editorStore, releaseView, selectedFeature, surveySourceView]);
 
   const importFloorplanSource = async (loadSource: () => Promise<string>, fileName: string): Promise<void> => {
     const requestId = importRequestRef.current + 1;
@@ -263,12 +305,25 @@ export function SpatialWorkspace({
           <small className="frame-identity">{snapshot.canonicalFrameId}</small>
         </div>
         <div className="viewer-actions">
+          {surveyPreview && (
+            <button
+              className="survey-source-control"
+              type="button"
+              aria-pressed={surveySourceView}
+              onClick={() => {
+                setSurveySourceView((current) => !current);
+                setReleaseView(false);
+                setActiveTool("SELECT");
+                store.selectEntity(null);
+              }}
+            >{surveySourceView ? t("returnToDraftWorld") : t("openSurveySource")}</button>
+          )}
           <label className="source-unit-control">
             <span className="sr-only">{t("svgSourceUnit")}</span>
             <select
               value={sourceUnit}
               aria-label={t("svgSourceUnit")}
-              disabled={releaseView}
+              disabled={readOnlyView}
               onChange={(event) => setSourceUnit(event.currentTarget.value as SvgSourceUnit | "")}
             >
               <option value="">{t("svgUnitsAuto")}</option>
@@ -280,9 +335,9 @@ export function SpatialWorkspace({
               <option value="px">px / 96 PPI</option>
             </select>
           </label>
-          <button className="demo-floorplan-control" type="button" disabled={importing || releaseView} onClick={() => void loadDemoFloorplan()}>{t("loadDemo")}</button>
+          <button className="demo-floorplan-control" type="button" disabled={importing || readOnlyView} onClick={() => void loadDemoFloorplan()}>{t("loadDemo")}</button>
           <label className={`floorplan-import-control${importing ? " is-busy" : ""}`}>
-            <input type="file" accept=".svg,image/svg+xml" disabled={importing || releaseView} onChange={handleFloorplan} />
+            <input type="file" accept=".svg,image/svg+xml" disabled={importing || readOnlyView} onChange={handleFloorplan} />
             {importing ? t("importingFloorplan") : t("importSvg")}
           </label>
           <div className="segmented-control" aria-label="Spatial view mode">
@@ -304,7 +359,7 @@ export function SpatialWorkspace({
       <div className="map-stage viewer-stage">
         <canvas
           ref={canvasRef}
-          className={`world-canvas${activeTool === "SELECT" ? "" : " is-editing"}`}
+          className={`world-canvas${activeTool === "SELECT" || readOnlyView ? "" : " is-editing"}`}
           role="img"
           tabIndex={0}
           aria-label={`${snapshot.viewMode} digital twin view in ${snapshot.canonicalFrameId}`}
@@ -322,7 +377,12 @@ export function SpatialWorkspace({
         <div className="viewer-help">
           {toolHint(activeTool, pendingEdgeNodeId, t)}
         </div>
-        {releaseView ? (
+        {surveySourceView && surveyPreview ? (
+          <div className="survey-source-banner">
+            <span>{t("unalignedSurveySource")}</span>
+            <strong>{surveyPreview.coordinateSystem.rootFrameId}</strong>
+          </div>
+        ) : releaseView ? (
           <div className="release-view-banner"><span>{t("releaseView")}</span><strong>{release?.mapReleaseId}</strong></div>
         ) : (
           <EditorToolbar
@@ -358,7 +418,7 @@ export function SpatialWorkspace({
             </div>
           </details>
         )}
-        {selectedFeature && !releaseView && (
+        {selectedFeature && !readOnlyView && (
           <FeatureInspector
             feature={selectedFeature}
             store={editorStore}
@@ -391,7 +451,7 @@ export function SpatialWorkspace({
           <span className="north">N</span><i className="axis-y" /><i className="axis-x" /><small>X</small>
         </div>
       </div>
-      <ManualTwinMilestone
+      {!surveySourceView && <ManualTwinMilestone
         floorplan={importReport}
         registration={registration}
         onRegistration={setRegistration}
@@ -413,10 +473,11 @@ export function SpatialWorkspace({
         }}
         onReleaseView={(enabled) => {
           setReleaseView(enabled);
+          setSurveySourceView(false);
           setActiveTool("SELECT");
           store.selectEntity(null);
         }}
-      />
+      />}
     </section>
   );
 }

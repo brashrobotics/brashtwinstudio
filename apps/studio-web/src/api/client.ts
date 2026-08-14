@@ -5,6 +5,8 @@ import type {
   Readiness,
   ReleaseManifest,
   Site,
+  SurveyMaterializationJob,
+  SurveyMaterializationPreview,
   TwinApiErrorBody,
   ValidationJob,
 } from "./types";
@@ -27,6 +29,8 @@ export interface TwinApiClient {
   listMapFamilies(floorId: string, signal?: AbortSignal): Promise<MapFamily[]>;
   listMapDrafts(familyId: string, signal?: AbortSignal): Promise<MapDraft[]>;
   listValidationJobs(draftId: string, signal?: AbortSignal): Promise<ValidationJob[]>;
+  listSurveyMaterializations(draftId: string, signal?: AbortSignal): Promise<SurveyMaterializationJob[]>;
+  getSurveyMaterializationPreview(jobId: string, signal?: AbortSignal): Promise<SurveyMaterializationPreview>;
   listReleases(signal?: AbortSignal): Promise<ReleaseManifest[]>;
 }
 
@@ -84,6 +88,18 @@ export function createTwinApiClient({
         signal,
       )
     ).jobs,
+    listSurveyMaterializations: async (draftId, signal) => (
+      await request<{ jobs: SurveyMaterializationJob[] }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/survey-materializations`,
+        signal,
+      )
+    ).jobs,
+    getSurveyMaterializationPreview: async (jobId, signal) => (
+      await request<{ preview: SurveyMaterializationPreview }>(
+        `/api/v1/survey-materializations/${encodeURIComponent(jobId)}/preview`,
+        signal,
+      )
+    ).preview,
     listReleases: async (signal) => (
       await request<{ releases: ReleaseManifest[] }>("/api/v1/releases", signal)
     ).releases,

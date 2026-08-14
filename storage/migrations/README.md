@@ -39,6 +39,9 @@ Published releases and audit history must never be deleted during migration.
 - `010_survey_materialization_jobs.sql`: One accepted-intake-bound,
   content-hashed materialization snapshot per editable draft, protected by
   composite provenance and append-only guards.
+- `011_survey_materialization_lifecycle.sql`: Leased execution and bounded
+  retries over an immutable input snapshot, with a content-addressed preview
+  artifact reference for successful jobs.
 
 PostgreSQL triggers prevent updates and deletes to primary release records,
 release-artifact bindings, and asset revisions linked to a release. Draft artifact
@@ -49,5 +52,6 @@ Publication triggers prevent requester self-approval, identity mutation, illegal
 state transitions, approval deletion, and completed-history mutation.
 Survey intake mappings are append-only; an intake can move from `OPEN` to one
 terminal verification result exactly once.
-Survey materialization snapshot rows are append-only and can only reference an
-accepted intake and the exact manifest identity sealed during verification.
+Survey materialization input snapshots remain immutable and can only reference
+an accepted intake and the exact manifest identity sealed during verification;
+only guarded execution-state transitions may update their job rows.

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/survey-calibration.v1.schema.json",
+  "title": "Brash Survey Calibration Index v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "calibrationId", "sensors"],
+  "properties": {
+    "schemaVersion": { "const": "brash.survey-calibration/v1" },
+    "calibrationId": { "$ref": "#/$defs/nonEmptyString" },
+    "sensors": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sensorId", "frameId", "modality", "model", "parametersSha256"],
+        "properties": {
+          "sensorId": { "$ref": "#/$defs/nonEmptyString" },
+          "frameId": { "$ref": "#/$defs/nonEmptyString" },
+          "modality": { "enum": ["LIDAR", "CAMERA", "IMU", "ODOMETRY"] },
+          "model": { "$ref": "#/$defs/nonEmptyString" },
+          "parametersSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1, "maxLength": 256 }
+  }
+}

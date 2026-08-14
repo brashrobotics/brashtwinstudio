@@ -35,6 +35,8 @@ must not run in it.
 - `GET /api/v1/map-drafts/:draftId/survey-materializations`
 - `POST /api/v1/survey-intakes/:intakeId/materializations`
 - `GET /api/v1/survey-materializations/:jobId`
+- `POST /api/v1/survey-materializations/:jobId/run`
+- `GET /api/v1/survey-materializations/:jobId/preview`
 - `GET|POST /api/v1/map-drafts/:draftId/validation-jobs`
 - `GET /api/v1/validation-jobs/:jobId`
 - `POST /api/v1/validation-jobs/:jobId/run`
@@ -75,7 +77,12 @@ auditable terminal results.
 An accepted intake can create exactly one materialization job. Creation rereads
 only the bounded manifest, rechecks its raw and canonical identities plus the
 validation-policy hash, joins the server-owned upload mappings, and persists an
-append-only `PENDING` snapshot. Heavy artifact parsing remains worker-owned.
+immutable input snapshot. Execution claims a 15-minute lease, streams standard
+coordinate-frame JSON, calibration JSON, TUM trajectory, and binary XYZI PLY
+from the object store, then stores a bounded preview through the same verified
+multipart upload path. The HTTP run operation is a local-pilot worker boundary;
+it can move behind an orchestrated worker without changing the snapshot or
+preview contracts.
 
 The draft-artifact endpoint accepts only `COMPLETED` uploads. Source records
 represent direct evidence; derived records contain same-draft input bindings and

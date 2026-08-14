@@ -1,5 +1,6 @@
 export type MapDraftStatus = "DRAFT" | "IN_REVIEW" | "VALIDATED" | "PUBLISHED";
 export type ValidationJobStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED";
+export type SurveyMaterializationStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED";
 
 export interface Site {
   siteId: string;
@@ -64,6 +65,87 @@ export interface ValidationJob {
   startedAt: string | null;
   completedAt: string | null;
   failureReason: string | null;
+}
+
+export interface SurveyMaterializationJob {
+  jobId: string;
+  intakeId: string;
+  draftId: string;
+  status: SurveyMaterializationStatus;
+  manifestSha256: string;
+  snapshotSha256: string;
+  output: null | {
+    schemaVersion: "brash.survey-materialization-preview/v1";
+    mediaType: "application/vnd.brash.survey-materialization-preview+json";
+    previewUploadId: string;
+    previewSha256: string;
+    previewBytes: number;
+    sourceFrameId: string;
+    summary: {
+      trajectoryPoseCount: number;
+      pointCloudVertexCount: number;
+      warningCount: number;
+    };
+  };
+  attemptCount: number;
+  maximumAttempts: number;
+  nextAttemptAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  failureReason: string | null;
+  rowVersion: number;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SurveyMaterializationPreview {
+  schemaVersion: "brash.survey-materialization-preview/v1";
+  source: {
+    kind: "ACCEPTED_INTAKE" | "EXTERNAL_DATASET";
+    sourceId: string;
+    revision: string;
+  };
+  coordinateSystem: {
+    rootFrameId: string;
+    lengthUnit: "METRE";
+    handedness: "RIGHT_HANDED";
+    upAxis: "Z";
+  };
+  trajectory: {
+    frameId: string;
+    sampleCount: number;
+    pathLengthMetres: number;
+    positionBounds: SurveyBounds;
+    preview: {
+      method: "STRIDE";
+      sourceStride: number;
+      poses: Array<{ timestamp: number; position: [number, number, number] }>;
+    };
+  };
+  coordinateFrames: { frameId: string; sampleCount: number };
+  calibration?: {
+    calibrationId: string;
+    sensorCount: number;
+    modalities: Partial<Record<"LIDAR" | "CAMERA" | "IMU" | "ODOMETRY", number>>;
+  };
+  reconstruction: {
+    frameId: string;
+    vertexCount: number;
+    bounds: SurveyBounds;
+    preview: {
+      method: "STRIDE";
+      sourceStride: number;
+      points: Array<[number, number, number, number]>;
+    };
+  };
+  qualityWarnings: Array<{ code: string; message: string }>;
+  generatedBy: { name: string; version: string };
+}
+
+export interface SurveyBounds {
+  minimum: [number, number, number];
+  maximum: [number, number, number];
 }
 
 export interface ReleaseManifest {

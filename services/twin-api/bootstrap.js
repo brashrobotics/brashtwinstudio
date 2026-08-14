@@ -153,6 +153,7 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     repository: surveyMaterializationRepository,
     surveyIntakes,
     catalog,
+    uploads,
     multipartStore: multipartArtifactStore,
   });
   const publications = new PublicationService({

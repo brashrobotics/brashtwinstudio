@@ -56,6 +56,13 @@ The operator interface for mapping and digital-twin workflows.
   separation, and immutable local publication evidence.
 - Read-only published-preview mode with synchronized 2D/3D navigation and a
   deliberate return path to the still-editable draft.
+- Typed materialization job/preview queries and a survey status panel exposing
+  source frame, full trajectory pose count, and full reconstruction point count.
+- Bounded trajectory and sampled point-cloud rendering in both 2D and 3D, with
+  automatic fit-to-bounds navigation.
+- A dedicated read-only source-frame mode. Unregistered SLAM coordinates are
+  never overlaid on the canonical CAD frame; the operator deliberately returns
+  to the draft world until a registration transform exists.
 
 The milestone publication button creates a browser-local acceptance preview. It
 does not replace the production Twin API publication service, durable object

@@ -26,6 +26,11 @@ The schemas in this directory define Twin Studio file and integration boundaries
 - `survey-materialization-preview.v1.schema.json`: Bounded trajectory,
   coordinate-frame, reconstruction-bounds, and downsampled point preview while
   retaining the original processed-survey frame.
+- `survey-coordinate-frames.v1.schema.json`: Embodied Controller survey-frame
+  tree with metric static transforms, distinct from release/canonical frames.
+- `survey-calibration.v1.schema.json`: Bounded sensor/frame calibration index
+  with immutable parameter hashes; large vendor calibration payloads remain
+  separate artifacts.
 
 Published schemas are extended only in backward-compatible ways. Changes to
 meaning or required fields require a new major version.

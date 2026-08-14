@@ -57,4 +57,25 @@ describe("shared world store", () => {
     const layerIds = new Set(diagnosticLayers.map((layer) => layer.layerId));
     expect(allDiagnosticEntities.every((entity) => layerIds.has(entity.layerId))).toBe(true);
   });
+
+  it("keeps bounded point-cloud previews in the shared 2D/3D model", () => {
+    const store = createWorldStore({
+      canonicalFrameId: "slam-map",
+      layers: diagnosticLayers,
+      entities: [{
+        entityId: "survey-cloud-preview",
+        layerId: "survey",
+        label: "Survey cloud preview",
+        position: { x: 0, y: 0, z: 0 },
+        geometry: {
+          type: "POINT_CLOUD",
+          points: [{ x: 0, y: 0, z: 0 }, { x: 1, y: 2, z: 0.5 }],
+          size: 0.08,
+        },
+      }],
+    });
+    expect(store.getSnapshot().entities[0]?.geometry.type).toBe("POINT_CLOUD");
+    store.setViewMode("3D");
+    expect(store.getSnapshot().entities).toHaveLength(1);
+  });
 });

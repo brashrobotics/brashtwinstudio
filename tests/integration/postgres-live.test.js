@@ -59,17 +59,20 @@ test("real PostgreSQL persists the catalog and survives repository recreation", 
     const secondRunner = new PostgresMigrationRunner({ database, migrationDirectory });
     const beforeMigration = await firstRunner.status();
     assert.equal(beforeMigration.currentVersion, 0);
-    assert.equal(beforeMigration.pendingCount, 10);
+    assert.equal(beforeMigration.pendingCount, 11);
     const concurrentResults = await Promise.all([firstRunner.migrate(), secondRunner.migrate()]);
     assert.deepEqual(
       concurrentResults.map((result) => result.appliedNow.length).sort((left, right) => left - right),
-      [0, 10],
+      [0, 11],
     );
     const migrationStatus = await firstRunner.status();
     assert.equal(migrationStatus.pendingCount, 0);
     assert.deepEqual(
       migrationStatus.entries.map((entry) => entry.state),
-      ["APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED"],
+      [
+        "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED",
+        "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED",
+      ],
     );
 
     const apiReleaseStore = await mkdtemp(join(tmpdir(), "brash-postgres-api-store-"));
@@ -90,8 +93,8 @@ test("real PostgreSQL persists the catalog and survives repository recreation", 
       assert.equal(readiness.body.persistence.mode, "postgres");
       assert.deepEqual(readiness.body.persistence.migrations, {
         ready: true,
-        currentVersion: 10,
-        latestVersion: 10,
+        currentVersion: 11,
+        latestVersion: 11,
         pendingCount: 0,
       });
     } finally {

@@ -6,7 +6,14 @@ import {
   createSurveyMaterializationJobRecord,
 } from "@brash-twin/domain";
 import { validateEmbodiedSurveyPackage } from "@brash-twin/embodied-survey";
+import {
+  SurveyMaterializationAdapterError,
+  createSurveyMaterializationPreview,
+  serializeSurveyMaterializationPreview,
+} from "@brash-twin/embodied-survey/materialization";
 import { PersistenceError } from "@brash-twin/persistence";
+
+const PREVIEW_MEDIA_TYPE = "application/vnd.brash.survey-materialization-preview+json";
 
 export class SurveyMaterializationError extends Error {
   constructor(code, message, options = {}) {
@@ -20,29 +27,40 @@ export class SurveyMaterializationService {
   #repository;
   #surveyIntakes;
   #catalog;
+  #uploads;
   #multipartStore;
   #clock;
   #jobIdGenerator;
   #maximumManifestBytes;
+  #maximumPreviewBytes;
+  #leaseSeconds;
+  #retryBaseSeconds;
   #policy;
 
   constructor({
     repository,
     surveyIntakes,
     catalog,
+    uploads,
     multipartStore,
     clock = () => new Date(),
     jobIdGenerator = () => `materialization-${randomUUID()}`,
     maximumManifestBytes = 1024 * 1024,
+    maximumPreviewBytes = 4 * 1024 * 1024,
+    leaseSeconds = 900,
+    retryBaseSeconds = 5,
     policy = {},
   }) {
     if (!repository
       || typeof repository.create !== "function"
       || typeof repository.get !== "function"
-      || typeof repository.list !== "function") {
+      || typeof repository.list !== "function"
+      || typeof repository.claim !== "function"
+      || typeof repository.complete !== "function"
+      || typeof repository.fail !== "function") {
       throw new SurveyMaterializationError(
         "SURVEY_MATERIALIZATION_REPOSITORY_INVALID",
-        "Materialization repository create/get/list operations are required.",
+        "Materialization repository lifecycle operations are required.",
       );
     }
     if (!surveyIntakes || typeof surveyIntakes.get !== "function") {
@@ -57,10 +75,22 @@ export class SurveyMaterializationService {
         "Map draft context lookup is required.",
       );
     }
-    if (!multipartStore || typeof multipartStore.get !== "function") {
+    if (!uploads
+      || typeof uploads.initiate !== "function"
+      || typeof uploads.get !== "function"
+      || typeof uploads.complete !== "function") {
+      throw new SurveyMaterializationError(
+        "SURVEY_MATERIALIZATION_UPLOADS_INVALID",
+        "Upload lifecycle operations are required for preview artifacts.",
+      );
+    }
+    if (!multipartStore
+      || typeof multipartStore.get !== "function"
+      || typeof multipartStore.openReadStream !== "function"
+      || typeof multipartStore.putPart !== "function") {
       throw new SurveyMaterializationError(
         "SURVEY_MATERIALIZATION_STORE_INVALID",
-        "Multipart object-store manifest reads are required.",
+        "Multipart object-store reads, streams, and writes are required.",
       );
     }
     if (typeof clock !== "function" || typeof jobIdGenerator !== "function") {
@@ -77,6 +107,9 @@ export class SurveyMaterializationService {
         "maximumManifestBytes must be between 1 byte and 16 MiB.",
       );
     }
+    boundedInteger(maximumPreviewBytes, "maximumPreviewBytes", 1, 16 * 1024 * 1024);
+    boundedInteger(leaseSeconds, "leaseSeconds", 30, 3_600);
+    boundedInteger(retryBaseSeconds, "retryBaseSeconds", 1, 300);
     if (!policy || typeof policy !== "object" || Array.isArray(policy)) {
       throw new SurveyMaterializationError(
         "SURVEY_MATERIALIZATION_CONFIGURATION_INVALID",
@@ -86,10 +119,14 @@ export class SurveyMaterializationService {
     this.#repository = repository;
     this.#surveyIntakes = surveyIntakes;
     this.#catalog = catalog;
+    this.#uploads = uploads;
     this.#multipartStore = multipartStore;
     this.#clock = clock;
     this.#jobIdGenerator = jobIdGenerator;
     this.#maximumManifestBytes = maximumManifestBytes;
+    this.#maximumPreviewBytes = maximumPreviewBytes;
+    this.#leaseSeconds = leaseSeconds;
+    this.#retryBaseSeconds = retryBaseSeconds;
     this.#policy = Object.freeze({ ...policy });
   }
 
@@ -182,6 +219,177 @@ export class SurveyMaterializationService {
     await this.#catalog.getMapDraftContext(draftId);
     return this.#repository.list(draftId);
   }
+
+  async run(jobId, { workerId, operatorId } = {}) {
+    identifier(jobId, "jobId");
+    identifier(workerId, "workerId");
+    requiredText(operatorId, "operatorId");
+    const current = await this.get(jobId);
+    if (current.status === "SUCCEEDED") return current;
+    if (current.status === "FAILED") {
+      throw new SurveyMaterializationError(
+        "SURVEY_MATERIALIZATION_NOT_RUNNABLE",
+        `Survey materialization ${jobId} exhausted its attempts.`,
+      );
+    }
+    const claimedAt = this.#now();
+    const leaseExpiresAt = new Date(
+      Date.parse(claimedAt) + this.#leaseSeconds * 1_000,
+    ).toISOString();
+    let running;
+    try {
+      running = await this.#repository.claim(jobId, { workerId, claimedAt, leaseExpiresAt });
+      const snapshotSha256 = createHash("sha256")
+        .update(canonicalJson(running.snapshot))
+        .digest("hex");
+      if (snapshotSha256 !== running.snapshotSha256) {
+        throw new SurveyMaterializationError(
+          "SURVEY_MATERIALIZATION_SNAPSHOT_INTEGRITY_FAILED",
+          "Materialization input snapshot no longer matches its sealed identity.",
+        );
+      }
+      const preview = await createSurveyMaterializationPreview(running.snapshot, {
+        openArtifactStream: (sha256) => this.#multipartStore.openReadStream(sha256),
+        limits: { maximumPreviewBytes: this.#maximumPreviewBytes },
+      });
+      const content = serializeSurveyMaterializationPreview(preview);
+      if (content.byteLength > this.#maximumPreviewBytes) {
+        throw new SurveyMaterializationError(
+          "SURVEY_MATERIALIZATION_PREVIEW_LIMIT_EXCEEDED",
+          `Preview artifact exceeds ${this.#maximumPreviewBytes} bytes.`,
+        );
+      }
+      const outputArtifactSha256 = createHash("sha256").update(content).digest("hex");
+      const outputUploadId = `materialization-preview-${jobId}`;
+      const upload = await this.#storePreview({
+        uploadId: outputUploadId,
+        sha256: outputArtifactSha256,
+        content,
+        operatorId,
+        originalName: `${jobId}-preview.json`,
+      });
+      const output = Object.freeze({
+        schemaVersion: preview.schemaVersion,
+        mediaType: PREVIEW_MEDIA_TYPE,
+        previewUploadId: outputUploadId,
+        previewSha256: outputArtifactSha256,
+        previewBytes: content.byteLength,
+        sourceFrameId: preview.coordinateSystem.rootFrameId,
+        summary: Object.freeze({
+          trajectoryPoseCount: preview.trajectory.sampleCount,
+          pointCloudVertexCount: preview.reconstruction.vertexCount,
+          warningCount: preview.qualityWarnings.length,
+        }),
+      });
+      if (upload.artifactSha256 !== outputArtifactSha256) {
+        throw new SurveyMaterializationError(
+          "SURVEY_MATERIALIZATION_PREVIEW_INTEGRITY_FAILED",
+          "Completed preview upload no longer matches the generated content identity.",
+        );
+      }
+      return await this.#repository.complete(jobId, {
+        workerId,
+        output,
+        outputUploadId,
+        outputArtifactSha256,
+        completedAt: this.#now(),
+      });
+    } catch (error) {
+      if (running) {
+        const failedAt = this.#now();
+        const delay = this.#retryBaseSeconds * (2 ** Math.max(0, running.attemptCount - 1));
+        await this.#repository.fail(jobId, {
+          workerId,
+          failureReason: safeFailureReason(error),
+          failedAt,
+          nextAttemptAt: new Date(Date.parse(failedAt) + Math.min(delay, 300) * 1_000).toISOString(),
+        }).catch(() => undefined);
+      }
+      throw translateMaterializationError(error);
+    }
+  }
+
+  async getPreview(jobId) {
+    const job = await this.get(jobId);
+    if (job.status !== "SUCCEEDED" || !job.output) {
+      throw new SurveyMaterializationError(
+        "SURVEY_MATERIALIZATION_PREVIEW_NOT_READY",
+        `Survey materialization ${jobId} is ${job.status}.`,
+      );
+    }
+    const content = await this.#multipartStore.get(job.output.previewSha256);
+    if (!Buffer.isBuffer(content)
+      || content.byteLength !== job.output.previewBytes
+      || content.byteLength > this.#maximumPreviewBytes
+      || createHash("sha256").update(content).digest("hex") !== job.output.previewSha256) {
+      throw new SurveyMaterializationError(
+        "SURVEY_MATERIALIZATION_PREVIEW_INTEGRITY_FAILED",
+        "Stored preview bytes no longer match the successful job output identity.",
+      );
+    }
+    let preview;
+    try {
+      preview = JSON.parse(content.toString("utf8"));
+    } catch {
+      throw new SurveyMaterializationError(
+        "SURVEY_MATERIALIZATION_PREVIEW_INVALID",
+        "Stored materialization preview is not valid JSON.",
+      );
+    }
+    if (preview?.schemaVersion !== job.output.schemaVersion
+      || preview?.source?.revision !== job.manifestSha256) {
+      throw new SurveyMaterializationError(
+        "SURVEY_MATERIALIZATION_PREVIEW_INTEGRITY_FAILED",
+        "Stored preview lineage does not match the successful job.",
+      );
+    }
+    return preview;
+  }
+
+  async #storePreview({ uploadId, sha256, content, operatorId, originalName }) {
+    let session;
+    let upload;
+    try {
+      const initiated = await this.#uploads.initiate({
+        uploadId,
+        expectedSha256: sha256,
+        expectedBytes: content.byteLength,
+        mediaType: PREVIEW_MEDIA_TYPE,
+        originalName,
+        operatorId,
+      });
+      session = initiated.session;
+      upload = initiated.upload;
+    } catch (error) {
+      if (!["UPLOAD_CONFLICT", "UPLOAD_ALREADY_EXISTS", "UPLOAD_ALREADY_FINALIZED"].includes(error?.code)) {
+        throw error;
+      }
+      session = await this.#uploads.get(uploadId);
+    }
+    if (session.expectedSha256 !== sha256 || session.expectedBytes !== content.byteLength) {
+      throw new SurveyMaterializationError(
+        "SURVEY_MATERIALIZATION_PREVIEW_CONFLICT",
+        `Existing preview upload ${uploadId} has a different content identity.`,
+      );
+    }
+    if (session.status === "COMPLETED") return session;
+    if (!upload) {
+      upload = { partSizeBytes: session.partSizeBytes };
+    }
+    await writeMultipartContent(this.#multipartStore, uploadId, content, upload.partSizeBytes);
+    return this.#uploads.complete(uploadId, { operatorId });
+  }
+
+  #now() {
+    const value = new Date(this.#clock());
+    if (!Number.isFinite(value.getTime())) {
+      throw new SurveyMaterializationError(
+        "SURVEY_MATERIALIZATION_CLOCK_INVALID",
+        "Clock returned an invalid date.",
+      );
+    }
+    return value.toISOString();
+  }
 }
 
 function buildSnapshot(intake, manifest) {
@@ -266,9 +474,46 @@ function translatePersistenceError(error) {
   if (!(error instanceof PersistenceError)) return error;
   const code = ({
     ALREADY_EXISTS: "SURVEY_MATERIALIZATION_CONFLICT",
+    NOT_FOUND: "SURVEY_MATERIALIZATION_NOT_FOUND",
     REFERENCE_NOT_FOUND: "SURVEY_MATERIALIZATION_REFERENCE_NOT_FOUND",
+    CONCURRENCY_CONFLICT: "SURVEY_MATERIALIZATION_CONCURRENCY_CONFLICT",
     PROVENANCE_CONSTRAINT_VIOLATION: "SURVEY_MATERIALIZATION_PROVENANCE_INVALID",
     IMMUTABLE_IDENTITY: "SURVEY_MATERIALIZATION_IMMUTABLE",
   })[error.code] ?? "SURVEY_MATERIALIZATION_PERSISTENCE_ERROR";
   return new SurveyMaterializationError(code, error.message, { cause: error });
+}
+
+function translateMaterializationError(error) {
+  if (error instanceof SurveyMaterializationError) return error;
+  if (error instanceof SurveyMaterializationAdapterError) {
+    return new SurveyMaterializationError(error.code, error.message, { cause: error });
+  }
+  if (error instanceof PersistenceError) return translatePersistenceError(error);
+  return error;
+}
+
+async function writeMultipartContent(multipartStore, uploadId, content, partSizeBytes) {
+  for (let offset = 0, partNumber = 1;
+    offset < content.byteLength;
+    offset += partSizeBytes, partNumber += 1) {
+    await multipartStore.putPart(
+      uploadId,
+      partNumber,
+      content.subarray(offset, offset + partSizeBytes),
+    );
+  }
+}
+
+function safeFailureReason(error) {
+  const value = error instanceof Error ? error.message : "Survey materialization failed.";
+  return value.replaceAll(/[\r\n\t]/g, " ").slice(0, 500);
+}
+
+function boundedInteger(value, fieldName, minimum, maximum) {
+  if (!Number.isSafeInteger(value) || value < minimum || value > maximum) {
+    throw new SurveyMaterializationError(
+      "SURVEY_MATERIALIZATION_CONFIGURATION_INVALID",
+      `${fieldName} must be an integer between ${minimum} and ${maximum}.`,
+    );
+  }
 }

@@ -75,6 +75,13 @@ export class ContentAddressedArtifactStore {
     return readFile(path);
   }
 
+  async openReadStream(sha256) {
+    validateSha256(sha256);
+    const path = join(this.#rootDirectory, ...contentKey(sha256).split("/"));
+    await assertRegularFile(path);
+    return createReadStream(path);
+  }
+
   async has(sha256) {
     try {
       validateSha256(sha256);
@@ -315,6 +322,13 @@ export class LocalMultipartArtifactStore {
     const path = join(this.#rootDirectory, ...contentKey(sha256).split("/"));
     await assertRegularFile(path);
     return readFile(path);
+  }
+
+  async openReadStream(sha256) {
+    validateSha256(sha256);
+    const path = join(this.#rootDirectory, ...contentKey(sha256).split("/"));
+    await assertRegularFile(path);
+    return createReadStream(path);
   }
 
   #uploadDirectory(uploadId) {

@@ -283,6 +283,23 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
         .body.jobs.map((job) => job.jobId),
       ["survey-materialization-1"],
     );
+    const materializationRun = await request(
+      baseUrl,
+      "POST",
+      "/api/v1/survey-materializations/survey-materialization-1/run",
+      { workerId: "materializer-1", operatorId: "mapping-operator-1" },
+    );
+    assert.equal(materializationRun.status, 200);
+    assert.equal(materializationRun.body.job.status, "SUCCEEDED");
+    assert.equal(materializationRun.body.job.output.summary.trajectoryPoseCount, 5);
+    const materializationPreview = await request(
+      baseUrl,
+      "GET",
+      "/api/v1/survey-materializations/survey-materialization-1/preview",
+    );
+    assert.equal(materializationPreview.status, 200);
+    assert.equal(materializationPreview.body.preview.coordinateSystem.rootFrameId, "slam-map");
+    assert.equal(materializationPreview.body.preview.reconstruction.vertexCount, 6);
 
     const sourceBinding = await request(baseUrl, "POST", "/api/v1/map-drafts/draft-demo-2/artifacts", {
       bindingId: "source-ifc-1",
@@ -439,6 +456,7 @@ function memorySurveyMaterializations(catalog, surveyIntakes, uploadSystem, opti
     repository: new InMemorySurveyMaterializationRepository(),
     surveyIntakes,
     catalog,
+    uploads: uploadSystem.uploads,
     multipartStore: uploadSystem.multipartStore,
     ...options,
   });
@@ -465,12 +483,83 @@ async function uploadThroughApi(baseUrl, multipartStore, uploadId, content, medi
 async function createSurveyPackageFixture() {
   const manifest = JSON.parse(await readFile(surveyFixture, "utf8"));
   manifest.floorId = "floor-1";
+  manifest.quality.trajectoryPoseCount = 5;
   const content = new Map();
+  const values = new Map([
+    ["frames-1", Buffer.from(JSON.stringify({
+      schemaVersion: "brash.survey-coordinate-frames/v1",
+      rootFrameId: "slam-map",
+      frames: [
+        surveyFrame("slam-map", null, [0, 0, 0]),
+        surveyFrame("base-link", "slam-map", [0, 0, 0.4]),
+        surveyFrame("lidar-link", "base-link", [0.2, 0, 0.3]),
+      ],
+    }))],
+    ["calibration-1", Buffer.from(JSON.stringify({
+      schemaVersion: "brash.survey-calibration/v1",
+      calibrationId: "e2e-calibration",
+      sensors: [
+        surveySensor("lidar-main", "lidar-link", "LIDAR", "hesai-xt32", "1"),
+        surveySensor("imu-main", "base-link", "IMU", "hg4930", "2"),
+      ],
+    }))],
+    ["trajectory-1", Buffer.from([
+      "1000 0 0 0 0 0 0 1",
+      "1000.1 1 0 0 0 0 0 1",
+      "1000.2 2 0 0.1 0 0 0 1",
+      "1000.3 2 1 0.1 0 0 0 1",
+      "1000.4 2 2 0.2 0 0 0 1",
+      "",
+    ].join("\n"))],
+    ["point-cloud-map-1", surveyBinaryPly([
+      [-1, -2, 0, 1],
+      [0, 0, 0.5, 10],
+      [1, 1, 1, 20],
+      [2, 2, 1.5, 30],
+      [3, -1, 2, 40],
+      [1, -2, 0.25, 50],
+    ])],
+    ["quality-report-1", Buffer.from(JSON.stringify({ outcome: "PASSED" }))],
+  ]);
   for (const artifact of manifest.artifacts) {
-    const bytes = Buffer.from(`deterministic survey fixture for ${artifact.artifactId}`);
+    const bytes = values.get(artifact.artifactId);
     artifact.sha256 = createHash("sha256").update(bytes).digest("hex");
     artifact.bytes = bytes.byteLength;
     content.set(artifact.artifactId, bytes);
   }
   return { manifest, content };
+}
+
+function surveyFrame(frameId, parentFrameId, [x, y, z]) {
+  return {
+    frameId,
+    parentFrameId,
+    transformToParent: {
+      translation: { x, y, z },
+      rotation: { x: 0, y: 0, z: 0, w: 1 },
+    },
+  };
+}
+
+function surveySensor(sensorId, frameId, modality, model, digit) {
+  return { sensorId, frameId, modality, model, parametersSha256: digit.repeat(64) };
+}
+
+function surveyBinaryPly(points) {
+  const header = Buffer.from([
+    "ply",
+    "format binary_little_endian 1.0",
+    `element vertex ${points.length}`,
+    "property float x",
+    "property float y",
+    "property float z",
+    "property float intensity",
+    "end_header",
+    "",
+  ].join("\n"));
+  const body = Buffer.alloc(points.length * 16);
+  points.forEach((point, index) => point.forEach((value, component) => {
+    body.writeFloatLE(value, index * 16 + component * 4);
+  }));
+  return Buffer.concat([header, body]);
 }

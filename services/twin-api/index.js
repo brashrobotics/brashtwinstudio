@@ -217,6 +217,28 @@ export class TwinApi {
       });
     }
 
+    const surveyMaterializationRunMatch = pathname.match(
+      /^\/api\/v1\/survey-materializations\/([^/]+)\/run$/,
+    );
+    if (surveyMaterializationRunMatch && method === "POST") {
+      const job = await this.#surveyMaterializations.run(
+        segment(surveyMaterializationRunMatch[1]),
+        objectBody(body, ["workerId", "operatorId"]),
+      );
+      return response(200, { job });
+    }
+
+    const surveyMaterializationPreviewMatch = pathname.match(
+      /^\/api\/v1\/survey-materializations\/([^/]+)\/preview$/,
+    );
+    if (surveyMaterializationPreviewMatch && method === "GET") {
+      return response(200, {
+        preview: await this.#surveyMaterializations.getPreview(
+          segment(surveyMaterializationPreviewMatch[1]),
+        ),
+      });
+    }
+
     const surveyIntakeMatch = pathname.match(/^\/api\/v1\/survey-intakes\/([^/]+)$/);
     if (surveyIntakeMatch && method === "GET") {
       return response(200, { intake: await this.#surveyIntakes.get(segment(surveyIntakeMatch[1])) });
@@ -446,11 +468,17 @@ function statusForSurveyMaterializationError(code) {
     "SURVEY_MATERIALIZATION_DRAFT_LOCKED",
     "SURVEY_MATERIALIZATION_IMMUTABLE",
     "SURVEY_MATERIALIZATION_INTAKE_INELIGIBLE",
+    "SURVEY_MATERIALIZATION_CONCURRENCY_CONFLICT",
+    "SURVEY_MATERIALIZATION_NOT_RUNNABLE",
+    "SURVEY_MATERIALIZATION_PREVIEW_NOT_READY",
+    "SURVEY_MATERIALIZATION_PREVIEW_CONFLICT",
   ].includes(code)) return 409;
   if ([
     "SURVEY_MATERIALIZATION_MANIFEST_INTEGRITY_FAILED",
     "SURVEY_MATERIALIZATION_MANIFEST_IDENTITY_MISMATCH",
     "SURVEY_MATERIALIZATION_ARTIFACT_IDENTITY_MISMATCH",
+    "SURVEY_MATERIALIZATION_SNAPSHOT_INTEGRITY_FAILED",
+    "SURVEY_MATERIALIZATION_PREVIEW_INTEGRITY_FAILED",
     "SURVEY_MATERIALIZATION_PROVENANCE_INVALID",
   ].includes(code)) return 422;
   if (code === "SURVEY_MATERIALIZATION_PERSISTENCE_ERROR") return 500;

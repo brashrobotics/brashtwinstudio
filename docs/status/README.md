@@ -177,22 +177,31 @@ Phase 1 — Manual Mapping Studio MVP foundation.
   `PENDING` job per accepted intake under an editable draft
 - PostgreSQL composite intake/manifest provenance, accepted-intake trigger,
   immutable snapshot guard, and Twin API/OpenAPI create/get/list operations
+- Standard v1 coordinate-frame and calibration input contracts, TUM trajectory,
+  and binary little-endian XYZI PLY runtime boundary with no GrandTour/Zarr
+  dependency in product execution
+- Expiring materialization leases, stale-owner rejection, three-attempt bounded
+  retry, immutable snapshot checks, and completed-upload output provenance
+- Streaming checksum/byte verification for every input and a deterministic,
+  content-addressed preview artifact capped at 4 MiB and 4,096 samples per layer
+- Twin API/OpenAPI run and integrity-checked preview operations, exercised from
+  accepted intake through stored output in the HTTP end-to-end test
+- Studio survey status, sampled point-cloud and trajectory rendering, 2D/3D
+  fit-to-bounds navigation, and an explicit read-only original-source-frame mode
+  that does not falsely overlay unregistered survey data on CAD
 
 ## Next development increment
 
-Phase 2 continues with materialization execution and visual review:
+Phase 2 continues with survey-to-CAD registration and review:
 
-1. Add a leased worker lifecycle for `PENDING -> RUNNING -> SUCCEEDED|FAILED`
-   materialization jobs with retry-safe artifact publication.
-2. Stream standardized Embodied Controller coordinate-frame, calibration,
-   trajectory, and PLY metadata from the object store under explicit byte and
-   record budgets; keep GrandTour decoding in the development adapter only.
-3. Store the bounded preview as a derived draft artifact linked to every source
+1. Store the bounded preview as a derived draft artifact linked to every source
    artifact in the immutable job snapshot.
-4. Project trajectory, reconstruction bounds, and sampled points into a
-   read-only Studio survey layer while preserving the original SLAM frame.
-5. Add coverage, timing, frame-quality, and reconstruction-review surfaces
+2. Add a versioned survey-to-CAD registration job and immutable transform report
+   before allowing survey and canonical draft layers to appear together.
+3. Add coverage, timing, frame-quality, and reconstruction-review surfaces
    before CAD alignment and semantic asset review.
+4. Introduce the first operator-assisted registration workflow, retaining source
+   coordinates and all control-point/residual evidence.
 
 ## Deliberately deferred
 
@@ -209,10 +218,10 @@ lifecycle are stable.
 
 ```text
 npm run check
-syntax/json: 224 files passed
-backend tests: 92 total; 89 passed and 3 optional external tests skipped
-web tests: 30/30 passed with strict TypeScript and production build
-live PostgreSQL 16 migration/repository gate: passed with schema version 10
+syntax/json: 231 files passed
+backend tests: 98 total; 95 passed and 3 optional external tests skipped
+web tests: 33/33 passed with strict TypeScript and production build
+live PostgreSQL 16 migration/repository gate: passed with schema version 11
 live GrandTour ETH-2 SHA-256/preview gate: passed against the 290,764,702-byte base selection
 ConSLAM/IfcOpenShell gate: last passed August 13, 2026 and remains opt-in
 fixture: demo-plant@1 valid
@@ -232,7 +241,7 @@ editor: node/edge/zone/asset commands, undo/redo, numeric correction and desktop
 manual twin: control-point alignment, residual policy, diff, validation, two-person approval and immutable read-only preview verified
 embodied survey: strict manifest, clock/frame/quality, hash/size policy and no-download GrandTour selection verified
 survey intake: atomic upload mapping, manifest-only verification, immutable rejection evidence and HTTP lifecycle verified
-survey materialization: accepted-only immutable snapshot, policy identity, PostgreSQL provenance and HTTP lifecycle verified
+survey materialization: immutable input, leased/retry-safe streaming, content-addressed preview, PostgreSQL provenance, HTTP lifecycle and source-frame 2D/3D browser QA verified
 dataset: ConSLAM IFC/GT checksum, geometry and trajectory validation verified
 GrandTour: pinned SHA-256, safe Zarr/PLY bounds, real trajectory/TF/map metrics and bounded preview verified
 ```

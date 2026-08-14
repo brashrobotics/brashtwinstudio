@@ -29,4 +29,24 @@ describe("Twin API client", () => {
       status: 404,
     } satisfies Partial<TwinApiClientError>));
   });
+
+  it("reads materialization jobs and their bounded previews through encoded paths", async () => {
+    const fetchImplementation = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ jobs: [{ jobId: "job-1", status: "SUCCEEDED" }] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        preview: { schemaVersion: "brash.survey-materialization-preview/v1" },
+      }), { status: 200, headers: { "content-type": "application/json" } }));
+    const api = createTwinApiClient({ baseUrl: "http://twin.local", fetchImplementation });
+
+    expect((await api.listSurveyMaterializations("draft / 1"))[0]?.jobId).toBe("job-1");
+    expect((await api.getSurveyMaterializationPreview("job / 1")).schemaVersion)
+      .toBe("brash.survey-materialization-preview/v1");
+    expect(fetchImplementation.mock.calls.map(([url]) => url)).toEqual([
+      "http://twin.local/api/v1/map-drafts/draft%20%2F%201/survey-materializations",
+      "http://twin.local/api/v1/survey-materializations/job%20%2F%201/preview",
+    ]);
+  });
 });

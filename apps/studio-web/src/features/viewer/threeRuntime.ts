@@ -20,6 +20,8 @@ import {
   OrthographicCamera,
   PerspectiveCamera,
   Plane,
+  Points,
+  PointsMaterial,
   Raycaster,
   Scene,
   Shape,
@@ -130,8 +132,10 @@ export class ThreeWorldRuntime {
     canvas.addEventListener("pointerleave", this.#handlePointerLeave);
     canvas.addEventListener("click", this.#handleClick);
     this.#raycaster.params.Line = { threshold: 0.35 };
+    this.#raycaster.params.Points = { threshold: 0.25 };
     this.resize();
     this.sync(store.getSnapshot());
+    this.fitWorld();
   }
 
   sync(snapshot: WorldSnapshot): void {
@@ -166,6 +170,36 @@ export class ThreeWorldRuntime {
     this.orthographicCamera.top = viewHeight / 2;
     this.orthographicCamera.bottom = -viewHeight / 2;
     this.orthographicCamera.updateProjectionMatrix();
+    this.invalidate();
+  }
+
+  fitWorld(padding = 1.25): void {
+    const bounds = new Box3().setFromObject(this.#world);
+    if (bounds.isEmpty()) return;
+    const center = bounds.getCenter(new Vector3());
+    const size = bounds.getSize(new Vector3());
+    const paddedWidth = Math.max(1, size.x * padding);
+    const paddedHeight = Math.max(1, size.y * padding);
+    const orthographicWidth = this.orthographicCamera.right - this.orthographicCamera.left;
+    const orthographicHeight = this.orthographicCamera.top - this.orthographicCamera.bottom;
+    this.orthographicCamera.position.set(center.x, center.y, center.z + Math.max(50, size.z + 10));
+    this.orthographicCamera.zoom = Math.min(
+      this.#controls.maxZoom,
+      Math.max(this.#controls.minZoom, Math.min(
+        orthographicWidth / paddedWidth,
+        orthographicHeight / paddedHeight,
+      )),
+    );
+    this.orthographicCamera.updateProjectionMatrix();
+
+    const radius = Math.max(2, size.length() / 2);
+    const fieldOfView = this.perspectiveCamera.fov * Math.PI / 180;
+    const distance = (radius * padding) / Math.tan(fieldOfView / 2);
+    const direction = new Vector3(1, -1, 0.8).normalize();
+    this.perspectiveCamera.position.copy(center).addScaledVector(direction, distance);
+    this.perspectiveCamera.lookAt(center);
+    this.#controls.target.copy(center);
+    this.#controls.update();
     this.invalidate();
   }
 
@@ -314,6 +348,14 @@ function createEntityObject(entity: WorldEntity, color: string, transparent: boo
   const tint = new Color(color);
   if (entity.geometry.type === "BOX") {
     const geometry = new BoxGeometry(entity.geometry.size.x, entity.geometry.size.y, entity.geometry.size.z);
+    if (entity.geometry.style === "WIREFRAME") {
+      const edges = new EdgesGeometry(geometry);
+      geometry.dispose();
+      return new LineSegments(
+        edges,
+        new LineBasicMaterial({ color: tint, transparent: true, opacity: 0.6 }),
+      );
+    }
     const mesh = new Mesh(geometry, new MeshStandardMaterial({
       color: tint,
       metalness: 0.12,
@@ -329,6 +371,13 @@ function createEntityObject(entity: WorldEntity, color: string, transparent: boo
     return new Mesh(
       new SphereGeometry(entity.geometry.radius, 16, 10),
       new MeshBasicMaterial({ color: tint }),
+    );
+  }
+  if (entity.geometry.type === "POINT_CLOUD") {
+    const points = entity.geometry.points.map((point) => new Vector3(point.x, point.y, point.z));
+    return new Points(
+      new BufferGeometry().setFromPoints(points),
+      new PointsMaterial({ color: tint, size: entity.geometry.size ?? 0.06, sizeAttenuation: true }),
     );
   }
   if (entity.geometry.type === "POLYGON") {

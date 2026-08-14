@@ -17,8 +17,9 @@ export interface WorldLayer {
 }
 
 export type WorldGeometry =
-  | { type: "BOX"; size: Vector3Value }
+  | { type: "BOX"; size: Vector3Value; style?: "SOLID" | "WIREFRAME" }
   | { type: "POINT"; radius: number }
+  | { type: "POINT_CLOUD"; points: Vector3Value[]; size?: number }
   | { type: "POLYLINE"; points: Vector3Value[]; closed?: boolean }
   | { type: "POLYGON"; points: Vector3Value[] };
 
@@ -227,12 +228,45 @@ function normalizeGeometry(geometry: WorldGeometry, entityId: string): WorldGeom
     if (size.x <= 0 || size.y <= 0 || size.z <= 0) {
       throw new ViewerModelError("VIEWER_GEOMETRY_SIZE_INVALID", `Entity ${entityId} box size must be positive.`);
     }
-    return { type: "BOX", size };
+    const style = geometry.style ?? "SOLID";
+    if (!(style === "SOLID" || style === "WIREFRAME")) {
+      throw new ViewerModelError(
+        "VIEWER_GEOMETRY_STYLE_INVALID",
+        `Entity ${entityId} box style is unsupported.`,
+      );
+    }
+    return { type: "BOX", size, style };
   }
   if (geometry.type === "POINT") {
     finite(geometry.radius, `${entityId}.geometry.radius`);
     if (geometry.radius <= 0) throw new ViewerModelError("VIEWER_GEOMETRY_SIZE_INVALID", `Entity ${entityId} radius must be positive.`);
     return { type: "POINT", radius: geometry.radius };
+  }
+  if (geometry.type === "POINT_CLOUD") {
+    if (!Array.isArray(geometry.points)
+      || geometry.points.length < 1
+      || geometry.points.length > 4_096) {
+      throw new ViewerModelError(
+        "VIEWER_GEOMETRY_POINTS_INVALID",
+        `Entity ${entityId} point cloud requires between 1 and 4096 preview points.`,
+      );
+    }
+    const size = geometry.size ?? 0.06;
+    finite(size, `${entityId}.geometry.size`);
+    if (size <= 0 || size > 2) {
+      throw new ViewerModelError(
+        "VIEWER_GEOMETRY_SIZE_INVALID",
+        `Entity ${entityId} point size must be greater than zero and no more than two metres.`,
+      );
+    }
+    return {
+      type: "POINT_CLOUD",
+      points: geometry.points.map((point, index) => vector(
+        point,
+        `${entityId}.geometry.points[${index}]`,
+      )),
+      size,
+    };
   }
   if (geometry.type === "POLYLINE" || geometry.type === "POLYGON") {
     const minimum = geometry.type === "POLYGON" ? 3 : 2;

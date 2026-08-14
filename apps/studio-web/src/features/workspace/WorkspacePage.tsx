@@ -1,7 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { TwinApiClient } from "../../api/client";
-import type { MapDraft, MapDraftStatus, ValidationJob } from "../../api/types";
+import type {
+  MapDraft,
+  MapDraftStatus,
+  SurveyMaterializationJob,
+  ValidationJob,
+} from "../../api/types";
 import { useI18n } from "../../i18n/i18n";
 
 const SpatialWorkspace = lazy(() => import("../viewer/SpatialWorkspace"));
@@ -34,6 +39,11 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
     queryFn: ({ signal }) => api.listValidationJobs(draftId, signal),
     enabled: draftId !== "",
   });
+  const surveyMaterializations = useQuery({
+    queryKey: ["survey-materializations", draftId],
+    queryFn: ({ signal }) => api.listSurveyMaterializations(draftId, signal),
+    enabled: draftId !== "",
+  });
   const releases = useQuery({
     queryKey: ["releases"],
     queryFn: ({ signal }) => api.listReleases(signal),
@@ -52,6 +62,15 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
 
   const selectedDraft = drafts.data?.find((draft) => draft.draftId === draftId) ?? null;
   const latestValidation = useMemo(() => latestJob(validationJobs.data ?? []), [validationJobs.data]);
+  const latestMaterialization = useMemo(
+    () => latestSurveyMaterialization(surveyMaterializations.data ?? []),
+    [surveyMaterializations.data],
+  );
+  const surveyPreview = useQuery({
+    queryKey: ["survey-materialization-preview", latestMaterialization?.jobId ?? ""],
+    queryFn: ({ signal }) => api.getSurveyMaterializationPreview(latestMaterialization!.jobId, signal),
+    enabled: latestMaterialization?.status === "SUCCEEDED",
+  });
   const firstError = [sites.error, floors.error, families.error, drafts.error].find(Boolean);
   const initialLoading = sites.isPending;
 
@@ -124,15 +143,21 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
               canonicalFrameId={selectedDraft?.canonicalFrameId ?? "workspace-unassigned"}
               familyId={(selectedDraft?.familyId ?? familyId) || "manual-twin"}
               revision={selectedDraft?.revision ?? 1}
+              surveyPreview={surveyPreview.data ?? null}
             />
           </Suspense>
 
           <aside className="dashboard-rail">
             <DraftPanel draft={selectedDraft} />
+            <SurveyPanel
+              job={latestMaterialization}
+              loading={surveyMaterializations.isPending && draftId !== ""}
+              previewReady={surveyPreview.isSuccess}
+            />
             <ValidationPanel job={latestValidation} loading={validationJobs.isPending && draftId !== ""} />
             <section className="panel release-panel">
               <div className="panel-heading compact">
-                <div><p className="section-index">05 / OUTPUT</p><h3>{t("latestReleases")}</h3></div>
+                <div><p className="section-index">06 / OUTPUT</p><h3>{t("latestReleases")}</h3></div>
                 <span className="count-chip">{releases.data?.length ?? 0}</span>
               </div>
               {(releases.data?.length ?? 0) === 0 ? <p className="muted-copy">{t("noReleases")}</p> : (
@@ -197,7 +222,7 @@ function ValidationPanel({ job, loading }: { job: ValidationJob | null; loading:
   return (
     <section className="panel validation-panel">
       <div className="panel-heading compact">
-        <div><p className="section-index">04 / QUALITY</p><h3>{t("validation")}</h3></div>
+        <div><p className="section-index">05 / QUALITY</p><h3>{t("validation")}</h3></div>
         {job && <span className={`job-state job-${job.status.toLowerCase()}`}>{job.status}</span>}
       </div>
       {loading ? <div className="skeleton-row" /> : job ? (
@@ -209,6 +234,32 @@ function ValidationPanel({ job, loading }: { job: ValidationJob | null; loading:
           <p className="job-id">{job.jobId}</p>
         </>
       ) : <p className="muted-copy">{t("validationNotRun")}</p>}
+    </section>
+  );
+}
+
+function SurveyPanel({ job, loading, previewReady }: {
+  job: SurveyMaterializationJob | null;
+  loading: boolean;
+  previewReady: boolean;
+}) {
+  const { t } = useI18n();
+  return (
+    <section className="panel survey-panel">
+      <div className="panel-heading compact">
+        <div><p className="section-index">04 / SURVEY</p><h3>{t("surveyMaterialization")}</h3></div>
+        {job && <span className={`job-state job-${job.status.toLowerCase()}`}>{job.status}</span>}
+      </div>
+      {loading ? <div className="skeleton-row" /> : job ? (
+        <>
+          <dl className="metadata-list">
+            <div><dt>{t("trajectoryPoses")}</dt><dd>{job.output?.summary.trajectoryPoseCount ?? "–"}</dd></div>
+            <div><dt>{t("surveyPoints")}</dt><dd>{job.output?.summary.pointCloudVertexCount ?? "–"}</dd></div>
+            <div className="metadata-wide"><dt>{t("sourceFrame")}</dt><dd>{job.output?.sourceFrameId ?? "–"}</dd></div>
+          </dl>
+          <p className="job-id">{job.jobId} · {previewReady ? t("previewReady") : t("previewPending")}</p>
+        </>
+      ) : <p className="muted-copy">{t("noSurveyMaterialization")}</p>}
     </section>
   );
 }
@@ -252,5 +303,9 @@ function useDefaultSelection(
 }
 
 function latestJob(jobs: ValidationJob[]): ValidationJob | null {
+  return [...jobs].sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ?? null;
+}
+
+function latestSurveyMaterialization(jobs: SurveyMaterializationJob[]): SurveyMaterializationJob | null {
   return [...jobs].sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ?? null;
 }
