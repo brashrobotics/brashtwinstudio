@@ -1558,6 +1558,23 @@ localization, autonomy, or safety into Twin Studio.
 **Status:** Completed on August 14, 2026. Verification reads only the bounded
 JSON manifest; heavy survey artifacts stay in the object-store data plane.
 
+### Increment 15 — Accepted survey materialization snapshot and real-data gate
+
+- Accepted-intake-only immutable materialization snapshot and deterministic hash
+- PostgreSQL composite manifest provenance and append-only job guard
+- Twin API/OpenAPI create, get, and draft-list operations
+- SHA-256-verifying GrandTour selection adapter with separate local/upstream paths
+- Bounded DLIO Zarr-v2, TF, and binary PLY development inspector
+- Versioned trajectory/frame/reconstruction preview contract
+
+**Status:** Completed on August 14, 2026. The 290,764,702-byte GrandTour ETH-2
+base selection passed official checksum verification and produced a bounded
+preview from 4,305 odometry poses, 47,567 TF samples, and 17,388,758 PLY points.
+The accepted-intake job creation path rereads only the bounded manifest; heavy
+artifact execution remains worker-owned. PostgreSQL schema version 10, the full
+backend/web gate, and the opt-in real-data integration test passed. Fleet Control
+and robot-side SLAM sources were not changed.
+
 ---
 
 ## 30. Karar kapıları
@@ -1622,6 +1639,7 @@ olması bundle/live-overlay demo ölçümünden sonra kararlaştırılır.
 - Kabul ölçütü sessizce gevşetilmez; waiver açık audit kararıdır.
 - Fleet Control entegrasyon kapsamı yalnız ortak contract kararıyla genişletilir.
 
-The next active work starts Phase 2 survey materialization: convert an accepted
-intake into canonical trajectory, frame, reconstruction, and coverage previews
-without running SLAM inside Twin Studio.
+The next active work executes the immutable materialization snapshot in a leased
+worker, publishes its preview as a derived draft artifact, and renders the
+original SLAM-frame trajectory, bounds, sampled points, coverage, and quality
+warnings in Studio without running SLAM inside Twin Studio.

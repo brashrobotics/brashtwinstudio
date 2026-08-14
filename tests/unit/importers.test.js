@@ -8,7 +8,9 @@ import {
   inspectExternalDataset,
   inspectIfcStepFile,
   inspectTumTrajectory,
+  validateDatasetSelection,
   verifyDatasetDirectory,
+  verifyDatasetSelection,
 } from "@brash-twin/importers";
 
 const IFC = `ISO-10303-21;
@@ -77,6 +79,38 @@ test("external dataset inspection rejects checksum mutation and accepts verified
   });
 });
 
+test("pinned dataset selection verifies only the requested bounded file set with SHA-256", async () => {
+  await withFixture(async (directory) => {
+    const base = "base survey evidence";
+    const optional = "optional camera evidence";
+    await writeFile(join(directory, "base.bin"), base);
+    await writeFile(join(directory, "optional.bin"), optional);
+    const selection = datasetSelection(base, optional);
+    assert.equal(validateDatasetSelection(selection), selection);
+
+    const baseResult = await verifyDatasetSelection(selection, directory);
+    assert.equal(baseResult.valid, true);
+    assert.equal(baseResult.includeOptional, false);
+    assert.deepEqual(baseResult.files.map((entry) => entry.path), ["base.bin"]);
+
+    await writeFile(join(directory, "optional.bin"), "changed");
+    assert.equal((await verifyDatasetSelection(selection, directory)).valid, true);
+    const completeResult = await verifyDatasetSelection(selection, directory, { includeOptional: true });
+    assert.equal(completeResult.valid, false);
+    assert.ok(completeResult.errors.some((entry) => entry.code === "DATASET_CHECKSUM_MISMATCH"));
+  });
+});
+
+test("dataset selection rejects unsafe source paths and inconsistent byte budgets", () => {
+  const selection = datasetSelection("base", "optional");
+  selection.baseSelection.files[0].sourcePath = "../escape.bin";
+  assert.throws(() => validateDatasetSelection(selection), /safe relative paths/);
+
+  const inconsistent = datasetSelection("base", "optional");
+  inconsistent.optionalEvidence.declaredBytesWithBase += 1;
+  assert.throws(() => validateDatasetSelection(inconsistent), /does not equal/);
+});
+
 function datasetDescriptor(ifc, trajectory) {
   return {
     schemaVersion: "brash.external-dataset/v1",
@@ -97,6 +131,43 @@ function file(path, role, content) {
     role,
     bytes: Buffer.byteLength(content),
     sha512: createHash("sha512").update(content).digest("hex"),
+  };
+}
+
+function datasetSelection(base, optional) {
+  const baseFile = selectionFile("base.bin", "mission/base.bin", "TRAJECTORY", base);
+  const optionalFile = selectionFile("optional.bin", "mission/optional.bin", "IMAGE_ARCHIVE", optional);
+  return {
+    schemaVersion: "brash.external-dataset-selection/v1",
+    datasetId: "tiny-selection",
+    title: "Tiny Selection",
+    source: {
+      landingPage: "https://example.test/dataset",
+      repository: "https://example.test/repository",
+      revision: "0123456789abcdef",
+      license: "TEST-ONLY",
+      durationSeconds: 10,
+    },
+    diskPolicy: {
+      maximumDownloadBytes: 1024,
+      minimumFreeBytesAfterDownload: 1024,
+      downloadByDefault: false,
+    },
+    baseSelection: { declaredBytes: baseFile.bytes, files: [baseFile] },
+    optionalEvidence: {
+      declaredBytesWithBase: baseFile.bytes + optionalFile.bytes,
+      files: [optionalFile],
+    },
+  };
+}
+
+function selectionFile(path, sourcePath, role, content) {
+  return {
+    path,
+    sourcePath,
+    role,
+    bytes: Buffer.byteLength(content),
+    sha256: createHash("sha256").update(content).digest("hex"),
   };
 }
 

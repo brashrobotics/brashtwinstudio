@@ -10,7 +10,7 @@ Phase 1 — Manual Mapping Studio MVP foundation.
 
 - Independent Node.js workspace and local package linking
 - Repository syntax and JSON quality checks
-- Twelve versioned v1 external contracts
+- Thirteen versioned v1 external contracts
 - Coordinate-frame graph and 3D transform mathematics
 - `MapDraft -> review -> validated -> immutable release` domain flow
 - Twin Map Bundle semantic and integrity validator
@@ -21,7 +21,7 @@ Phase 1 — Manual Mapping Studio MVP foundation.
 - Symlink artifact protection
 - SHA-256 content-addressed local artifact store with deduplication
 - Immutable store preventing reuse of a release identity
-- Nine forward-only PostgreSQL metadata migrations
+- Ten forward-only PostgreSQL metadata migrations
 - Database-level immutability triggers for release records
 - In-memory catalog repository adapter
 - Driver-independent PostgreSQL repository adapter using parameterized SQL
@@ -163,20 +163,36 @@ Phase 1 — Manual Mapping Studio MVP foundation.
   embodied survey intake
 - HTTP end-to-end acceptance proving that the API reads only manifest bytes and
   never loads point-cloud, trajectory, mesh, or image payloads during intake
+- SHA-256-verifying external dataset-selection adapter separating local paths
+  from pinned upstream repository paths and optional evidence
+- Real GrandTour ETH-2 inspection of 4,305 DLIO odometry poses, 47,567 TF
+  samples, and a 17,388,758-vertex processed PLY map without archive extraction
+- Bounded `brash.survey-materialization-preview/v1` trajectory, frame,
+  reconstruction-bounds, and deterministic 4,096-point preview contract
+- Development-only safe Zarr-v2 Blosc/LZ4 and binary PLY inspector with decoded
+  chunk, archive-member, metadata, vertex-count, and preview-size limits
+- Durable accepted-intake materialization snapshot with raw/canonical manifest,
+  validation-policy, upload mapping, and deterministic snapshot SHA-256 checks
+- Rejected-intake ineligibility before object-store access and one append-only
+  `PENDING` job per accepted intake under an editable draft
+- PostgreSQL composite intake/manifest provenance, accepted-intake trigger,
+  immutable snapshot guard, and Twin API/OpenAPI create/get/list operations
 
 ## Next development increment
 
-Phase 2 continues with accepted survey materialization:
+Phase 2 continues with materialization execution and visual review:
 
-1. Create a durable materialization job from an immutable accepted-intake
-   snapshot; rejected intakes must be ineligible.
-2. Add bounded adapters for coordinate-frame, calibration, trajectory, and
-   reconstruction metadata without introducing robot-side SLAM dependencies.
-3. Project the source trajectory and reconstruction bounds into a read-only
-   survey layer while preserving the original SLAM frame.
-4. Add coverage and quality-review surfaces to Studio Web before CAD alignment.
-5. Keep GrandTour downloads disabled until free space exceeds the 6 GB safety
-   floor; retain the metadata-only test meanwhile.
+1. Add a leased worker lifecycle for `PENDING -> RUNNING -> SUCCEEDED|FAILED`
+   materialization jobs with retry-safe artifact publication.
+2. Stream standardized Embodied Controller coordinate-frame, calibration,
+   trajectory, and PLY metadata from the object store under explicit byte and
+   record budgets; keep GrandTour decoding in the development adapter only.
+3. Store the bounded preview as a derived draft artifact linked to every source
+   artifact in the immutable job snapshot.
+4. Project trajectory, reconstruction bounds, and sampled points into a
+   read-only Studio survey layer while preserving the original SLAM frame.
+5. Add coverage, timing, frame-quality, and reconstruction-review surfaces
+   before CAD alignment and semantic asset review.
 
 ## Deliberately deferred
 
@@ -193,11 +209,12 @@ lifecycle are stable.
 
 ```text
 npm run check
-syntax/json: 215 files passed
-backend tests: 83 total; 81 passed and 2 optional external tests skipped
+syntax/json: 224 files passed
+backend tests: 92 total; 89 passed and 3 optional external tests skipped
 web tests: 30/30 passed with strict TypeScript and production build
-current local assertions: 111/111 passed; PostgreSQL and ConSLAM gates were not rerun because free disk is below the 6 GB safety threshold
-last full external gate: August 13, 2026; PostgreSQL 16 + ConSLAM + IfcOpenShell, 98/98 passed before Increment 13
+live PostgreSQL 16 migration/repository gate: passed with schema version 10
+live GrandTour ETH-2 SHA-256/preview gate: passed against the 290,764,702-byte base selection
+ConSLAM/IfcOpenShell gate: last passed August 13, 2026 and remains opt-in
 fixture: demo-plant@1 valid
 publication: immutable release store verified
 http: localhost API lifecycle verified
@@ -215,5 +232,7 @@ editor: node/edge/zone/asset commands, undo/redo, numeric correction and desktop
 manual twin: control-point alignment, residual policy, diff, validation, two-person approval and immutable read-only preview verified
 embodied survey: strict manifest, clock/frame/quality, hash/size policy and no-download GrandTour selection verified
 survey intake: atomic upload mapping, manifest-only verification, immutable rejection evidence and HTTP lifecycle verified
+survey materialization: accepted-only immutable snapshot, policy identity, PostgreSQL provenance and HTTP lifecycle verified
 dataset: ConSLAM IFC/GT checksum, geometry and trajectory validation verified
+GrandTour: pinned SHA-256, safe Zarr/PLY bounds, real trajectory/TF/map metrics and bounded preview verified
 ```

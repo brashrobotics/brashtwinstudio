@@ -20,3 +20,27 @@ Python path is provided, real geometric triangulation and 3D-bounds checks run a
 well.
 
 The CLI never modifies dataset files or copies them into the repository.
+
+## GrandTour processed-survey gate
+
+The GrandTour selection uses a separate SHA-256 manifest because it pins a
+small subset of a much larger repository. Downloads remain an explicit manual
+action. Verify the already-downloaded base selection and then build a bounded
+preview:
+
+```bash
+npm run dataset:selection-verify -- \
+  tests/fixtures/datasets/grandtour-eth2.selection.json \
+  .local/datasets/grandtour-eth2
+
+npm run dataset:grandtour-inspect -- \
+  tests/fixtures/datasets/grandtour-eth2.selection.json \
+  .local/datasets/grandtour-eth2 \
+  --python .local/venv-ifc/bin/python
+```
+
+`grandtour-inspect` runs only after size and SHA-256 verification. It reads the
+DLIO Zarr-v2 tar members without extracting them, streams/memory-maps the PLY,
+and emits `brash.survey-materialization-preview/v1`. Preview arrays are capped
+at 4,096 samples. `numpy` and pinned `numcodecs==0.15.1` are development-only
+inspector dependencies; neither is a Twin Studio runtime dependency.

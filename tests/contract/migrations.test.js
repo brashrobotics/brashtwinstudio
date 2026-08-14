@@ -17,6 +17,7 @@ test("metadata migrations are ordered, transactional, and forward-only", async (
     "007_validation_runs.sql",
     "008_publication_state_machine.sql",
     "009_survey_intakes.sql",
+    "010_survey_materialization_jobs.sql",
   ]);
 
   for (const file of files) {
@@ -25,6 +26,16 @@ test("metadata migrations are ordered, transactional, and forward-only", async (
     assert.match(sql, /COMMIT;\s*$/);
     assert.doesNotMatch(sql, /\b(?:DROP\s+TABLE|TRUNCATE|DELETE\s+FROM)\b/i);
   }
+});
+
+test("survey materialization migration requires accepted immutable intake snapshots", async () => {
+  const sql = await readFile(`${migrationDirectory}/010_survey_materialization_jobs.sql`, "utf8");
+  assert.match(sql, /CREATE TABLE twin_survey_materialization_jobs/);
+  assert.match(sql, /twin_survey_materialization_intake_manifest_fk/);
+  assert.match(sql, /status = 'PENDING'/);
+  assert.match(sql, /intake_status <> 'ACCEPTED'/);
+  assert.match(sql, /requires an editable DRAFT/);
+  assert.match(sql, /CREATE TRIGGER twin_survey_materialization_immutable/);
 });
 
 test("survey intake migration atomically binds completed uploads and seals one terminal result", async () => {

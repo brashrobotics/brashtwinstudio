@@ -25,6 +25,12 @@ completed survey artifact uploads under an editable draft. Verification reads
 only the manifest, checks target site/floor plus hash, byte, and media identities,
 and seals an immutable accepted or rejected ingest report.
 
+`survey-materializations.js` creates one durable `PENDING` job only from an
+accepted intake. It rechecks the bounded manifest and original validation-policy
+identity, joins server-owned upload mappings to declared artifacts, and seals a
+deterministic snapshot hash. Point clouds, images, meshes, and trajectories are
+not loaded while the job is created.
+
 `validation-jobs.js` creates a sealed validation snapshot while a draft is
 `IN_REVIEW`, runs the deterministic validator, streams its JSON report through
 the multipart object-store boundary, and binds the report with producer/config

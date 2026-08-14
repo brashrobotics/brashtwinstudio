@@ -28,6 +28,10 @@ the database level.
 transaction. PostgreSQL composite foreign keys, deferred count checks, and
 append-only triggers prevent partial attachment or rewritten acceptance history.
 
+`survey-materializations.js` stores one append-only snapshot per accepted
+intake. The PostgreSQL adapter relies on composite intake/manifest identity,
+same-draft and editable-draft guards, and immutable snapshot rows.
+
 `validation-jobs.js` persists `RELEASE_VALIDATION` processing jobs and immutable
 validation-run metadata. PostgreSQL completes the job and inserts its run record
 in one transaction; composite references seal the report binding and content

@@ -8,6 +8,7 @@
     "./draft-artifacts": "./draft-artifacts.js",
     "./publications": "./publications.js",
     "./survey-intakes": "./survey-intakes.js",
+    "./survey-materializations": "./survey-materializations.js",
     "./uploads": "./uploads.js",
     "./validation-jobs": "./validation-jobs.js"
   },

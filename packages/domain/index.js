@@ -28,6 +28,10 @@ export const SURVEY_INTAKE_STATUS = Object.freeze({
   rejected: "REJECTED",
 });
 
+export const SURVEY_MATERIALIZATION_STATUS = Object.freeze({
+  pending: "PENDING",
+});
+
 export const DRAFT_ARTIFACT_KIND = Object.freeze({
   source: "SOURCE",
   derived: "DERIVED",
@@ -771,6 +775,53 @@ export function completeSurveyIntakeRecord(record, {
     rowVersion: record.rowVersion + 1,
     verifiedBy: operatorId,
     verifiedAt: timestamp,
+  });
+}
+
+export function createSurveyMaterializationJobRecord({
+  jobId,
+  intake,
+  snapshot,
+  snapshotSha256,
+  operatorId,
+  occurredAt = new Date(),
+}) {
+  kebabIdentifier(jobId, "jobId");
+  requiredIdentifier(operatorId, "operatorId");
+  if (!intake || typeof intake !== "object" || intake.status !== SURVEY_INTAKE_STATUS.accepted) {
+    throw new TwinDomainError(
+      "SURVEY_MATERIALIZATION_INTAKE_INELIGIBLE",
+      "Only an accepted survey intake can create a materialization job.",
+    );
+  }
+  kebabIdentifier(intake.intakeId, "intake.intakeId");
+  kebabIdentifier(intake.draftId, "intake.draftId");
+  sha256(intake.manifestSha256, "intake.manifestSha256");
+  sha256(snapshotSha256, "snapshotSha256");
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)
+    || snapshot.schemaVersion !== "brash.survey-materialization-snapshot/v1"
+    || snapshot.intakeId !== intake.intakeId
+    || snapshot.draftId !== intake.draftId
+    || snapshot.manifestSha256 !== intake.manifestSha256
+    || !Array.isArray(snapshot.artifacts)
+    || snapshot.artifacts.length < 1
+    || snapshot.artifacts.length > 256) {
+    throw new TwinDomainError(
+      "SURVEY_MATERIALIZATION_SNAPSHOT_INVALID",
+      "Materialization snapshot must match the accepted intake identity and contain bounded artifacts.",
+    );
+  }
+  return Object.freeze({
+    jobId,
+    intakeId: intake.intakeId,
+    draftId: intake.draftId,
+    status: SURVEY_MATERIALIZATION_STATUS.pending,
+    manifestSha256: intake.manifestSha256,
+    snapshotSha256,
+    snapshot: Object.freeze(structuredClone(snapshot)),
+    rowVersion: 1,
+    createdBy: operatorId,
+    createdAt: isoDate(occurredAt, "occurredAt"),
   });
 }
 

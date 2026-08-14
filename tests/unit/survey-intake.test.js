@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   TwinDomainError,
   completeSurveyIntakeRecord,
+  createSurveyMaterializationJobRecord,
   createSurveyIntakeRecord,
 } from "@brash-twin/domain";
 
@@ -39,6 +40,51 @@ test("survey intake seals completed upload identities before one terminal verifi
       operatorId: "reviewer-2",
     }),
     (error) => error instanceof TwinDomainError && error.code === "SURVEY_INTAKE_TRANSITION_INVALID",
+  );
+});
+
+test("materialization job seals one immutable snapshot only from accepted intake evidence", () => {
+  const accepted = completeSurveyIntakeRecord(openRecord(), {
+    manifest: {
+      schemaVersion: "brash.embodied-survey-package/v1",
+      packageId: "package-1",
+      surveyId: "survey-1",
+      siteId: "site-1",
+      floorId: "floor-1",
+    },
+    report: { manifestSha256: "d".repeat(64), outcome: "ACCEPTED" },
+    operatorId: "reviewer-1",
+  });
+  const snapshot = {
+    schemaVersion: "brash.survey-materialization-snapshot/v1",
+    intakeId: accepted.intakeId,
+    draftId: accepted.draftId,
+    manifestSha256: accepted.manifestSha256,
+    artifacts: [{ artifactId: "frames-1" }],
+  };
+  const job = createSurveyMaterializationJobRecord({
+    jobId: "materialization-1",
+    intake: accepted,
+    snapshot,
+    snapshotSha256: "e".repeat(64),
+    operatorId: "operator-1",
+    occurredAt: "2026-08-14T12:02:00.000Z",
+  });
+  assert.equal(job.status, "PENDING");
+  assert.equal(job.rowVersion, 1);
+  assert.equal(job.snapshotSha256, "e".repeat(64));
+  assert.equal(Object.isFrozen(job.snapshot), true);
+
+  assert.throws(
+    () => createSurveyMaterializationJobRecord({
+      jobId: "materialization-2",
+      intake: openRecord(),
+      snapshot,
+      snapshotSha256: "e".repeat(64),
+      operatorId: "operator-1",
+    }),
+    (error) => error instanceof TwinDomainError
+      && error.code === "SURVEY_MATERIALIZATION_INTAKE_INELIGIBLE",
   );
 });
 

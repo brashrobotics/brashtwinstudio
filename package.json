@@ -42,6 +42,8 @@
     "db:status": "node tools/database-cli/cli.js status",
     "dataset:verify": "node tools/dataset-cli/cli.js verify",
     "dataset:inspect": "node tools/dataset-cli/cli.js inspect",
+    "dataset:selection-verify": "node tools/dataset-cli/cli.js selection-verify",
+    "dataset:grandtour-inspect": "node tools/dataset-cli/cli.js grandtour-inspect",
     "validate:fixture": "node tools/map-bundle-cli/cli.js validate tests/fixtures/bundles/demo-plant@1",
     "dev:api": "node services/twin-api/server.js",
     "check:web": "npm run typecheck:web && npm run test:web && npm run build:web",

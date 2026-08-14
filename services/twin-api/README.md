@@ -32,6 +32,9 @@ must not run in it.
 - `GET|POST /api/v1/map-drafts/:draftId/survey-intakes`
 - `GET /api/v1/survey-intakes/:intakeId`
 - `POST /api/v1/survey-intakes/:intakeId/verify`
+- `GET /api/v1/map-drafts/:draftId/survey-materializations`
+- `POST /api/v1/survey-intakes/:intakeId/materializations`
+- `GET /api/v1/survey-materializations/:jobId`
 - `GET|POST /api/v1/map-drafts/:draftId/validation-jobs`
 - `GET /api/v1/validation-jobs/:jobId`
 - `POST /api/v1/validation-jobs/:jobId/run`
@@ -68,6 +71,11 @@ content; large point clouds, meshes, trajectories, and image archives are
 matched through their stored SHA-256, byte length, and media identity without
 being loaded by the API process. Acceptance and rejection are both immutable,
 auditable terminal results.
+
+An accepted intake can create exactly one materialization job. Creation rereads
+only the bounded manifest, rechecks its raw and canonical identities plus the
+validation-policy hash, joins the server-owned upload mappings, and persists an
+append-only `PENDING` snapshot. Heavy artifact parsing remains worker-owned.
 
 The draft-artifact endpoint accepts only `COMPLETED` uploads. Source records
 represent direct evidence; derived records contain same-draft input bindings and

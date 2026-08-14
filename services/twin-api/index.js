@@ -3,6 +3,7 @@ import { DraftArtifactError } from "@brash-twin/application/draft-artifacts";
 import { UploadError } from "@brash-twin/application/uploads";
 import { ValidationJobError } from "@brash-twin/application/validation-jobs";
 import { SurveyIntakeError } from "@brash-twin/application/survey-intakes";
+import { SurveyMaterializationError } from "@brash-twin/application/survey-materializations";
 import { ArtifactStoreError } from "@brash-twin/artifact-store";
 
 export class TwinApi {
@@ -10,6 +11,7 @@ export class TwinApi {
   #uploads;
   #draftArtifacts;
   #surveyIntakes;
+  #surveyMaterializations;
   #validationJobs;
   #releaseStore;
   #readiness;
@@ -19,6 +21,7 @@ export class TwinApi {
     uploads,
     draftArtifacts,
     surveyIntakes,
+    surveyMaterializations,
     validationJobs,
     releaseStore,
     readiness = async () => ({ ready: true, mode: "memory" }),
@@ -27,6 +30,7 @@ export class TwinApi {
     if (!uploads) throw new TypeError("Upload service is required.");
     if (!draftArtifacts) throw new TypeError("Draft artifact service is required.");
     if (!surveyIntakes) throw new TypeError("Survey intake service is required.");
+    if (!surveyMaterializations) throw new TypeError("Survey materialization service is required.");
     if (!validationJobs) throw new TypeError("Validation job service is required.");
     if (!releaseStore) throw new TypeError("Release store is required.");
     if (typeof readiness !== "function") throw new TypeError("Readiness probe must be a function.");
@@ -34,6 +38,7 @@ export class TwinApi {
     this.#uploads = uploads;
     this.#draftArtifacts = draftArtifacts;
     this.#surveyIntakes = surveyIntakes;
+    this.#surveyMaterializations = surveyMaterializations;
     this.#validationJobs = validationJobs;
     this.#releaseStore = releaseStore;
     this.#readiness = readiness;
@@ -185,6 +190,33 @@ export class TwinApi {
       return response(200, { intake });
     }
 
+    const draftSurveyMaterializationsMatch = pathname.match(
+      /^\/api\/v1\/map-drafts\/([^/]+)\/survey-materializations$/,
+    );
+    if (draftSurveyMaterializationsMatch && method === "GET") {
+      return response(200, {
+        jobs: await this.#surveyMaterializations.list(segment(draftSurveyMaterializationsMatch[1])),
+      });
+    }
+
+    const surveyIntakeMaterializationsMatch = pathname.match(
+      /^\/api\/v1\/survey-intakes\/([^/]+)\/materializations$/,
+    );
+    if (surveyIntakeMaterializationsMatch && method === "POST") {
+      const job = await this.#surveyMaterializations.create(
+        segment(surveyIntakeMaterializationsMatch[1]),
+        objectBody(body, ["jobId", "operatorId"]),
+      );
+      return response(201, { job });
+    }
+
+    const surveyMaterializationMatch = pathname.match(/^\/api\/v1\/survey-materializations\/([^/]+)$/);
+    if (surveyMaterializationMatch && method === "GET") {
+      return response(200, {
+        job: await this.#surveyMaterializations.get(segment(surveyMaterializationMatch[1])),
+      });
+    }
+
     const surveyIntakeMatch = pathname.match(/^\/api\/v1\/survey-intakes\/([^/]+)$/);
     if (surveyIntakeMatch && method === "GET") {
       return response(200, { intake: await this.#surveyIntakes.get(segment(surveyIntakeMatch[1])) });
@@ -329,6 +361,11 @@ function errorResponse(error) {
   if (error instanceof SurveyIntakeError) {
     return response(statusForSurveyIntakeError(error.code), { error: { code: error.code, message: error.message } });
   }
+  if (error instanceof SurveyMaterializationError) {
+    return response(statusForSurveyMaterializationError(error.code), {
+      error: { code: error.code, message: error.message },
+    });
+  }
   if (error instanceof ArtifactStoreError) {
     const status = error.code === "RELEASE_ID_INVALID" ? 400 : 500;
     return response(status, { error: { code: error.code, message: error.message } });
@@ -396,5 +433,26 @@ function statusForSurveyIntakeError(code) {
     "SURVEY_INTAKE_UPLOAD_INCOMPLETE",
   ].includes(code)) return 409;
   if (code === "SURVEY_INTAKE_PERSISTENCE_ERROR") return 500;
+  return 400;
+}
+
+function statusForSurveyMaterializationError(code) {
+  if ([
+    "SURVEY_MATERIALIZATION_NOT_FOUND",
+    "SURVEY_MATERIALIZATION_REFERENCE_NOT_FOUND",
+  ].includes(code)) return 404;
+  if ([
+    "SURVEY_MATERIALIZATION_CONFLICT",
+    "SURVEY_MATERIALIZATION_DRAFT_LOCKED",
+    "SURVEY_MATERIALIZATION_IMMUTABLE",
+    "SURVEY_MATERIALIZATION_INTAKE_INELIGIBLE",
+  ].includes(code)) return 409;
+  if ([
+    "SURVEY_MATERIALIZATION_MANIFEST_INTEGRITY_FAILED",
+    "SURVEY_MATERIALIZATION_MANIFEST_IDENTITY_MISMATCH",
+    "SURVEY_MATERIALIZATION_ARTIFACT_IDENTITY_MISMATCH",
+    "SURVEY_MATERIALIZATION_PROVENANCE_INVALID",
+  ].includes(code)) return 422;
+  if (code === "SURVEY_MATERIALIZATION_PERSISTENCE_ERROR") return 500;
   return 400;
 }

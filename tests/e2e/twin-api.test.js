@@ -10,6 +10,7 @@ import { DraftArtifactService } from "@brash-twin/application/draft-artifacts";
 import { UploadService } from "@brash-twin/application/uploads";
 import { ValidationJobService } from "@brash-twin/application/validation-jobs";
 import { SurveyIntakeService } from "@brash-twin/application/survey-intakes";
+import { SurveyMaterializationService } from "@brash-twin/application/survey-materializations";
 import {
   ImmutableReleaseStore,
   LocalMultipartArtifactStore,
@@ -23,6 +24,7 @@ import {
 import { InMemoryUploadRepository } from "@brash-twin/persistence/uploads";
 import { InMemoryValidationJobRepository } from "@brash-twin/persistence/validation-jobs";
 import { InMemorySurveyIntakeRepository } from "@brash-twin/persistence/survey-intakes";
+import { InMemorySurveyMaterializationRepository } from "@brash-twin/persistence/survey-materializations";
 import { TwinApi } from "../../services/twin-api/index.js";
 import { startTwinApiServer } from "../../services/twin-api/server.js";
 
@@ -49,11 +51,18 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
   const surveyIntakes = memorySurveyIntakes(catalog, uploadSystem, {
     clock: () => new Date("2026-08-13T14:00:00.000Z"),
   });
+  const surveyMaterializations = memorySurveyMaterializations(
+    catalog,
+    surveyIntakes,
+    uploadSystem,
+    { clock: () => new Date("2026-08-13T14:00:00.000Z") },
+  );
   const api = new TwinApi({
     catalog,
     uploads: uploadSystem.uploads,
     draftArtifacts,
     surveyIntakes,
+    surveyMaterializations,
     validationJobs,
     releaseStore,
   });
@@ -254,6 +263,26 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
       (await request(baseUrl, "GET", "/api/v1/survey-intakes/survey-intake-1")).body.intake.packageId,
       surveyPackage.manifest.packageId,
     );
+    const materializationCreated = await request(
+      baseUrl,
+      "POST",
+      "/api/v1/survey-intakes/survey-intake-1/materializations",
+      { jobId: "survey-materialization-1", operatorId: "mapping-operator-1" },
+    );
+    assert.equal(materializationCreated.status, 201);
+    assert.equal(materializationCreated.body.job.status, "PENDING");
+    assert.equal(materializationCreated.body.job.snapshot.coordinateSystem.rootFrameId, "slam-map");
+    assert.equal(materializationCreated.body.job.snapshot.artifacts.length, 5);
+    assert.equal(
+      (await request(baseUrl, "GET", "/api/v1/survey-materializations/survey-materialization-1"))
+        .body.job.snapshotSha256,
+      materializationCreated.body.job.snapshotSha256,
+    );
+    assert.deepEqual(
+      (await request(baseUrl, "GET", "/api/v1/map-drafts/draft-demo-2/survey-materializations"))
+        .body.jobs.map((job) => job.jobId),
+      ["survey-materialization-1"],
+    );
 
     const sourceBinding = await request(baseUrl, "POST", "/api/v1/map-drafts/draft-demo-2/artifacts", {
       bindingId: "source-ifc-1",
@@ -327,11 +356,13 @@ test("HTTP boundary rejects malformed JSON without invoking application logic", 
   const uploadSystem = memoryUploads(uploadRoot);
   const draftArtifacts = memoryDraftArtifacts(catalog, uploadSystem.uploads);
   const surveyIntakes = memorySurveyIntakes(catalog, uploadSystem);
+  const surveyMaterializations = memorySurveyMaterializations(catalog, surveyIntakes, uploadSystem);
   const api = new TwinApi({
     catalog,
     uploads: uploadSystem.uploads,
     draftArtifacts,
     surveyIntakes,
+    surveyMaterializations,
     validationJobs: memoryValidationJobs(catalog, draftArtifacts, uploadSystem),
     releaseStore: new ImmutableReleaseStore(storeRoot),
   });
@@ -398,6 +429,16 @@ function memorySurveyIntakes(catalog, uploadSystem, options = {}) {
     repository: new InMemorySurveyIntakeRepository(),
     catalog,
     uploads: uploadSystem.uploads,
+    multipartStore: uploadSystem.multipartStore,
+    ...options,
+  });
+}
+
+function memorySurveyMaterializations(catalog, surveyIntakes, uploadSystem, options = {}) {
+  return new SurveyMaterializationService({
+    repository: new InMemorySurveyMaterializationRepository(),
+    surveyIntakes,
+    catalog,
     multipartStore: uploadSystem.multipartStore,
     ...options,
   });

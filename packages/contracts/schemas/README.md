@@ -23,6 +23,9 @@ The schemas in this directory define Twin Studio file and integration boundaries
   trajectory/reconstruction artifacts, quality evidence, hashes, and sizes.
 - `embodied-survey-ingest-report.v1.schema.json`: Deterministic Twin Studio
   acceptance or rejection evidence for an embodied survey manifest.
+- `survey-materialization-preview.v1.schema.json`: Bounded trajectory,
+  coordinate-frame, reconstruction-bounds, and downsampled point preview while
+  retaining the original processed-survey frame.
 
 Published schemas are extended only in backward-compatible ways. Changes to
 meaning or required fields require a new major version.

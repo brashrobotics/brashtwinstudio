@@ -5,6 +5,7 @@ import { createInterface } from "node:readline";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
 export const EXTERNAL_DATASET_SCHEMA_VERSION = "brash.external-dataset/v1";
+export const EXTERNAL_DATASET_SELECTION_SCHEMA_VERSION = "brash.external-dataset-selection/v1";
 export const DATASET_INSPECTION_SCHEMA_VERSION = "brash.dataset-inspection/v1";
 
 export class DatasetValidationError extends Error {
@@ -19,6 +20,103 @@ export async function loadDatasetDescriptor(descriptorPath) {
   const descriptor = JSON.parse(await readFile(resolve(descriptorPath), "utf8"));
   validateDatasetDescriptor(descriptor);
   return descriptor;
+}
+
+export async function loadDatasetSelection(selectionPath) {
+  const selection = JSON.parse(await readFile(resolve(selectionPath), "utf8"));
+  validateDatasetSelection(selection);
+  return selection;
+}
+
+export function validateDatasetSelection(selection) {
+  if (!isRecord(selection)) throw new TypeError("Dataset selection must be an object.");
+  if (selection.schemaVersion !== EXTERNAL_DATASET_SELECTION_SCHEMA_VERSION) {
+    throw new TypeError(`Unsupported dataset selection ${selection.schemaVersion ?? "<missing>"}.`);
+  }
+  for (const field of ["datasetId", "title"]) requireString(selection[field], field);
+  for (const field of ["landingPage", "repository", "revision", "license"]) {
+    requireString(selection.source?.[field], `source.${field}`);
+  }
+  if (!Number.isFinite(selection.source?.durationSeconds) || selection.source.durationSeconds <= 0) {
+    throw new TypeError("source.durationSeconds must be positive.");
+  }
+  if (!isRecord(selection.diskPolicy)) throw new TypeError("diskPolicy must be an object.");
+  positiveSafeInteger(selection.diskPolicy.maximumDownloadBytes, "diskPolicy.maximumDownloadBytes");
+  positiveSafeInteger(selection.diskPolicy.minimumFreeBytesAfterDownload, "diskPolicy.minimumFreeBytesAfterDownload");
+  if (selection.diskPolicy.downloadByDefault !== false) {
+    throw new TypeError("External dataset selections must keep downloadByDefault disabled.");
+  }
+
+  const baseFiles = validateSelectionGroup(selection.baseSelection, "baseSelection", false);
+  const optionalFiles = validateSelectionGroup(selection.optionalEvidence, "optionalEvidence", true);
+  const paths = new Set();
+  for (const [group, files] of [["baseSelection", baseFiles], ["optionalEvidence", optionalFiles]]) {
+    for (const [index, file] of files.entries()) {
+      if (paths.has(file.path)) throw new TypeError(`${group}.files[${index}].path is duplicated.`);
+      paths.add(file.path);
+    }
+  }
+  const baseBytes = baseFiles.reduce((total, file) => total + file.bytes, 0);
+  const optionalBytes = optionalFiles.reduce((total, file) => total + file.bytes, 0);
+  if (selection.baseSelection.declaredBytes !== baseBytes) {
+    throw new TypeError("baseSelection.declaredBytes does not equal the selected file total.");
+  }
+  if (selection.optionalEvidence.declaredBytesWithBase !== baseBytes + optionalBytes) {
+    throw new TypeError("optionalEvidence.declaredBytesWithBase does not equal the base and optional file total.");
+  }
+  if (selection.optionalEvidence.declaredBytesWithBase > selection.diskPolicy.maximumDownloadBytes) {
+    throw new TypeError("Dataset selection exceeds diskPolicy.maximumDownloadBytes.");
+  }
+  return selection;
+}
+
+export async function verifyDatasetSelection(selection, datasetDirectory, { includeOptional = false } = {}) {
+  validateDatasetSelection(selection);
+  if (typeof includeOptional !== "boolean") throw new TypeError("includeOptional must be boolean.");
+  const root = resolve(datasetDirectory);
+  const expectedFiles = includeOptional
+    ? [...selection.baseSelection.files, ...selection.optionalEvidence.files]
+    : selection.baseSelection.files;
+  const errors = [];
+  const files = [];
+  for (const expected of expectedFiles) {
+    const path = resolveDatasetPath(root, expected.path);
+    if (!path) {
+      errors.push(issue("DATASET_PATH_UNSAFE", expected.path, "Path escapes the dataset directory."));
+      continue;
+    }
+    try {
+      const metadata = await lstat(path);
+      if (!metadata.isFile() || metadata.isSymbolicLink()) {
+        throw new Error("Dataset artifact must be a regular non-symbolic-link file.");
+      }
+      const digest = await hashFile(path, "sha256");
+      if (metadata.size !== expected.bytes) {
+        errors.push(issue("DATASET_SIZE_MISMATCH", expected.path, `Expected ${expected.bytes}; found ${metadata.size}.`));
+      }
+      if (digest !== expected.sha256) {
+        errors.push(issue("DATASET_CHECKSUM_MISMATCH", expected.path, "SHA-256 digest does not match the pinned selection."));
+      }
+      files.push(Object.freeze({
+        path: expected.path,
+        sourcePath: expected.sourcePath,
+        role: expected.role,
+        bytes: metadata.size,
+        sha256: digest,
+      }));
+    } catch (error) {
+      errors.push(issue("DATASET_FILE_UNREADABLE", expected.path, error.message));
+    }
+  }
+  return Object.freeze({
+    valid: errors.length === 0,
+    datasetId: selection.datasetId,
+    revision: selection.source.revision,
+    includeOptional,
+    declaredBytes: expectedFiles.reduce((total, file) => total + file.bytes, 0),
+    errors: Object.freeze(errors),
+    files: Object.freeze(files),
+  });
 }
 
 export function validateDatasetDescriptor(descriptor) {
@@ -390,6 +488,30 @@ function issue(code, path, message) {
 
 function requireString(value, path) {
   if (typeof value !== "string" || value.trim() === "") throw new TypeError(`${path} must be a non-empty string.`);
+}
+
+function validateSelectionGroup(group, path, declaredBytesIncludesBase) {
+  if (!isRecord(group) || !Array.isArray(group.files) || group.files.length === 0) {
+    throw new TypeError(`${path}.files must be a non-empty array.`);
+  }
+  const declaredField = declaredBytesIncludesBase ? "declaredBytesWithBase" : "declaredBytes";
+  positiveSafeInteger(group[declaredField], `${path}.${declaredField}`);
+  for (const [index, file] of group.files.entries()) {
+    const prefix = `${path}.files[${index}]`;
+    for (const field of ["path", "sourcePath", "role"]) requireString(file?.[field], `${prefix}.${field}`);
+    if (!safeRelativePath(file.path) || !safeRelativePath(file.sourcePath)) {
+      throw new TypeError(`${prefix}.path and sourcePath must be safe relative paths.`);
+    }
+    positiveSafeInteger(file.bytes, `${prefix}.bytes`);
+    if (!/^[a-f0-9]{64}$/.test(file.sha256 ?? "")) {
+      throw new TypeError(`${prefix}.sha256 must be a lowercase SHA-256 digest.`);
+    }
+  }
+  return group.files;
+}
+
+function positiveSafeInteger(value, path) {
+  if (!Number.isSafeInteger(value) || value < 1) throw new TypeError(`${path} must be a positive safe integer.`);
 }
 
 function isRecord(value) {

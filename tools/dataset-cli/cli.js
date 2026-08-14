@@ -9,16 +9,36 @@ import {
   boundsOverlap,
   inspectExternalDataset,
   loadDatasetDescriptor,
+  loadDatasetSelection,
   verifyDatasetDirectory,
+  verifyDatasetSelection,
 } from "@brash-twin/importers";
 
 const executeFile = promisify(execFile);
 const [command, descriptorPath, datasetDirectory, ...options] = process.argv.slice(2);
 
 try {
-  if (!["verify", "inspect"].includes(command) || !descriptorPath || !datasetDirectory) {
+  if (!["verify", "inspect", "selection-verify", "grandtour-inspect"].includes(command)
+    || !descriptorPath
+    || !datasetDirectory) {
     usage();
     process.exitCode = 2;
+  } else if (["selection-verify", "grandtour-inspect"].includes(command)) {
+    const selection = await loadDatasetSelection(descriptorPath);
+    const includeOptional = options.includes("--include-optional");
+    const verification = await verifyDatasetSelection(selection, datasetDirectory, { includeOptional });
+    if (command === "selection-verify" || !verification.valid) {
+      console.log(JSON.stringify(verification, null, 2));
+      if (!verification.valid) process.exitCode = 1;
+    } else {
+      const pythonExecutable = optionValue(options, "--python");
+      if (!pythonExecutable) throw new TypeError("grandtour-inspect requires --python <python>.");
+      process.stdout.write(`${JSON.stringify(await inspectGrandTour(
+        pythonExecutable,
+        descriptorPath,
+        datasetDirectory,
+      ))}\n`);
+    }
   } else {
     const descriptor = await loadDatasetDescriptor(descriptorPath);
     if (command === "verify") {
@@ -56,6 +76,20 @@ try {
   process.exitCode = 1;
 }
 
+async function inspectGrandTour(pythonExecutable, selectionPath, datasetDirectory) {
+  const cliDirectory = dirname(fileURLToPath(import.meta.url));
+  const inspector = resolve(cliDirectory, "../../workers/fusion-worker/grandtour_inspector.py");
+  const { stdout } = await executeFile(resolve(pythonExecutable), [
+    inspector,
+    resolve(selectionPath),
+    resolve(datasetDirectory),
+  ], {
+    encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  return JSON.parse(stdout);
+}
+
 async function inspectGeometry(pythonExecutable, ifcPath) {
   const cliDirectory = dirname(fileURLToPath(import.meta.url));
   const inspector = resolve(cliDirectory, "../../workers/fusion-worker/ifc_inspector.py");
@@ -77,5 +111,7 @@ function optionValue(options, name) {
 function usage() {
   console.log(`Usage:
   brash-dataset verify <descriptor.json> <dataset-directory>
-  brash-dataset inspect <descriptor.json> <dataset-directory> [--ifcopenshell-python <python>]`);
+  brash-dataset inspect <descriptor.json> <dataset-directory> [--ifcopenshell-python <python>]
+  brash-dataset selection-verify <selection.json> <dataset-directory> [--include-optional]
+  brash-dataset grandtour-inspect <selection.json> <dataset-directory> --python <python>`);
 }

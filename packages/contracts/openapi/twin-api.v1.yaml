@@ -356,6 +356,47 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /api/v1/map-drafts/{draftId}/survey-materializations:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+    get:
+      operationId: listDraftSurveyMaterializations
+      responses:
+        "200":
+          description: Append-only survey materialization jobs attached to the draft.
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/survey-intakes/{intakeId}/materializations:
+    parameters:
+      - $ref: "#/components/parameters/IntakeId"
+    post:
+      operationId: createSurveyMaterialization
+      description: Creates one immutable pending snapshot from accepted intake evidence without reading heavy artifacts.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSurveyMaterialization"
+      responses:
+        "201":
+          description: Accepted-intake materialization snapshot created.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/survey-materializations/{jobId}:
+    parameters:
+      - $ref: "#/components/parameters/JobId"
+    get:
+      operationId: getSurveyMaterialization
+      responses:
+        "200":
+          description: Immutable materialization snapshot and current job status.
+        "404":
+          $ref: "#/components/responses/NotFound"
   /api/v1/uploads:
     get:
       operationId: listUploadSessions
@@ -644,6 +685,19 @@ components:
     SurveyIntakeStatus:
       type: string
       enum: [OPEN, ACCEPTED, REJECTED]
+    CreateSurveyMaterialization:
+      type: object
+      additionalProperties: false
+      required: [operatorId]
+      properties:
+        jobId:
+          $ref: "#/components/schemas/Identifier"
+        operatorId:
+          type: string
+          minLength: 1
+    SurveyMaterializationStatus:
+      type: string
+      enum: [PENDING]
     DraftArtifactRole:
       type: string
       enum:

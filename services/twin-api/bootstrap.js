@@ -4,6 +4,7 @@ import { UploadService } from "@brash-twin/application/uploads";
 import { ValidationJobService } from "@brash-twin/application/validation-jobs";
 import { PublicationService } from "@brash-twin/application/publications";
 import { SurveyIntakeService } from "@brash-twin/application/survey-intakes";
+import { SurveyMaterializationService } from "@brash-twin/application/survey-materializations";
 import {
   ImmutableReleaseStore,
   LocalMultipartArtifactStore,
@@ -40,6 +41,10 @@ import {
   PostgresSurveyIntakeRepository,
 } from "@brash-twin/persistence/survey-intakes";
 import {
+  InMemorySurveyMaterializationRepository,
+  PostgresSurveyMaterializationRepository,
+} from "@brash-twin/persistence/survey-materializations";
+import {
   createPostgresPool,
   createPostgresQueryPort,
   loadPostgresConfig,
@@ -59,6 +64,7 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
   let validationJobRepository;
   let publicationRepository;
   let surveyIntakeRepository;
+  let surveyMaterializationRepository;
   let unitOfWork;
   let readiness;
   let close;
@@ -76,6 +82,7 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     validationJobRepository = new PostgresValidationJobRepository(database);
     publicationRepository = new PostgresPublicationRepository(database);
     surveyIntakeRepository = new PostgresSurveyIntakeRepository(database);
+    surveyMaterializationRepository = new PostgresSurveyMaterializationRepository(database);
     unitOfWork = new PostgresTwinUnitOfWork(database);
     readiness = async () => {
       const databaseHealth = await database.health();
@@ -116,6 +123,7 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
       outboxRepository,
     });
     surveyIntakeRepository = new InMemorySurveyIntakeRepository();
+    surveyMaterializationRepository = new InMemorySurveyMaterializationRepository();
     unitOfWork = new InMemoryTwinUnitOfWork({ catalogRepository: repository, outboxRepository });
     readiness = async () => Object.freeze({ ready: true, mode: "memory" });
     close = async () => undefined;
@@ -141,6 +149,12 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     uploads,
     multipartStore: multipartArtifactStore,
   });
+  const surveyMaterializations = new SurveyMaterializationService({
+    repository: surveyMaterializationRepository,
+    surveyIntakes,
+    catalog,
+    multipartStore: multipartArtifactStore,
+  });
   const publications = new PublicationService({
     repository: publicationRepository,
     catalog,
@@ -151,6 +165,7 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     uploads,
     draftArtifacts,
     surveyIntakes,
+    surveyMaterializations,
     validationJobs,
     releaseStore,
     readiness,
@@ -165,10 +180,12 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     validationJobRepository,
     publicationRepository,
     surveyIntakeRepository,
+    surveyMaterializationRepository,
     unitOfWork,
     uploads,
     draftArtifacts,
     surveyIntakes,
+    surveyMaterializations,
     validationJobs,
     publications,
     multipartArtifactStore,

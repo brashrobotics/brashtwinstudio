@@ -18,19 +18,22 @@
     "declaredBytes": 290764702,
     "files": [
       {
-        "path": "2024-10-01-11-47-44/data/dlio_map_odometry.tar",
+        "path": "data/dlio_map_odometry.tar",
+        "sourcePath": "2024-10-01-11-47-44/data/dlio_map_odometry.tar",
         "role": "TRAJECTORY",
         "bytes": 7188480,
         "sha256": "2336896870d59ab19d19e505f9c0099ec8249e9024d5ae7b7fcbadd7884db4cd"
       },
       {
-        "path": "2024-10-01-11-47-44/data/dlio_tf.tar",
+        "path": "data/dlio_tf.tar",
+        "sourcePath": "2024-10-01-11-47-44/data/dlio_tf.tar",
         "role": "COORDINATE_FRAMES",
         "bytes": 5355520,
-        "sha256": "b095a804bc5ef45b60951acf3d26b587c20cb3489f274e23d31d8548f6614d4b"
+        "sha256": "b095a804bc5ef45b60951acf3d26b587c20cb3489f274e23d31b8548f6614d4b"
       },
       {
-        "path": "2024-10-01-11-47-44/point_cloud_maps/2024-10-01-11-47-44_dlio.ply",
+        "path": "point_cloud_maps/2024-10-01-11-47-44_dlio.ply",
+        "sourcePath": "2024-10-01-11-47-44/point_cloud_maps/2024-10-01-11-47-44_dlio.ply",
         "role": "POINT_CLOUD_MAP",
         "bytes": 278220702,
         "sha256": "c330c109191bb6e7bcb9bd334404982fab52273685aff52a910a0d77221fb0b6"
@@ -41,13 +44,15 @@
     "declaredBytesWithBase": 830197662,
     "files": [
       {
-        "path": "2024-10-01-11-47-44/images/alphasense_front_center.tar",
+        "path": "images/alphasense_front_center.tar",
+        "sourcePath": "2024-10-01-11-47-44/images/alphasense_front_center.tar",
         "role": "IMAGE_ARCHIVE",
         "bytes": 528875520,
         "sha256": "4b03a49982d6f3e88306d065937383a15c5db07282f9c604a8ea136846323504"
       },
       {
-        "path": "2024-10-01-11-47-44/data/adis_imu.tar",
+        "path": "data/adis_imu.tar",
+        "sourcePath": "2024-10-01-11-47-44/data/adis_imu.tar",
         "role": "RAW_SENSOR_RECORDING",
         "bytes": 10557440,
         "sha256": "cff55470001645ff654f4b2d5916b119421a9e726cf19e0663e8de7fceefde7e"

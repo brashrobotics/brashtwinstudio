@@ -1,0 +1,273 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/survey-materialization-preview.v1.schema.json",
+  "title": "Brash Survey Materialization Preview v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "source",
+    "coordinateSystem",
+    "trajectory",
+    "coordinateFrames",
+    "reconstruction",
+    "qualityWarnings",
+    "generatedBy"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "brash.survey-materialization-preview/v1" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "sourceId", "revision"],
+      "properties": {
+        "kind": { "enum": ["ACCEPTED_INTAKE", "EXTERNAL_DATASET"] },
+        "sourceId": { "$ref": "#/$defs/nonEmptyString" },
+        "revision": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "coordinateSystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rootFrameId", "lengthUnit", "handedness", "upAxis"],
+      "properties": {
+        "rootFrameId": { "$ref": "#/$defs/nonEmptyString" },
+        "lengthUnit": { "const": "METRE" },
+        "handedness": { "const": "RIGHT_HANDED" },
+        "upAxis": { "const": "Z" }
+      }
+    },
+    "trajectory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "frameId",
+        "sampleCount",
+        "timestamp",
+        "sampling",
+        "positionBounds",
+        "pathLengthMetres",
+        "maximumStepMetres",
+        "quaternionNorm",
+        "preview"
+      ],
+      "properties": {
+        "format": { "$ref": "#/$defs/nonEmptyString" },
+        "frameId": { "$ref": "#/$defs/nonEmptyString" },
+        "sampleCount": { "type": "integer", "minimum": 2 },
+        "timestamp": { "$ref": "#/$defs/timestampSummary" },
+        "sampling": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["medianRateHz"],
+          "properties": { "medianRateHz": { "type": "number", "exclusiveMinimum": 0 } }
+        },
+        "positionBounds": { "$ref": "#/$defs/bounds" },
+        "pathLengthMetres": { "type": "number", "minimum": 0 },
+        "maximumStepMetres": { "type": "number", "minimum": 0 },
+        "quaternionNorm": { "$ref": "#/$defs/quaternionNorm" },
+        "preview": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "sourceStride", "poses"],
+          "properties": {
+            "method": { "const": "STRIDE" },
+            "sourceStride": { "type": "integer", "minimum": 1 },
+            "poses": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 4096,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["timestamp", "position"],
+                "properties": {
+                  "timestamp": { "type": "number" },
+                  "position": { "$ref": "#/$defs/vector3" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "coordinateFrames": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "frameId",
+        "sampleCount",
+        "timestamp",
+        "translationBounds",
+        "quaternionNorm",
+        "staticTransform"
+      ],
+      "properties": {
+        "format": { "$ref": "#/$defs/nonEmptyString" },
+        "frameId": { "$ref": "#/$defs/nonEmptyString" },
+        "sampleCount": { "type": "integer", "minimum": 1 },
+        "timestamp": { "$ref": "#/$defs/timestampSummary" },
+        "translationBounds": { "$ref": "#/$defs/bounds" },
+        "quaternionNorm": { "$ref": "#/$defs/quaternionNorm" },
+        "staticTransform": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["base_frame_id", "child_frame_id", "translation", "rotation"],
+          "properties": {
+            "base_frame_id": { "$ref": "#/$defs/nonEmptyString" },
+            "child_frame_id": { "$ref": "#/$defs/nonEmptyString" },
+            "translation": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["x", "y", "z"],
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "z": { "type": "number" }
+              }
+            },
+            "rotation": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["w", "x", "y", "z"],
+              "properties": {
+                "w": { "type": "number" },
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "z": { "type": "number" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "reconstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "frameId",
+        "vertexCount",
+        "attributes",
+        "bounds",
+        "intensity",
+        "preview"
+      ],
+      "properties": {
+        "format": { "const": "PLY_BINARY_LITTLE_ENDIAN" },
+        "frameId": { "$ref": "#/$defs/nonEmptyString" },
+        "vertexCount": { "type": "integer", "minimum": 1 },
+        "attributes": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "bounds": { "$ref": "#/$defs/bounds" },
+        "intensity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["minimum", "maximum"],
+          "properties": {
+            "minimum": { "type": "number" },
+            "maximum": { "type": "number" }
+          }
+        },
+        "preview": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "sourceStride", "points"],
+          "properties": {
+            "method": { "const": "STRIDE" },
+            "sourceStride": { "type": "integer", "minimum": 1 },
+            "points": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4096,
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  { "type": "number" },
+                  { "type": "number" },
+                  { "type": "number" },
+                  { "type": "number" }
+                ],
+                "items": false,
+                "minItems": 4,
+                "maxItems": 4
+              }
+            }
+          }
+        }
+      }
+    },
+    "qualityWarnings": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": {
+          "code": { "$ref": "#/$defs/nonEmptyString" },
+          "message": { "$ref": "#/$defs/nonEmptyString" }
+        }
+      }
+    },
+    "generatedBy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "version": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "vector3": {
+      "type": "array",
+      "prefixItems": [
+        { "type": "number" },
+        { "type": "number" },
+        { "type": "number" }
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "bounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum", "maximum"],
+      "properties": {
+        "minimum": { "$ref": "#/$defs/vector3" },
+        "maximum": { "$ref": "#/$defs/vector3" }
+      }
+    },
+    "timestampSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startEpochSeconds", "endEpochSeconds", "durationSeconds", "nonIncreasingCount"],
+      "properties": {
+        "startEpochSeconds": { "type": "number" },
+        "endEpochSeconds": { "type": "number" },
+        "durationSeconds": { "type": "number", "minimum": 0 },
+        "nonIncreasingCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "quaternionNorm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum", "maximum"],
+      "properties": {
+        "minimum": { "type": "number", "minimum": 0 },
+        "maximum": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

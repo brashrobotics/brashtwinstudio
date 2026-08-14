@@ -30,6 +30,11 @@ Real IFC triangulation is performed separately with IfcOpenShell through
 `workers/fusion-worker/ifc_inspector.py`. Large or non-redistributable source data
 is never copied into this package.
 
+Pinned external dataset selections are a second, deliberately smaller trust
+boundary. They validate local and upstream-relative paths, explicit byte
+budgets, regular files, and SHA-256 identities. Base evidence can be verified
+without requiring optional camera or raw-sensor files.
+
 ## Safe SVG floorplan adapter
 
 `@brash-twin/importers/svg-floorplan` converts a bounded SVG subset into

@@ -36,4 +36,6 @@ in `tools/dataset-cli/README.md`.
 selection used to design the Embodied Controller transfer adapter. Nothing in
 the normal quality gate downloads these files. The base selection is about
 291 MB and the optional single-camera/IMU selection remains below the explicit
-1 GB local-development ceiling.
+1 GB local-development ceiling. Each entry separates its local `path` from the
+upstream repository `sourcePath`, so verification never depends on mirroring a
+multi-terabyte repository directory tree.
