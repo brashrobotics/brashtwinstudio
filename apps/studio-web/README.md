@@ -63,6 +63,9 @@ The operator interface for mapping and digital-twin workflows.
 - A dedicated read-only source-frame mode. Unregistered SLAM coordinates are
   never overlaid on the canonical CAD frame; the operator deliberately returns
   to the draft world until a registration transform exists.
+- Registration target selection limited to canonical-frame CAD/BIM or floorplan
+  evidence, with deterministic quality status and immutable independent-reviewer
+  approval/rejection controls.
 
 The milestone publication button creates a browser-local acceptance preview. It
 does not replace the production Twin API publication service, durable object

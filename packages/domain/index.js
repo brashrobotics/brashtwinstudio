@@ -56,6 +56,7 @@ export const DRAFT_ARTIFACT_ROLE = Object.freeze({
   sceneTileset: "SCENE_TILESET",
   importReport: "IMPORT_REPORT",
   registrationReport: "REGISTRATION_REPORT",
+  registrationAcceptance: "REGISTRATION_ACCEPTANCE",
   validationReport: "VALIDATION_REPORT",
 });
 
@@ -81,6 +82,7 @@ const SPATIAL_DRAFT_ARTIFACT_ROLES = new Set([
   DRAFT_ARTIFACT_ROLE.occupancy,
   DRAFT_ARTIFACT_ROLE.elevation,
   DRAFT_ARTIFACT_ROLE.sceneTileset,
+  DRAFT_ARTIFACT_ROLE.registrationAcceptance,
 ]);
 
 export class TwinDomainError extends Error {

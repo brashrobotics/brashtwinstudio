@@ -42,6 +42,20 @@ export interface MapDraft {
   updatedAt: string;
 }
 
+export interface DraftArtifactBinding {
+  bindingId: string;
+  draftId: string;
+  uploadId: string;
+  artifactSha256: string;
+  role: "BIM_SOURCE" | "FLOORPLAN_SOURCE" | string;
+  kind: "SOURCE" | "DERIVED";
+  coordinateFrameId: string | null;
+  inputBindings: Array<{ bindingId: string; artifactSha256: string }>;
+  producer: null | { name: string; version: string; parametersSha256: string };
+  createdBy: string;
+  createdAt: string;
+}
+
 export interface ValidationSummary {
   errorCount: number;
   warningCount: number;
@@ -161,11 +175,17 @@ export interface SurveyRegistrationControlPoint {
 }
 
 export interface SurveyRegistrationReport {
-  schemaVersion: "brash.survey-registration-report/v1";
+  schemaVersion: "brash.survey-registration-report/v2";
   registrationId: string;
   draftId: string;
   materializationJobId: string;
   sourcePreview: { bindingId: string; sha256: string; frameId: string };
+  targetEvidence: {
+    bindingId: string;
+    sha256: string;
+    role: "BIM_SOURCE" | "FLOORPLAN_SOURCE";
+    frameId: string;
+  };
   canonicalFrameId: string;
   solver: {
     name: "brash.similarity-2d";
@@ -191,6 +211,16 @@ export interface SurveyRegistrationReport {
     meanErrorMetres: number;
     scaleDeviation: number;
   };
+  quality: {
+    outcome: "PASSED" | "FAILED";
+    thresholds: {
+      maximumRmseMetres: number;
+      maximumErrorMetres: number;
+      maximumScaleDeviation: number;
+    };
+    policySha256: string;
+    issues: Array<{ code: string; observed: number; limit: number }>;
+  };
   createdBy: string;
   createdAt: string;
 }
@@ -200,14 +230,41 @@ export interface SurveyRegistrationRecord {
   reportUploadId: string;
   reportSha256: string;
   report: SurveyRegistrationReport;
+  acceptance: SurveyRegistrationAcceptanceRecord | null;
+}
+
+export interface SurveyRegistrationAcceptanceReport {
+  schemaVersion: "brash.survey-registration-acceptance/v1";
+  registrationId: string;
+  draftId: string;
+  registrationReport: { bindingId: string; sha256: string };
+  decision: "APPROVED" | "REJECTED";
+  qualityOutcome: "PASSED" | "FAILED";
+  reviewerId: string;
+  note: string | null;
+  reviewedAt: string;
+}
+
+export interface SurveyRegistrationAcceptanceRecord {
+  reportBindingId: string;
+  reportUploadId: string;
+  reportSha256: string;
+  report: SurveyRegistrationAcceptanceReport;
 }
 
 export interface CreateSurveyRegistrationInput {
   registrationId?: string;
   materializationJobId: string;
+  targetBindingId: string;
   controlPoints: SurveyRegistrationControlPoint[];
   allowScale?: boolean;
   operatorId: string;
+}
+
+export interface ReviewSurveyRegistrationInput {
+  decision: "APPROVED" | "REJECTED";
+  reviewerId: string;
+  note?: string;
 }
 
 export interface ReleaseManifest {

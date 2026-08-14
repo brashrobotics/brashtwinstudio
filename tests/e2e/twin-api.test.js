@@ -311,6 +311,17 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
     assert.equal(materializationPreview.body.preview.coordinateSystem.rootFrameId, "slam-map");
     assert.equal(materializationPreview.body.preview.reconstruction.vertexCount, 6);
 
+    const sourceBinding = await request(baseUrl, "POST", "/api/v1/map-drafts/draft-demo-2/artifacts", {
+      bindingId: "source-ifc-1",
+      uploadId: "upload-ifc-1",
+      role: "BIM_SOURCE",
+      coordinateFrameId: "demo-plant/floor-1",
+      operatorId: "engineer-1",
+    });
+    assert.equal(sourceBinding.status, 201);
+    assert.equal(sourceBinding.body.artifact.kind, "SOURCE");
+    assert.equal(sourceBinding.body.artifact.artifactSha256, uploadSha256);
+
     const registrationCreated = await request(
       baseUrl,
       "POST",
@@ -318,6 +329,7 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
       {
         registrationId: "survey-registration-1",
         materializationJobId: "survey-materialization-1",
+        targetBindingId: "source-ifc-1",
         allowScale: false,
         operatorId: "mapping-operator-1",
         controlPoints: [
@@ -329,23 +341,26 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
     );
     assert.equal(registrationCreated.status, 201);
     assert.equal(registrationCreated.body.registration.report.transform.scale, 1);
+    assert.equal(registrationCreated.body.registration.report.quality.outcome, "PASSED");
+    assert.equal(registrationCreated.body.registration.report.targetEvidence.bindingId, "source-ifc-1");
     assert.deepEqual(registrationCreated.body.registration.report.transform.translation, { x: 5, y: 10 });
     assert.equal(
       (await request(baseUrl, "GET", "/api/v1/map-drafts/draft-demo-2/survey-registrations"))
         .body.registrations[0].report.registrationId,
       "survey-registration-1",
     );
-
-    const sourceBinding = await request(baseUrl, "POST", "/api/v1/map-drafts/draft-demo-2/artifacts", {
-      bindingId: "source-ifc-1",
-      uploadId: "upload-ifc-1",
-      role: "BIM_SOURCE",
-      coordinateFrameId: "demo-plant/floor-1",
-      operatorId: "engineer-1",
-    });
-    assert.equal(sourceBinding.status, 201);
-    assert.equal(sourceBinding.body.artifact.kind, "SOURCE");
-    assert.equal(sourceBinding.body.artifact.artifactSha256, uploadSha256);
+    const registrationAccepted = await request(
+      baseUrl,
+      "POST",
+      "/api/v1/map-drafts/draft-demo-2/survey-registrations/survey-registration-1/acceptance",
+      {
+        decision: "APPROVED",
+        reviewerId: "mapping-reviewer-1",
+        note: "Registration evidence reviewed.",
+      },
+    );
+    assert.equal(registrationAccepted.status, 201);
+    assert.equal(registrationAccepted.body.acceptance.report.decision, "APPROVED");
 
     const reportContent = Buffer.from("deterministic IFC import report");
     const reportSha256 = createHash("sha256").update(reportContent).digest("hex");
@@ -390,9 +405,14 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
     );
     assert.deepEqual(
       provenance.body.artifacts
-        .filter((artifact) => ["IMPORT_REPORT", "BIM_SOURCE", "REGISTRATION_REPORT"].includes(artifact.role))
+        .filter((artifact) => ["IMPORT_REPORT", "BIM_SOURCE", "REGISTRATION_REPORT", "REGISTRATION_ACCEPTANCE"].includes(artifact.role))
         .map((artifact) => artifact.bindingId),
-      ["import-report-1", "source-ifc-1", "survey-registration-report-survey-registration-1"],
+      [
+        "import-report-1",
+        "source-ifc-1",
+        "survey-registration-acceptance-survey-registration-1",
+        "survey-registration-report-survey-registration-1",
+      ],
     );
 
     const lockedBinding = await request(baseUrl, "POST", "/api/v1/map-drafts/draft-demo-1/artifacts", {

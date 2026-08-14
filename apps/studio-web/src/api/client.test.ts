@@ -66,6 +66,7 @@ describe("Twin API client", () => {
     const api = createTwinApiClient({ baseUrl: "http://twin.local", fetchImplementation });
     const input = {
       materializationJobId: "materialization-1",
+      targetBindingId: "floorplan-target-1",
       operatorId: "operator-1",
       controlPoints: [
         { controlPointId: "cp-1", source: { x: 0, y: 0 }, target: { x: 1, y: 2 } },
@@ -80,5 +81,29 @@ describe("Twin API client", () => {
       "http://twin.local/api/v1/map-drafts/draft%20%2F%201/survey-registrations",
       expect.objectContaining({ method: "POST", body: JSON.stringify(input) }),
     );
+  });
+
+  it("lists design targets and creates immutable registration review evidence", async () => {
+    const fetchImplementation = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        artifacts: [{ bindingId: "floorplan-target-1", role: "FLOORPLAN_SOURCE" }],
+      }), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        acceptance: { reportBindingId: "acceptance-1", report: { decision: "APPROVED" } },
+      }), { status: 201, headers: { "content-type": "application/json" } }));
+    const api = createTwinApiClient({ baseUrl: "http://twin.local", fetchImplementation });
+
+    expect((await api.listDraftArtifacts("draft / 1"))[0]?.bindingId).toBe("floorplan-target-1");
+    const review = { decision: "APPROVED" as const, reviewerId: "reviewer-1" };
+    expect((await api.reviewSurveyRegistration("draft / 1", "registration / 1", review)).report.decision)
+      .toBe("APPROVED");
+    expect(fetchImplementation.mock.calls.map(([url]) => url)).toEqual([
+      "http://twin.local/api/v1/map-drafts/draft%20%2F%201/artifacts",
+      "http://twin.local/api/v1/map-drafts/draft%20%2F%201/survey-registrations/registration%20%2F%201/acceptance",
+    ]);
+    expect(fetchImplementation.mock.calls[1]?.[1]).toEqual(expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify(review),
+    }));
   });
 });

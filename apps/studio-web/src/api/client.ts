@@ -1,5 +1,6 @@
 import type {
   Floor,
+  DraftArtifactBinding,
   MapDraft,
   MapFamily,
   Readiness,
@@ -9,6 +10,8 @@ import type {
   SurveyMaterializationPreview,
   SurveyRegistrationRecord,
   CreateSurveyRegistrationInput,
+  ReviewSurveyRegistrationInput,
+  SurveyRegistrationAcceptanceRecord,
   TwinApiErrorBody,
   ValidationJob,
 } from "./types";
@@ -30,11 +33,13 @@ export interface TwinApiClient {
   listFloors(siteId: string, signal?: AbortSignal): Promise<Floor[]>;
   listMapFamilies(floorId: string, signal?: AbortSignal): Promise<MapFamily[]>;
   listMapDrafts(familyId: string, signal?: AbortSignal): Promise<MapDraft[]>;
+  listDraftArtifacts(draftId: string, signal?: AbortSignal): Promise<DraftArtifactBinding[]>;
   listValidationJobs(draftId: string, signal?: AbortSignal): Promise<ValidationJob[]>;
   listSurveyMaterializations(draftId: string, signal?: AbortSignal): Promise<SurveyMaterializationJob[]>;
   getSurveyMaterializationPreview(jobId: string, signal?: AbortSignal): Promise<SurveyMaterializationPreview>;
   listSurveyRegistrations(draftId: string, signal?: AbortSignal): Promise<SurveyRegistrationRecord[]>;
   createSurveyRegistration(draftId: string, input: CreateSurveyRegistrationInput, signal?: AbortSignal): Promise<SurveyRegistrationRecord>;
+  reviewSurveyRegistration(draftId: string, registrationId: string, input: ReviewSurveyRegistrationInput, signal?: AbortSignal): Promise<SurveyRegistrationAcceptanceRecord>;
   listReleases(signal?: AbortSignal): Promise<ReleaseManifest[]>;
 }
 
@@ -87,6 +92,12 @@ export function createTwinApiClient({
     listMapDrafts: async (familyId, signal) => (
       await request<{ drafts: MapDraft[] }>(`/api/v1/map-drafts?familyId=${encodeURIComponent(familyId)}`, signal)
     ).drafts,
+    listDraftArtifacts: async (draftId, signal) => (
+      await request<{ artifacts: DraftArtifactBinding[] }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/artifacts`,
+        signal,
+      )
+    ).artifacts,
     listValidationJobs: async (draftId, signal) => (
       await request<{ jobs: ValidationJob[] }>(
         `/api/v1/map-drafts/${encodeURIComponent(draftId)}/validation-jobs`,
@@ -122,6 +133,17 @@ export function createTwinApiClient({
         },
       )
     ).registration,
+    reviewSurveyRegistration: async (draftId, registrationId, input, signal) => (
+      await request<{ acceptance: SurveyRegistrationAcceptanceRecord }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/survey-registrations/${encodeURIComponent(registrationId)}/acceptance`,
+        signal,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input),
+        },
+      )
+    ).acceptance,
     listReleases: async (signal) => (
       await request<{ releases: ReleaseManifest[] }>("/api/v1/releases", signal)
     ).releases,

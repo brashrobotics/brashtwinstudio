@@ -31,6 +31,12 @@ The schemas in this directory define Twin Studio file and integration boundaries
 - `survey-calibration.v1.schema.json`: Bounded sensor/frame calibration index
   with immutable parameter hashes; large vendor calibration payloads remain
   separate artifacts.
+- `survey-registration-report.v1.schema.json`: Legacy survey preview-to-frame
+  transform and residual evidence.
+- `survey-registration-report.v2.schema.json`: Survey preview plus explicit
+  BIM/floorplan target evidence and deterministic quality-policy results.
+- `survey-registration-acceptance.v1.schema.json`: Immutable two-person reviewer
+  approval or rejection derived from one quality-scored registration report.
 
 Published schemas are extended only in backward-compatible ways. Changes to
 meaning or required fields require a new major version.

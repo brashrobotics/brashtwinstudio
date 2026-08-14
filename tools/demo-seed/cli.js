@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { LocalMultipartArtifactStore } from "@brash-twin/artifact-store";
 
@@ -17,6 +18,7 @@ class ApiRequestError extends Error {
 }
 
 await createCatalog();
+await ensureRegistrationTarget();
 const sources = sourceArtifacts();
 const artifactUploads = [];
 for (const source of sources) {
@@ -58,6 +60,7 @@ if (!registrationList.registrations.some(({ report }) => report.registrationId =
   await request("POST", "/api/v1/map-drafts/demo-draft-1/survey-registrations", {
     registrationId: "demo-registration-1",
     materializationJobId: "demo-materialization-1",
+    targetBindingId: "demo-floorplan-target",
     allowScale: false,
     operatorId,
     controlPoints: [
@@ -65,6 +68,20 @@ if (!registrationList.registrations.some(({ report }) => report.registrationId =
       { controlPointId: "cp-2", source: { x: 4, y: -3 }, target: { x: -1, y: -6 } },
       { controlPointId: "cp-3", source: { x: 4, y: 3 }, target: { x: -1, y: 0 } },
     ],
+  });
+}
+
+async function ensureRegistrationTarget() {
+  const content = await readFile(resolve("tests/fixtures/floorplans/demo-floorplan.svg"));
+  await upload("demo-floorplan-target", content, "image/svg+xml", "demo-floorplan.svg");
+  const artifacts = await request("GET", "/api/v1/map-drafts/demo-draft-1/artifacts");
+  if (artifacts.artifacts.some(({ bindingId }) => bindingId === "demo-floorplan-target")) return;
+  await request("POST", "/api/v1/map-drafts/demo-draft-1/artifacts", {
+    bindingId: "demo-floorplan-target",
+    uploadId: "demo-floorplan-target",
+    role: "FLOORPLAN_SOURCE",
+    coordinateFrameId: "factory-floor",
+    operatorId,
   });
 }
 

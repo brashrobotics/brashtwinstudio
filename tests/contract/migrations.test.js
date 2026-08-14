@@ -20,6 +20,7 @@ test("metadata migrations are ordered, transactional, and forward-only", async (
     "010_survey_materialization_jobs.sql",
     "011_survey_materialization_lifecycle.sql",
     "012_survey_artifact_lineage.sql",
+    "013_registration_acceptance.sql",
   ]);
 
   for (const file of files) {
@@ -28,6 +29,13 @@ test("metadata migrations are ordered, transactional, and forward-only", async (
     assert.match(sql, /COMMIT;\s*$/);
     assert.doesNotMatch(sql, /\b(?:DROP\s+TABLE|TRUNCATE|DELETE\s+FROM)\b/i);
   }
+});
+
+test("registration acceptance is a derived immutable provenance role", async () => {
+  const sql = await readFile(`${migrationDirectory}/013_registration_acceptance.sql`, "utf8");
+  assert.match(sql, /'REGISTRATION_ACCEPTANCE'/);
+  assert.match(sql, /artifact_kind = 'DERIVED'/);
+  assert.match(sql, /coordinate_frame_id IS NOT NULL/);
 });
 
 test("survey lineage adds bounded source and preview provenance roles", async () => {

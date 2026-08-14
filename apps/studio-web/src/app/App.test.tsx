@@ -22,6 +22,9 @@ describe("Studio Web shell", () => {
       listMapDrafts: async () => [{
         draftId: "draft-1", familyId: "plant", revision: 3, canonicalFrameId: "plant/floor-1", status: "VALIDATED", validationReportSha256: "a".repeat(64), rowVersion: 8, createdBy: "operator", createdAt: "2026-08-13T00:00:00.000Z", updatedBy: "validator", updatedAt: "2026-08-13T01:00:00.000Z",
       }],
+      listDraftArtifacts: async () => [{
+        bindingId: "floorplan-target-1", draftId: "draft-1", uploadId: "floorplan-upload-1", artifactSha256: "9".repeat(64), role: "FLOORPLAN_SOURCE", kind: "SOURCE", coordinateFrameId: "plant/floor-1", inputBindings: [], producer: null, createdBy: "operator", createdAt: "2026-08-13T00:00:00.000Z",
+      }],
       listValidationJobs: async () => [{
         jobId: "validation-job-3", draftId: "draft-1", jobType: "RELEASE_VALIDATION", status: "SUCCEEDED", output: { reportBindingId: "report-3", reportSha256: "a".repeat(64), outcome: "PASSED", summary: { errorCount: 0, warningCount: 2, infoCount: 1 } }, attemptCount: 1, createdBy: "validator", createdAt: "2026-08-13T01:00:00.000Z", startedAt: "2026-08-13T01:00:00.000Z", completedAt: "2026-08-13T01:01:00.000Z", failureReason: null,
       }],
@@ -41,6 +44,7 @@ describe("Studio Web shell", () => {
       }),
       listSurveyRegistrations: async () => [surveyRegistration()],
       createSurveyRegistration: async () => { throw new Error("Not used by this test."); },
+      reviewSurveyRegistration: async () => { throw new Error("Not used by this test."); },
       listReleases: async () => [{
         schemaVersion: "brash.twin-map-bundle/v1", bundleId: "bundle-plant-2", mapReleaseId: "plant@2", familyId: "plant", revision: 2, status: "PUBLISHED", createdAt: "2026-08-13T00:00:00.000Z", canonicalFrameId: "plant/floor-1", artifacts: [],
       }],
@@ -68,11 +72,12 @@ function surveyRegistration() {
     reportUploadId: "survey-registration-upload-1",
     reportSha256: "e".repeat(64),
     report: {
-      schemaVersion: "brash.survey-registration-report/v1" as const,
+      schemaVersion: "brash.survey-registration-report/v2" as const,
       registrationId: "registration-1",
       draftId: "draft-1",
       materializationJobId: "survey-materialization-1",
       sourcePreview: { bindingId: "survey-preview-1", sha256: "d".repeat(64), frameId: "slam-map" },
+      targetEvidence: { bindingId: "floorplan-target-1", sha256: "9".repeat(64), role: "FLOORPLAN_SOURCE" as const, frameId: "plant/floor-1" },
       canonicalFrameId: "plant/floor-1",
       solver: {
         name: "brash.similarity-2d" as const,
@@ -83,8 +88,10 @@ function surveyRegistration() {
       transform: { scale: 1, rotationRadians: 0, translation: { x: 5, y: 10 } },
       residuals,
       metrics: { controlPointCount: 3, rmseMetres: 0, maximumErrorMetres: 0, meanErrorMetres: 0, scaleDeviation: 0 },
+      quality: { outcome: "PASSED" as const, thresholds: { maximumRmseMetres: 0.25, maximumErrorMetres: 0.5, maximumScaleDeviation: 0.02 }, policySha256: "8".repeat(64), issues: [] },
       createdBy: "operator",
       createdAt: "2026-08-13T01:02:00.000Z",
     },
+    acceptance: null,
   };
 }

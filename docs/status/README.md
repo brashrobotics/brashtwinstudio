@@ -196,10 +196,10 @@ Phase 1 — Manual Mapping Studio MVP foundation.
   `SURVEY_PREVIEW` derived binding with immutable same-draft input edges
 - Draft artifact provenance input capacity aligned to the 256-file survey
   intake contract and enforced by PostgreSQL migration 012
-- Versioned `brash.survey-registration-report/v1` with source preview identity,
-  canonical target frame, sorted control points, transform, per-point residuals,
-  RMSE, maximum/mean error, scale deviation, solver version, and configuration
-  SHA-256
+- Versioned `brash.survey-registration-report/v2` with source preview and
+  explicit CAD/BIM or floorplan target identities, sorted control points,
+  transform, per-point residuals, RMSE, maximum/mean error, scale deviation,
+  solver version, configuration SHA-256, and deterministic quality policy
 - Twin API/OpenAPI registration create/list operations storing each report as a
   completed, content-addressed `REGISTRATION_REPORT` derived from the sealed
   preview binding
@@ -208,18 +208,21 @@ Phase 1 — Manual Mapping Studio MVP foundation.
   survey overlay that preserves the separate source-frame inspection mode
 - Compact `npm run demo:seed` workflow covering upload through registered fused
   view without external downloads
+- Immutable `brash.survey-registration-acceptance/v1` approval or rejection
+  evidence, requester/reviewer separation, failed-quality approval prevention,
+  and PostgreSQL migration 013 provenance support
+- Studio target selection, quality outcome, and independent reviewer controls
+  backed by the Twin API acceptance endpoint
 
 ## Next development increment
 
-Phase 2 continues with survey quality and target-evidence review:
+Phase 2 continues with survey review and semantic evidence:
 
-1. Require an imported CAD/BIM or floorplan binding as explicit target evidence
-   when registration is performed against a design source.
-2. Add coverage, timing, frame-quality, and reconstruction-review surfaces
+1. Add coverage, timing, frame-quality, and reconstruction-review surfaces
    before CAD alignment and semantic asset review.
-3. Add registration acceptance thresholds and reviewer approval before a
-   transform may contribute to a publishable map release.
-4. Begin semantic asset-candidate extraction from registered survey evidence.
+2. Require an approved registration when registered survey evidence contributes
+   to a publishable map release.
+3. Begin semantic asset-candidate extraction from registered survey evidence.
 
 ## Deliberately deferred
 
@@ -236,10 +239,10 @@ lifecycle are stable.
 
 ```text
 npm run check
-syntax/json: 238 files passed
-backend tests: 101 total; 98 passed and 3 optional external tests skipped
-web tests: 35/35 passed with strict TypeScript and production build
-live PostgreSQL 16 migration/repository gate: passed with schema version 12
+syntax/json: 247 files passed
+backend tests: 103 total; 100 passed and 3 optional external tests skipped
+web tests: 36/36 passed with strict TypeScript and production build
+latest migration contract: schema version 13; last live PostgreSQL 16 gate passed with schema version 12
 live GrandTour ETH-2 SHA-256/preview gate: passed against the 290,764,702-byte base selection
 ConSLAM/IfcOpenShell gate: last passed August 13, 2026 and remains opt-in
 fixture: demo-plant@1 valid
@@ -260,7 +263,7 @@ manual twin: control-point alignment, residual policy, diff, validation, two-per
 embodied survey: strict manifest, clock/frame/quality, hash/size policy and no-download GrandTour selection verified
 survey intake: atomic upload mapping, manifest-only verification, immutable rejection evidence and HTTP lifecycle verified
 survey materialization: immutable input, leased/retry-safe streaming, content-addressed preview, PostgreSQL provenance, HTTP lifecycle and source-frame 2D/3D browser QA verified
-survey registration: complete source/preview/report lineage, versioned rigid transform evidence, HTTP lifecycle, operator controls, and fused/source-frame 2D/3D browser QA verified
+survey registration: explicit design-target lineage, report v2 quality policy, immutable independent review, HTTP lifecycle, and fused/source-frame 2D/3D browser QA verified
 dataset: ConSLAM IFC/GT checksum, geometry and trajectory validation verified
 GrandTour: pinned SHA-256, safe Zarr/PLY bounds, real trajectory/TF/map metrics and bounded preview verified
 GrandTour seed: real 290,764,702-byte selection imported twice idempotently into a live Twin API and materialized for Studio

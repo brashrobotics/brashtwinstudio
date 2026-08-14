@@ -35,6 +35,13 @@ publishes a deterministic content-addressed preview. Failed attempts use bounded
 exponential retry; a successful preview is re-read only after checksum, byte,
 schema, and lineage verification.
 
+`survey-registrations.js` computes a deterministic 2D similarity transform from
+operator control points while requiring the source preview and an explicit
+same-draft CAD/BIM or floorplan target. Its v2 report seals both provenance
+edges, residuals, solver configuration, and quality policy. Review is a separate
+immutable artifact, enforces requester/reviewer separation, and never permits
+approval of a failed quality result.
+
 `validation-jobs.js` creates a sealed validation snapshot while a draft is
 `IN_REVIEW`, runs the deterministic validator, streams its JSON report through
 the multipart object-store boundary, and binds the report with producer/config

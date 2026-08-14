@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { TwinApiClient } from "../../api/client";
 import type {
+  DraftArtifactBinding,
   MapDraft,
   MapDraftStatus,
   SurveyMaterializationJob,
@@ -43,6 +44,11 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
   const validationJobs = useQuery({
     queryKey: ["validation-jobs", draftId],
     queryFn: ({ signal }) => api.listValidationJobs(draftId, signal),
+    enabled: draftId !== "",
+  });
+  const draftArtifacts = useQuery({
+    queryKey: ["draft-artifacts", draftId],
+    queryFn: ({ signal }) => api.listDraftArtifacts(draftId, signal),
     enabled: draftId !== "",
   });
   const surveyMaterializations = useQuery({
@@ -87,14 +93,28 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
     [surveyRegistrations.data],
   );
   const createRegistration = useMutation({
-    mutationFn: (controlPoints: SurveyRegistrationControlPoint[]) => api.createSurveyRegistration(draftId, {
+    mutationFn: ({ targetBindingId, controlPoints }: {
+      targetBindingId: string;
+      controlPoints: SurveyRegistrationControlPoint[];
+    }) => api.createSurveyRegistration(draftId, {
       materializationJobId: latestMaterialization!.jobId,
+      targetBindingId,
       controlPoints,
       allowScale: false,
       operatorId: identity.subject,
     }),
     onSuccess: async () => queryClient.invalidateQueries({ queryKey: ["survey-registrations", draftId] }),
   });
+  const reviewRegistration = useMutation({
+    mutationFn: ({ decision, reviewerId }: { decision: "APPROVED" | "REJECTED"; reviewerId: string }) => (
+      api.reviewSurveyRegistration(draftId, latestRegistration!.report.registrationId, { decision, reviewerId })
+    ),
+    onSuccess: async () => queryClient.invalidateQueries({ queryKey: ["survey-registrations", draftId] }),
+  });
+  const registrationTargets = useMemo(() => (draftArtifacts.data ?? []).filter(
+    (artifact) => ["BIM_SOURCE", "FLOORPLAN_SOURCE"].includes(artifact.role)
+      && artifact.coordinateFrameId === selectedDraft?.canonicalFrameId,
+  ), [draftArtifacts.data, selectedDraft?.canonicalFrameId]);
   const firstError = [sites.error, floors.error, families.error, drafts.error].find(Boolean);
   const initialLoading = sites.isPending;
 
@@ -182,9 +202,13 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
             <SurveyRegistrationPanel
               preview={surveyPreview.data ?? null}
               registration={latestRegistration}
-              busy={createRegistration.isPending}
-              error={createRegistration.error instanceof Error ? createRegistration.error.message : null}
-              onRegister={(controlPoints) => createRegistration.mutateAsync(controlPoints)}
+              targets={registrationTargets}
+              busy={createRegistration.isPending || reviewRegistration.isPending}
+              error={[createRegistration.error, reviewRegistration.error].find(
+                (candidate) => candidate instanceof Error,
+              )?.message ?? null}
+              onRegister={(targetBindingId, controlPoints) => createRegistration.mutateAsync({ targetBindingId, controlPoints })}
+              onReview={(decision, reviewerId) => reviewRegistration.mutateAsync({ decision, reviewerId })}
             />
             <ValidationPanel job={latestValidation} loading={validationJobs.isPending && draftId !== ""} />
             <section className="panel release-panel">
@@ -296,34 +320,53 @@ function SurveyPanel({ job, loading, previewReady }: {
   );
 }
 
-function SurveyRegistrationPanel({ preview, registration, busy, error, onRegister }: {
+function SurveyRegistrationPanel({ preview, registration, targets, busy, error, onRegister, onReview }: {
   preview: SurveyMaterializationPreview | null;
   registration: SurveyRegistrationRecord | null;
+  targets: DraftArtifactBinding[];
   busy: boolean;
   error: string | null;
-  onRegister(controlPoints: SurveyRegistrationControlPoint[]): Promise<unknown>;
+  onRegister(targetBindingId: string, controlPoints: SurveyRegistrationControlPoint[]): Promise<unknown>;
+  onReview(decision: "APPROVED" | "REJECTED", reviewerId: string): Promise<unknown>;
 }) {
   const { t } = useI18n();
   const [controlPoints, setControlPoints] = useState<SurveyRegistrationControlPoint[]>([]);
+  const [targetBindingId, setTargetBindingId] = useState("");
+  const [reviewerId, setReviewerId] = useState("registration-reviewer");
   useEffect(() => {
     if (registration) {
+      setTargetBindingId(registration.report.targetEvidence.bindingId);
       setControlPoints(registration.report.residuals.map(({ controlPointId, source, target }) => ({
         controlPointId,
         source: { ...source },
         target: { ...target },
       })));
     } else if (preview) {
+      setTargetBindingId(targets[0]?.bindingId ?? "");
       setControlPoints(defaultSurveyControlPoints(preview));
     }
-  }, [preview?.source.revision, registration?.report.registrationId]);
+  }, [preview?.source.revision, registration?.report.registrationId, targets[0]?.bindingId]);
+  const review = registration?.acceptance?.report ?? null;
   return (
     <section className="panel survey-registration-panel">
       <div className="panel-heading compact">
         <div><p className="section-index">05 / ALIGN</p><h3>{t("surveyRegistration")}</h3></div>
-        {registration && <span className="job-state job-succeeded">REGISTERED</span>}
+        {registration && <span className={`job-state job-${review?.decision === "APPROVED" ? "succeeded" : registration.report.quality.outcome === "PASSED" ? "pending" : "failed"}`}>
+          {review?.decision ?? registration.report.quality.outcome}
+        </span>}
       </div>
       {!preview ? <p className="muted-copy">{t("registrationNeedsPreview")}</p> : (
         <>
+          {targets.length === 0 ? <p className="muted-copy">{t("registrationNeedsTarget")}</p> : (
+            <label className="registration-target-select">
+              <span>{t("registrationTarget")}</span>
+              <select value={targetBindingId} onChange={(event) => setTargetBindingId(event.target.value)}>
+                {targets.map((target) => (
+                  <option key={target.bindingId} value={target.bindingId}>{target.bindingId} · {target.role}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <div className="survey-registration-grid">
             <span>ID</span><span>SX</span><span>SY</span><span>TX</span><span>TY</span>
             {controlPoints.map((pair, index) => (
@@ -339,16 +382,26 @@ function SurveyRegistrationPanel({ preview, registration, busy, error, onRegiste
           <button
             className="registration-submit"
             type="button"
-            disabled={busy || controlPoints.length < 2}
-            onClick={() => void onRegister(controlPoints)}
+            disabled={busy || controlPoints.length < 2 || targetBindingId === ""}
+            onClick={() => void onRegister(targetBindingId, controlPoints)}
           >{busy ? t("registeringSurvey") : t("saveRegistrationVersion")}</button>
           {registration && (
             <dl className="metadata-list registration-summary">
               <div><dt>RMSE</dt><dd>{registration.report.metrics.rmseMetres.toFixed(3)} m</dd></div>
-              <div><dt>{t("rotation")}</dt><dd>{registration.report.transform.rotationRadians.toFixed(3)} rad</dd></div>
-              <div className="metadata-wide"><dt>{t("targetFrame")}</dt><dd>{registration.report.canonicalFrameId}</dd></div>
+              <div><dt>{t("registrationQuality")}</dt><dd>{registration.report.quality.outcome}</dd></div>
+              <div className="metadata-wide"><dt>{t("registrationTarget")}</dt><dd>{registration.report.targetEvidence.bindingId}</dd></div>
             </dl>
           )}
+          {registration && !review && (
+            <div className="registration-review">
+              <label><span>{t("reviewerIdentity")}</span><input value={reviewerId} onChange={(event) => setReviewerId(event.target.value)} /></label>
+              <div>
+                <button type="button" disabled={busy || reviewerId.trim() === "" || registration.report.quality.outcome !== "PASSED"} onClick={() => void onReview("APPROVED", reviewerId)}>{t("approveRegistration")}</button>
+                <button type="button" disabled={busy || reviewerId.trim() === ""} onClick={() => void onReview("REJECTED", reviewerId)}>{t("rejectRegistration")}</button>
+              </div>
+            </div>
+          )}
+          {review && <p className="job-id">{review.decision} · {review.reviewerId}</p>}
           {error && <p className="registration-error" role="alert">{error}</p>}
         </>
       )}

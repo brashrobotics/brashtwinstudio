@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/survey-registration-acceptance.v1.schema.json",
+  "title": "Brash Survey Registration Acceptance v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "registrationId", "draftId", "registrationReport", "decision", "qualityOutcome", "reviewerId", "note", "reviewedAt"],
+  "properties": {
+    "schemaVersion": { "const": "brash.survey-registration-acceptance/v1" },
+    "registrationId": { "$ref": "#/$defs/identifier" },
+    "draftId": { "$ref": "#/$defs/identifier" },
+    "registrationReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bindingId", "sha256"],
+      "properties": {
+        "bindingId": { "$ref": "#/$defs/identifier" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "decision": { "enum": ["APPROVED", "REJECTED"] },
+    "qualityOutcome": { "enum": ["PASSED", "FAILED"] },
+    "reviewerId": { "type": "string", "minLength": 1 },
+    "note": { "type": ["string", "null"], "maxLength": 2000 },
+    "reviewedAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "identifier": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

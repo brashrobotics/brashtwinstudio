@@ -140,12 +140,16 @@ The first Phase 0 increment is implemented:
 - Leased accepted-survey materialization that streams standard frame,
   calibration, TUM trajectory, and binary PLY inputs into a bounded,
   content-addressed 2D/3D preview.
-- Immutable `SURVEY_SOURCE -> SURVEY_PREVIEW -> REGISTRATION_REPORT` draft
-  provenance, retaining every accepted input hash and operator control-point
-  residual.
+- Immutable `SURVEY_SOURCE -> SURVEY_PREVIEW + BIM/FLOORPLAN_SOURCE ->
+  REGISTRATION_REPORT -> REGISTRATION_ACCEPTANCE` draft provenance, retaining
+  every accepted input hash, operator control-point residual, deterministic
+  quality decision, and independent reviewer decision.
 - Versioned survey-to-canonical registration API with locked-scale 2D rigid
   alignment by default, plus a fused CAD/survey view and a reversible read-only
   source-frame view.
+- Explicit same-draft CAD/BIM target evidence, sealed registration quality
+  thresholds, and immutable two-person approval or rejection before a transform
+  can be treated as accepted evidence.
 - A compact local demo seed that exercises upload, intake, verification,
   materialization, artifact lineage, and registration without downloading an
   external dataset.

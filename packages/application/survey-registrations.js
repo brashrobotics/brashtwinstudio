@@ -1,10 +1,18 @@
 import { createHash, randomUUID } from "node:crypto";
 
-const REPORT_SCHEMA_VERSION = "brash.survey-registration-report/v1";
-const REPORT_MEDIA_TYPE = "application/vnd.brash.survey-registration-report+json";
+const REPORT_SCHEMA_VERSION = "brash.survey-registration-report/v2";
+const REPORT_MEDIA_TYPE = "application/vnd.brash.survey-registration-report.v2+json";
+const ACCEPTANCE_SCHEMA_VERSION = "brash.survey-registration-acceptance/v1";
+const ACCEPTANCE_MEDIA_TYPE = "application/vnd.brash.survey-registration-acceptance+json";
 const SOLVER_NAME = "brash.similarity-2d";
 const SOLVER_VERSION = "1.0.0";
 const MAXIMUM_REPORT_BYTES = 1024 * 1024;
+const TARGET_ROLES = new Set(["BIM_SOURCE", "FLOORPLAN_SOURCE"]);
+const DEFAULT_QUALITY_THRESHOLDS = Object.freeze({
+  maximumRmseMetres: 0.25,
+  maximumErrorMetres: 0.5,
+  maximumScaleDeviation: 0.02,
+});
 
 export class SurveyRegistrationError extends Error {
   constructor(code, message, options = {}) {
@@ -22,6 +30,7 @@ export class SurveyRegistrationService {
   #multipartStore;
   #clock;
   #registrationIdGenerator;
+  #qualityThresholds;
 
   constructor({
     catalog,
@@ -31,6 +40,7 @@ export class SurveyRegistrationService {
     multipartStore,
     clock = () => new Date(),
     registrationIdGenerator = () => `registration-${randomUUID()}`,
+    qualityThresholds = DEFAULT_QUALITY_THRESHOLDS,
   }) {
     if (!catalog || typeof catalog.getMapDraftContext !== "function") invalidConfiguration("Catalog lookup is required.");
     if (!materializations || typeof materializations.get !== "function") invalidConfiguration("Materialization lookup is required.");
@@ -53,11 +63,13 @@ export class SurveyRegistrationService {
     this.#multipartStore = multipartStore;
     this.#clock = clock;
     this.#registrationIdGenerator = registrationIdGenerator;
+    this.#qualityThresholds = normalizeQualityThresholds(qualityThresholds);
   }
 
   async create(draftId, input = {}) {
     identifier(draftId, "draftId");
     identifier(input.materializationJobId, "materializationJobId");
+    identifier(input.targetBindingId, "targetBindingId");
     requiredText(input.operatorId, "operatorId");
     if (input.registrationId !== undefined) identifier(input.registrationId, "registrationId");
     if (input.allowScale !== undefined && typeof input.allowScale !== "boolean") {
@@ -79,16 +91,32 @@ export class SurveyRegistrationService {
         "Registration requires a successful, provenance-bound preview from the same draft.",
       );
     }
+    const target = (await this.#draftArtifacts.list(draftId)).find(
+      (binding) => binding.bindingId === input.targetBindingId,
+    );
+    if (!target
+      || !TARGET_ROLES.has(target.role)
+      || target.kind !== "SOURCE"
+      || target.coordinateFrameId !== context.draft.canonicalFrameId) {
+      throw new SurveyRegistrationError(
+        "SURVEY_REGISTRATION_TARGET_INELIGIBLE",
+        "Registration target must be a same-draft BIM or floorplan source in the canonical frame.",
+      );
+    }
     const registrationId = input.registrationId ?? this.#registrationIdGenerator();
     identifier(registrationId, "registrationId");
     const solved = solveSimilarity2D(input.controlPoints, input.allowScale ?? false);
+    const quality = evaluateQuality(solved.metrics, this.#qualityThresholds);
     const configurationSha256 = sha256(canonicalJson({
       solver: SOLVER_NAME,
       version: SOLVER_VERSION,
       allowScale: input.allowScale ?? false,
       sourceFrameId: materialization.output.sourceFrameId,
       canonicalFrameId: context.draft.canonicalFrameId,
+      targetBindingId: target.bindingId,
+      targetSha256: target.artifactSha256,
       controlPoints: solved.controlPoints,
+      qualityThresholds: this.#qualityThresholds,
     }));
     const report = Object.freeze({
       schemaVersion: REPORT_SCHEMA_VERSION,
@@ -100,6 +128,12 @@ export class SurveyRegistrationService {
         sha256: materialization.output.previewSha256,
         frameId: materialization.output.sourceFrameId,
       }),
+      targetEvidence: Object.freeze({
+        bindingId: target.bindingId,
+        sha256: target.artifactSha256,
+        role: target.role,
+        frameId: target.coordinateFrameId,
+      }),
       canonicalFrameId: context.draft.canonicalFrameId,
       solver: Object.freeze({
         name: SOLVER_NAME,
@@ -110,6 +144,7 @@ export class SurveyRegistrationService {
       transform: solved.transform,
       residuals: solved.residuals,
       metrics: solved.metrics,
+      quality,
       createdBy: input.operatorId,
       createdAt: now(this.#clock),
     });
@@ -125,6 +160,7 @@ export class SurveyRegistrationService {
       uploadId: reportUploadId,
       content,
       expectedSha256: reportSha256,
+      mediaType: REPORT_MEDIA_TYPE,
       operatorId: input.operatorId,
     });
     let binding;
@@ -134,7 +170,7 @@ export class SurveyRegistrationService {
         uploadId: reportUploadId,
         role: "REGISTRATION_REPORT",
         coordinateFrameId: context.draft.canonicalFrameId,
-        inputBindingIds: [materialization.output.previewBindingId],
+        inputBindingIds: [materialization.output.previewBindingId, target.bindingId],
         producer: {
           name: "brash-survey-registration",
           version: SOLVER_VERSION,
@@ -148,44 +184,167 @@ export class SurveyRegistrationService {
       }
       throw error;
     }
-    return record(binding, report);
+    return record(binding, report, null);
   }
 
   async list(draftId) {
     identifier(draftId, "draftId");
     await this.#catalog.getMapDraftContext(draftId);
-    const bindings = (await this.#draftArtifacts.list(draftId)).filter(
+    const allBindings = await this.#draftArtifacts.list(draftId);
+    const bindings = allBindings.filter(
       (binding) => binding.role === "REGISTRATION_REPORT"
         && binding.producer?.name === "brash-survey-registration",
     );
-    const registrations = [];
-    for (const binding of bindings) {
-      const content = await this.#multipartStore.get(binding.artifactSha256);
-      if (!Buffer.isBuffer(content)
-        || content.byteLength > MAXIMUM_REPORT_BYTES
-        || sha256(content) !== binding.artifactSha256) {
+    const acceptanceBindings = allBindings.filter(
+      (binding) => binding.role === "REGISTRATION_ACCEPTANCE"
+        && binding.producer?.name === "brash-survey-registration-review",
+    );
+    const acceptancesByInput = new Map();
+    for (const binding of acceptanceBindings) {
+      const acceptance = await this.#readReport(binding, ACCEPTANCE_SCHEMA_VERSION);
+      if (acceptance?.draftId !== draftId
+        || acceptance?.registrationReport?.bindingId !== binding.inputBindings[0]?.bindingId
+        || acceptance?.registrationReport?.sha256 !== binding.inputBindings[0]?.artifactSha256) {
         throw new SurveyRegistrationError(
           "SURVEY_REGISTRATION_INTEGRITY_FAILED",
-          `Stored report ${binding.bindingId} no longer matches its artifact identity.`,
+          `Stored acceptance ${binding.bindingId} does not match its sealed provenance.`,
         );
       }
-      let report;
-      try {
-        report = JSON.parse(content.toString("utf8"));
-      } catch {
-        throw new SurveyRegistrationError("SURVEY_REGISTRATION_REPORT_INVALID", `Stored report ${binding.bindingId} is not JSON.`);
-      }
+      acceptancesByInput.set(binding.inputBindings[0].bindingId, artifactRecord(binding, acceptance));
+    }
+    const registrations = [];
+    for (const binding of bindings) {
+      const report = await this.#readReport(binding, REPORT_SCHEMA_VERSION);
+      const inputIdentities = new Map(binding.inputBindings.map((input) => [input.bindingId, input.artifactSha256]));
       if (report?.schemaVersion !== REPORT_SCHEMA_VERSION
         || report?.draftId !== draftId
-        || report?.sourcePreview?.bindingId !== binding.inputBindings[0]?.bindingId) {
+        || inputIdentities.get(report?.sourcePreview?.bindingId) !== report?.sourcePreview?.sha256
+        || inputIdentities.get(report?.targetEvidence?.bindingId) !== report?.targetEvidence?.sha256
+        || binding.inputBindings.length !== 2) {
         throw new SurveyRegistrationError(
           "SURVEY_REGISTRATION_INTEGRITY_FAILED",
           `Stored report ${binding.bindingId} does not match its sealed provenance.`,
         );
       }
-      registrations.push(record(binding, report));
+      registrations.push(record(binding, report, acceptancesByInput.get(binding.bindingId) ?? null));
     }
     return registrations.sort((left, right) => left.report.createdAt.localeCompare(right.report.createdAt));
+  }
+
+  async review(draftId, registrationId, input = {}) {
+    identifier(draftId, "draftId");
+    identifier(registrationId, "registrationId");
+    requiredText(input.reviewerId, "reviewerId");
+    if (!new Set(["APPROVED", "REJECTED"]).has(input.decision)) {
+      throw new SurveyRegistrationError("SURVEY_REGISTRATION_REVIEW_INVALID", "decision must be APPROVED or REJECTED.");
+    }
+    if (input.note !== undefined && (typeof input.note !== "string" || input.note.length > 2_000)) {
+      throw new SurveyRegistrationError("SURVEY_REGISTRATION_REVIEW_INVALID", "note must contain at most 2,000 characters.");
+    }
+    const context = await this.#catalog.getMapDraftContext(draftId);
+    if (context.draft.status !== "DRAFT") {
+      throw new SurveyRegistrationError(
+        "SURVEY_REGISTRATION_DRAFT_LOCKED",
+        `Map draft ${draftId} is ${context.draft.status}; registration review requires DRAFT.`,
+      );
+    }
+    const registration = (await this.list(draftId)).find(
+      (candidate) => candidate.report.registrationId === registrationId,
+    );
+    if (!registration) {
+      throw new SurveyRegistrationError("SURVEY_REGISTRATION_NOT_FOUND", `Registration ${registrationId} was not found.`);
+    }
+    if (registration.acceptance) {
+      throw new SurveyRegistrationError("SURVEY_REGISTRATION_REVIEW_CONFLICT", `Registration ${registrationId} was already reviewed.`);
+    }
+    if (registration.report.createdBy === input.reviewerId) {
+      throw new SurveyRegistrationError(
+        "SURVEY_REGISTRATION_REVIEWER_CONFLICT",
+        "Registration reviewer must be different from the registration operator.",
+      );
+    }
+    if (input.decision === "APPROVED" && registration.report.quality.outcome !== "PASSED") {
+      throw new SurveyRegistrationError(
+        "SURVEY_REGISTRATION_QUALITY_FAILED",
+        "A registration that failed its quality policy cannot be approved.",
+      );
+    }
+    const reviewedAt = now(this.#clock);
+    const report = Object.freeze({
+      schemaVersion: ACCEPTANCE_SCHEMA_VERSION,
+      registrationId,
+      draftId,
+      registrationReport: Object.freeze({
+        bindingId: registration.reportBindingId,
+        sha256: registration.reportSha256,
+      }),
+      decision: input.decision,
+      qualityOutcome: registration.report.quality.outcome,
+      reviewerId: input.reviewerId,
+      note: input.note?.trim() || null,
+      reviewedAt,
+    });
+    const content = Buffer.from(canonicalJson(report));
+    const expectedSha256 = sha256(content);
+    const uploadId = `survey-registration-acceptance-${registrationId}`;
+    await storeReport({
+      uploads: this.#uploads,
+      multipartStore: this.#multipartStore,
+      uploadId,
+      content,
+      expectedSha256,
+      mediaType: ACCEPTANCE_MEDIA_TYPE,
+      operatorId: input.reviewerId,
+    });
+    const parametersSha256 = sha256(canonicalJson({
+      schemaVersion: ACCEPTANCE_SCHEMA_VERSION,
+      registrationReportSha256: registration.reportSha256,
+      qualityPolicySha256: registration.report.quality.policySha256,
+    }));
+    let binding;
+    try {
+      binding = await this.#draftArtifacts.bind(draftId, {
+        bindingId: `survey-registration-acceptance-${registrationId}`,
+        uploadId,
+        role: "REGISTRATION_ACCEPTANCE",
+        coordinateFrameId: registration.report.canonicalFrameId,
+        inputBindingIds: [registration.reportBindingId],
+        producer: {
+          name: "brash-survey-registration-review",
+          version: "1.0.0",
+          parametersSha256,
+        },
+        operatorId: input.reviewerId,
+      });
+    } catch (error) {
+      if (error?.code === "DRAFT_ARTIFACT_CONFLICT") {
+        throw new SurveyRegistrationError("SURVEY_REGISTRATION_REVIEW_CONFLICT", `Registration ${registrationId} was already reviewed.`, { cause: error });
+      }
+      throw error;
+    }
+    return artifactRecord(binding, report);
+  }
+
+  async #readReport(binding, schemaVersion) {
+    const content = await this.#multipartStore.get(binding.artifactSha256);
+    if (!Buffer.isBuffer(content)
+      || content.byteLength > MAXIMUM_REPORT_BYTES
+      || sha256(content) !== binding.artifactSha256) {
+      throw new SurveyRegistrationError(
+        "SURVEY_REGISTRATION_INTEGRITY_FAILED",
+        `Stored report ${binding.bindingId} no longer matches its artifact identity.`,
+      );
+    }
+    let report;
+    try {
+      report = JSON.parse(content.toString("utf8"));
+    } catch {
+      throw new SurveyRegistrationError("SURVEY_REGISTRATION_REPORT_INVALID", `Stored report ${binding.bindingId} is not JSON.`);
+    }
+    if (report?.schemaVersion !== schemaVersion) {
+      throw new SurveyRegistrationError("SURVEY_REGISTRATION_REPORT_INVALID", `Stored report ${binding.bindingId} has an unsupported schema.`);
+    }
+    return report;
   }
 }
 
@@ -279,14 +438,59 @@ function applyTransform(transform, value) {
   });
 }
 
-async function storeReport({ uploads, multipartStore, uploadId, content, expectedSha256, operatorId }) {
+function evaluateQuality(metrics, thresholds) {
+  const issues = [];
+  if (metrics.rmseMetres > thresholds.maximumRmseMetres) {
+    issues.push(Object.freeze({
+      code: "REGISTRATION_RMSE_EXCEEDED",
+      observed: metrics.rmseMetres,
+      limit: thresholds.maximumRmseMetres,
+    }));
+  }
+  if (metrics.maximumErrorMetres > thresholds.maximumErrorMetres) {
+    issues.push(Object.freeze({
+      code: "REGISTRATION_MAXIMUM_ERROR_EXCEEDED",
+      observed: metrics.maximumErrorMetres,
+      limit: thresholds.maximumErrorMetres,
+    }));
+  }
+  if (metrics.scaleDeviation > thresholds.maximumScaleDeviation) {
+    issues.push(Object.freeze({
+      code: "REGISTRATION_SCALE_DEVIATION_EXCEEDED",
+      observed: metrics.scaleDeviation,
+      limit: thresholds.maximumScaleDeviation,
+    }));
+  }
+  return Object.freeze({
+    outcome: issues.length === 0 ? "PASSED" : "FAILED",
+    thresholds,
+    policySha256: sha256(canonicalJson(thresholds)),
+    issues: Object.freeze(issues),
+  });
+}
+
+function normalizeQualityThresholds(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    invalidConfiguration("Registration quality thresholds must be an object.");
+  }
+  const normalized = {};
+  for (const field of ["maximumRmseMetres", "maximumErrorMetres", "maximumScaleDeviation"]) {
+    if (!Number.isFinite(value[field]) || value[field] < 0) {
+      invalidConfiguration(`${field} must be a non-negative finite number.`);
+    }
+    normalized[field] = round(value[field]);
+  }
+  return Object.freeze(normalized);
+}
+
+async function storeReport({ uploads, multipartStore, uploadId, content, expectedSha256, mediaType, operatorId }) {
   let upload;
   try {
     const initiated = await uploads.initiate({
       uploadId,
       expectedSha256,
       expectedBytes: content.byteLength,
-      mediaType: REPORT_MEDIA_TYPE,
+      mediaType,
       originalName: `${uploadId}.json`,
       operatorId,
     });
@@ -307,7 +511,17 @@ async function storeReport({ uploads, multipartStore, uploadId, content, expecte
   return completed;
 }
 
-function record(binding, report) {
+function record(binding, report, acceptance) {
+  return Object.freeze({
+    reportBindingId: binding.bindingId,
+    reportUploadId: binding.uploadId,
+    reportSha256: binding.artifactSha256,
+    report: Object.freeze(structuredClone(report)),
+    acceptance,
+  });
+}
+
+function artifactRecord(binding, report) {
   return Object.freeze({
     reportBindingId: binding.bindingId,
     reportUploadId: binding.uploadId,

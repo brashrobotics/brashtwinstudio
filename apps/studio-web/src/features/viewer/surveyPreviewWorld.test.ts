@@ -77,11 +77,17 @@ function preview(): SurveyMaterializationPreview {
 
 function registration(): SurveyRegistrationReport {
   return {
-    schemaVersion: "brash.survey-registration-report/v1",
+    schemaVersion: "brash.survey-registration-report/v2",
     registrationId: "registration-1",
     draftId: "draft-1",
     materializationJobId: "materialization-1",
     sourcePreview: { bindingId: "survey-preview-1", sha256: "b".repeat(64), frameId: "slam-map" },
+    targetEvidence: {
+      bindingId: "floorplan-target-1",
+      sha256: "e".repeat(64),
+      role: "FLOORPLAN_SOURCE",
+      frameId: "plant-floor",
+    },
     canonicalFrameId: "plant-floor",
     solver: {
       name: "brash.similarity-2d",
@@ -92,6 +98,12 @@ function registration(): SurveyRegistrationReport {
     transform: { scale: 1, rotationRadians: Math.PI / 2, translation: { x: 10, y: 20 } },
     residuals: [],
     metrics: { controlPointCount: 3, rmseMetres: 0, maximumErrorMetres: 0, meanErrorMetres: 0, scaleDeviation: 0 },
+    quality: {
+      outcome: "PASSED",
+      thresholds: { maximumRmseMetres: 0.25, maximumErrorMetres: 0.5, maximumScaleDeviation: 0.02 },
+      policySha256: "d".repeat(64),
+      issues: [],
+    },
     createdBy: "operator-1",
     createdAt: "2026-08-14T15:00:00.000Z",
   };

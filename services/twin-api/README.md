@@ -37,6 +37,8 @@ must not run in it.
 - `GET /api/v1/survey-materializations/:jobId`
 - `POST /api/v1/survey-materializations/:jobId/run`
 - `GET /api/v1/survey-materializations/:jobId/preview`
+- `GET|POST /api/v1/map-drafts/:draftId/survey-registrations`
+- `POST /api/v1/map-drafts/:draftId/survey-registrations/:registrationId/acceptance`
 - `GET|POST /api/v1/map-drafts/:draftId/validation-jobs`
 - `GET /api/v1/validation-jobs/:jobId`
 - `POST /api/v1/validation-jobs/:jobId/run`
@@ -88,6 +90,13 @@ The draft-artifact endpoint accepts only `COMPLETED` uploads. Source records
 represent direct evidence; derived records contain same-draft input bindings and
 producer/config hashes. New artifacts cannot be added while a draft is in review
 or validated state.
+
+Survey registration requires a successful source-frame preview and an explicit
+same-draft `BIM_SOURCE` or `FLOORPLAN_SOURCE` binding in the draft canonical
+frame. The generated v2 report seals both artifact identities, the rigid
+transform, residual metrics, and deterministic quality thresholds. A different
+reviewer may then create exactly one immutable approval or rejection artifact;
+a failed quality result cannot be approved.
 
 Clients cannot mark a draft validated by supplying an arbitrary SHA-256 value.
 They create and run a validation job instead. The service snapshots draft inputs,

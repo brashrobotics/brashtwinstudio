@@ -70,7 +70,7 @@ test("real PostgreSQL persists the catalog and survives repository recreation", 
     assert.deepEqual(
       migrationStatus.entries.map((entry) => entry.state),
       [
-        "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED",
+        "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED",
         "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED",
       ],
     );
@@ -93,8 +93,8 @@ test("real PostgreSQL persists the catalog and survives repository recreation", 
       assert.equal(readiness.body.persistence.mode, "postgres");
       assert.deepEqual(readiness.body.persistence.migrations, {
         ready: true,
-        currentVersion: 12,
-        latestVersion: 12,
+        currentVersion: 13,
+        latestVersion: 13,
         pendingCount: 0,
       });
     } finally {

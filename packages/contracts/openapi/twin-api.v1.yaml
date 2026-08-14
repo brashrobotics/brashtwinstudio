@@ -389,6 +389,31 @@ paths:
           $ref: "#/components/responses/Conflict"
         "404":
           $ref: "#/components/responses/NotFound"
+  /api/v1/map-drafts/{draftId}/survey-registrations/{registrationId}/acceptance:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+      - name: registrationId
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Identifier"
+    post:
+      operationId: reviewSurveyRegistration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewSurveyRegistration"
+      responses:
+        "201":
+          description: Immutable registration acceptance or rejection evidence created.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /api/v1/survey-intakes/{intakeId}/materializations:
     parameters:
       - $ref: "#/components/parameters/IntakeId"
@@ -788,11 +813,13 @@ components:
     CreateSurveyRegistration:
       type: object
       additionalProperties: false
-      required: [materializationJobId, controlPoints, operatorId]
+      required: [materializationJobId, targetBindingId, controlPoints, operatorId]
       properties:
         registrationId:
           $ref: "#/components/schemas/Identifier"
         materializationJobId:
+          $ref: "#/components/schemas/Identifier"
+        targetBindingId:
           $ref: "#/components/schemas/Identifier"
         controlPoints:
           type: array
@@ -806,6 +833,20 @@ components:
         operatorId:
           type: string
           minLength: 1
+    ReviewSurveyRegistration:
+      type: object
+      additionalProperties: false
+      required: [decision, reviewerId]
+      properties:
+        decision:
+          type: string
+          enum: [APPROVED, REJECTED]
+        reviewerId:
+          type: string
+          minLength: 1
+        note:
+          type: string
+          maxLength: 2000
     DraftArtifactRole:
       type: string
       enum:
@@ -824,6 +865,7 @@ components:
         - SCENE_TILESET
         - IMPORT_REPORT
         - REGISTRATION_REPORT
+        - REGISTRATION_ACCEPTANCE
         - VALIDATION_REPORT
     ArtifactProducer:
       type: object

@@ -16,16 +16,21 @@ test("survey registration persists a versioned report derived from a sealed prev
   const registration = await system.registrations.create("draft-1", {
     registrationId: "registration-1",
     materializationJobId: "materialization-1",
+    targetBindingId: "floorplan-target-1",
     allowScale: false,
     operatorId: "operator-1",
     controlPoints: controlPoints(),
   });
 
-  assert.equal(registration.report.schemaVersion, "brash.survey-registration-report/v1");
+  assert.equal(registration.report.schemaVersion, "brash.survey-registration-report/v2");
+  assert.equal(registration.report.targetEvidence.bindingId, "floorplan-target-1");
+  assert.equal(registration.report.targetEvidence.role, "FLOORPLAN_SOURCE");
   assert.equal(registration.report.transform.scale, 1);
   assert.ok(Math.abs(registration.report.transform.rotationRadians - Math.PI / 2) < 1e-10);
   assert.deepEqual(registration.report.transform.translation, { x: 10, y: 20 });
   assert.equal(registration.report.metrics.rmseMetres, 0);
+  assert.equal(registration.report.quality.outcome, "PASSED");
+  assert.equal(registration.acceptance, null);
   assert.equal(registration.reportBindingId, "survey-registration-report-registration-1");
 
   const listed = await system.registrations.list("draft-1");
@@ -34,7 +39,18 @@ test("survey registration persists a versioned report derived from a sealed prev
     (candidate) => candidate.bindingId === registration.reportBindingId,
   );
   assert.equal(binding.role, "REGISTRATION_REPORT");
-  assert.deepEqual(binding.inputBindings.map((input) => input.bindingId), ["survey-preview-1"]);
+  assert.deepEqual(binding.inputBindings.map((input) => input.bindingId), ["survey-preview-1", "floorplan-target-1"]);
+
+  const acceptance = await system.registrations.review("draft-1", "registration-1", {
+    decision: "APPROVED",
+    reviewerId: "reviewer-1",
+    note: "Control points verified against the floorplan.",
+  });
+  assert.equal(acceptance.report.schemaVersion, "brash.survey-registration-acceptance/v1");
+  assert.equal(acceptance.report.decision, "APPROVED");
+  assert.equal(acceptance.report.registrationReport.bindingId, registration.reportBindingId);
+  const reviewed = await system.registrations.list("draft-1");
+  assert.deepEqual(reviewed[0].acceptance, acceptance);
 });
 
 test("survey registration rejects degenerate operator control points", async () => {
@@ -43,6 +59,7 @@ test("survey registration rejects degenerate operator control points", async () 
     () => system.registrations.create("draft-1", {
       registrationId: "registration-bad",
       materializationJobId: "materialization-1",
+      targetBindingId: "floorplan-target-1",
       operatorId: "operator-1",
       controlPoints: [
         { controlPointId: "cp-1", source: { x: 0, y: 0 }, target: { x: 1, y: 1 } },
@@ -51,6 +68,57 @@ test("survey registration rejects degenerate operator control points", async () 
     }),
     (error) => error instanceof SurveyRegistrationError
       && error.code === "SURVEY_REGISTRATION_GEOMETRY_DEGENERATE",
+  );
+});
+
+test("survey registration requires canonical design evidence and distinct quality approval", async () => {
+  const system = await registrationSystem();
+  await assert.rejects(
+    () => system.registrations.create("draft-1", {
+      registrationId: "registration-no-target",
+      materializationJobId: "materialization-1",
+      targetBindingId: "survey-source-1",
+      operatorId: "operator-1",
+      controlPoints: controlPoints(),
+    }),
+    (error) => error instanceof SurveyRegistrationError
+      && error.code === "SURVEY_REGISTRATION_TARGET_INELIGIBLE",
+  );
+  const registration = await system.registrations.create("draft-1", {
+    registrationId: "registration-review",
+    materializationJobId: "materialization-1",
+    targetBindingId: "floorplan-target-1",
+    operatorId: "operator-1",
+    controlPoints: controlPoints(),
+  });
+  await assert.rejects(
+    () => system.registrations.review("draft-1", registration.report.registrationId, {
+      decision: "APPROVED",
+      reviewerId: "operator-1",
+    }),
+    (error) => error instanceof SurveyRegistrationError
+      && error.code === "SURVEY_REGISTRATION_REVIEWER_CONFLICT",
+  );
+
+  const failedQuality = await system.registrations.create("draft-1", {
+    registrationId: "registration-failed-quality",
+    materializationJobId: "materialization-1",
+    targetBindingId: "floorplan-target-1",
+    operatorId: "operator-1",
+    controlPoints: [
+      ...controlPoints().slice(0, 2),
+      { controlPointId: "cp-3", source: { x: 1, y: 1 }, target: { x: 3, y: 4 } },
+    ],
+  });
+  assert.equal(failedQuality.report.quality.outcome, "FAILED");
+  assert.ok(failedQuality.report.quality.issues.length > 0);
+  await assert.rejects(
+    () => system.registrations.review("draft-1", failedQuality.report.registrationId, {
+      decision: "APPROVED",
+      reviewerId: "reviewer-1",
+    }),
+    (error) => error instanceof SurveyRegistrationError
+      && error.code === "SURVEY_REGISTRATION_QUALITY_FAILED",
   );
 });
 
@@ -80,6 +148,14 @@ async function registrationSystem() {
     uploadId: source.uploadId,
     role: "SURVEY_SOURCE",
     coordinateFrameId: "slam-map",
+    operatorId: "operator-1",
+  });
+  const target = await upload(uploads, store, "floorplan-target-upload", Buffer.from("sealed floorplan"));
+  await draftArtifacts.bind("draft-1", {
+    bindingId: "floorplan-target-1",
+    uploadId: target.uploadId,
+    role: "FLOORPLAN_SOURCE",
+    coordinateFrameId: "plant-floor",
     operatorId: "operator-1",
   });
   const preview = await upload(uploads, store, "survey-preview-upload", Buffer.from("sealed preview"));

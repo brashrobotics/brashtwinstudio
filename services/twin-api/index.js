@@ -216,12 +216,25 @@ export class TwinApi {
         const registration = await this.#surveyRegistrations.create(draftId, objectBody(body, [
           "registrationId",
           "materializationJobId",
+          "targetBindingId",
           "controlPoints",
           "allowScale",
           "operatorId",
         ]));
         return response(201, { registration });
       }
+    }
+
+    const surveyRegistrationReviewMatch = pathname.match(
+      /^\/api\/v1\/map-drafts\/([^/]+)\/survey-registrations\/([^/]+)\/acceptance$/,
+    );
+    if (surveyRegistrationReviewMatch && method === "POST") {
+      const acceptance = await this.#surveyRegistrations.review(
+        segment(surveyRegistrationReviewMatch[1]),
+        segment(surveyRegistrationReviewMatch[2]),
+        objectBody(body, ["decision", "reviewerId", "note"]),
+      );
+      return response(201, { acceptance });
     }
 
     const surveyIntakeMaterializationsMatch = pathname.match(
@@ -521,6 +534,10 @@ function statusForSurveyRegistrationError(code) {
     "SURVEY_REGISTRATION_CONFLICT",
     "SURVEY_REGISTRATION_DRAFT_LOCKED",
     "SURVEY_REGISTRATION_PREVIEW_INELIGIBLE",
+    "SURVEY_REGISTRATION_TARGET_INELIGIBLE",
+    "SURVEY_REGISTRATION_REVIEW_CONFLICT",
+    "SURVEY_REGISTRATION_REVIEWER_CONFLICT",
+    "SURVEY_REGISTRATION_QUALITY_FAILED",
   ].includes(code)) return 409;
   if (code === "SURVEY_REGISTRATION_INTEGRITY_FAILED") return 422;
   return 400;

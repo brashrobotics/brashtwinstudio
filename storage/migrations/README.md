@@ -45,6 +45,8 @@ Published releases and audit history must never be deleted during migration.
 - `012_survey_artifact_lineage.sql`: Accepted survey source bindings and
   source-frame preview derivation roles, with the artifact input bound aligned
   to the 256-file survey intake limit.
+- `013_registration_acceptance.sql`: Immutable registration-review evidence role
+  derived from one quality-scored survey-to-design registration report.
 
 PostgreSQL triggers prevent updates and deletes to primary release records,
 release-artifact bindings, and asset revisions linked to a release. Draft artifact

@@ -1613,6 +1613,20 @@ in-app browser acceptance passed. The registration target is the draft canonical
 frame; explicit CAD/BIM target-artifact binding and review approval remain the
 next provenance gate. Fleet Control and robot-side SLAM sources were not changed.
 
+### Increment 18 — Registration target evidence and acceptance gate
+
+- Require a same-draft CAD/BIM or floorplan source in the canonical frame
+- Seal source-preview and target-artifact identities into registration report v2
+- Evaluate deterministic RMSE, maximum-error, and scale-deviation thresholds
+- Store exactly one immutable approval or rejection by an independent reviewer
+- Prevent approval when registration quality fails
+- Expose target selection, quality, and reviewer controls in Studio Web
+
+**Status:** Completed on August 14, 2026. Twin API, OpenAPI, JSON Schema,
+PostgreSQL migration 013, service/API/web tests, and the local demo cover the
+full target-to-review provenance chain. Fleet Control and robot-side SLAM
+sources were not changed.
+
 ---
 
 ## 30. Karar kapıları
@@ -1677,6 +1691,6 @@ olması bundle/live-overlay demo ölçümünden sonra kararlaştırılır.
 - Kabul ölçütü sessizce gevşetilmez; waiver açık audit kararıdır.
 - Fleet Control entegrasyon kapsamı yalnız ortak contract kararıyla genişletilir.
 
-The next active work requires explicit CAD/BIM target evidence where applicable,
-adds survey quality and registration-approval gates, and then begins semantic
+The next active work adds coverage and reconstruction review, connects approved
+registration evidence to publication eligibility, and then begins semantic
 asset-candidate extraction from registered survey evidence.
