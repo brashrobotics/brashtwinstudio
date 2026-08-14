@@ -1,8 +1,9 @@
-# Survey Agent
+# Survey Agent Ownership Boundary
 
-Runs on a survey robot or its edge computer.
+The production survey agent runs in Brash Embodied Controller on the robot or
+its edge computer. Twin Studio does not implement or deploy it.
 
-## Responsibilities
+## External responsibilities
 
 - Collect LiDAR, RGB/depth camera, IMU, odometry, and localization streams.
 - Record sensor calibration and time-synchronization metadata.
@@ -13,7 +14,10 @@ Runs on a survey robot or its edge computer.
 
 ## Output
 
-An immutable `Raw Survey Package` containing raw data, calibration, sensor clocks,
-device information, and an integrity manifest.
+An immutable `brash.embodied-survey-package/v1` transfer containing processed
+trajectory/reconstruction outputs, calibration, sensor clocks, device and
+producer identity, quality evidence, and an integrity manifest. Optional raw
+recordings may be attached for audit or offline research.
 
-The agent does not make semantic decisions or modify the published twin baseline.
+Twin Studio owns only the receiving contract and validation policy. The external
+agent does not make Twin semantic decisions or modify the published baseline.

@@ -16,6 +16,7 @@ dataset seçimini, kullanım sınırını ve ilk doğrulama kanıtını kaydeder
 | Hilti SLAM Challenge 2022 | İnşaat alanı; 5 kamera, LiDAR, IMU, ground truth | SLAM algoritması benchmarkı ve mm-seviye referans | Ham SLAM benchmarkının ikinci datası |
 | Hilti–Trimble 2026 | İnşaat alanı; çift fisheye, IMU, floorplan, LiDAR tabanlı GT | Floorplan localization ve as-designed/as-observed sapmaları | 2B lokalizasyon benchmarkı |
 | Trimble sample data | IFC ve taranmış point cloud örnekleri | Kolay indirilebilir format smoke testleri | Vendor format uyumluluğu için yedek |
+| GrandTour ETH-2 | ANYmal D; kapalı alan, çoklu LiDAR/kamera/IMU, DLIO trajectory ve point-cloud map | Embodied Controller transfer kontratı, GNSS'siz frame/clock/replay ve multimodal evidence testi | Metadata-pinned, disk-kısıtlı ikinci entegrasyon datası |
 
 Kaynaklar:
 
@@ -24,6 +25,8 @@ Kaynaklar:
 - ConSLAM BIM/GT DOI: <https://doi.org/10.14459/2024mp1743877>
 - Hilti 2022: <https://github.com/Hilti-Research/Hilti-SLAM-Challenge-2022>
 - Hilti–Trimble 2026: <https://github.com/Hilti-Research/hilti-trimble-slam-challenge-2026>
+- GrandTour: <https://grand-tour.leggedrobotics.com/dataset#mission-2-on>
+- GrandTour examples: <https://github.com/leggedrobotics/grand_tour_dataset>
 
 ## Seçim
 
@@ -106,3 +109,29 @@ node --test tests/integration/conslam-dataset-live.test.js
 6. Fitness, RMSE, overlap ve operatör onay gereksinimini raporla.
 
 Bu kapı geçmeden “SLAM ve CAD füzyonu doğrulandı” kabul edilmeyecektir.
+
+## GrandTour ETH-2 disk-kısıtlı seçim
+
+GrandTour'un Hugging Face deposu yaklaşık 2,66 TB olduğundan normal geliştirme
+akışında hiçbir mission otomatik indirilmez. Mission 2 (`ETH-2 — Mainbuilding
+Indoor`, 418 saniye) için revision
+`daf91c5e2b6db564822a35cc58222d73f8e75bab` sabitlenmiştir.
+
+Metadata planı:
+`tests/fixtures/datasets/grandtour-eth2.selection.json`
+
+| Seviye | İçerik | Beyan edilen boyut |
+|---|---|---:|
+| Base | DLIO odometry, DLIO TF, işlenmiş PLY map | 290.764.702 byte |
+| Optional evidence | Base + tek front-center kamera + tek ADIS IMU | 830.197.662 byte |
+
+Yerel politika:
+
+- Varsayılan download kapalıdır.
+- Tek GrandTour seçimi 1.000.000.000 byte'ı geçemez.
+- İndirme sonunda en az 6.000.000.000 byte boş disk kalmalıdır.
+- Ham çoklu LiDAR, bütün kamera seti ve splat klasörleri Twin Studio test kapsamına
+  alınmaz.
+- Ham SLAM benchmarkı gerekiyorsa Brash Embodied Controller repository'sinde
+  çalıştırılır; Twin Studio işlenmiş trajectory/reconstruction çıktısını ingest
+  eder.

@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last updated: August 13, 2026
+Last updated: August 14, 2026
 
 ## Active phase
 
@@ -10,7 +10,7 @@ Phase 1 — Manual Mapping Studio MVP foundation.
 
 - Independent Node.js workspace and local package linking
 - Repository syntax and JSON quality checks
-- Ten versioned v1 external contracts
+- Twelve versioned v1 external contracts
 - Coordinate-frame graph and 3D transform mathematics
 - `MapDraft -> review -> validated -> immutable release` domain flow
 - Twin Map Bundle semantic and integrity validator
@@ -140,23 +140,39 @@ Phase 1 — Manual Mapping Studio MVP foundation.
 - Project-owned synthetic demo floorplan available directly from the Studio UI
 - Full desktop and 390 px mobile import-to-release browser acceptance flow with
   no current console errors or horizontal overflow
+- Explicit ownership boundary keeping sensor drivers, SLAM, localization,
+  onboard autonomy, and robot safety in Brash Embodied Controller
+- Versioned `brash.embodied-survey-package/v1` processed-survey transfer with
+  producer build/configuration identity, clock quality, metric frame convention,
+  quality summary, artifact hashes, and declared sizes
+- Deterministic `brash.embodied-survey-ingest-report/v1` acceptance evidence with
+  manifest and policy SHA-256 identities
+- Manifest-only validator rejecting unsafe paths, duplicate artifacts, missing
+  evidence roles, absent spatial frames, excessive clock offset, partial/failed
+  surveys, and declared-byte policy violations before large-file access
+- Synthetic Embodied Controller fixture plus a pinned, metadata-only GrandTour
+  ETH-2 selection: approximately 291 MB base and 830 MB with one camera/IMU,
+  both disabled from automatic download
 
 ## Next development increment
 
-Phase 2 begins with a bounded robot-survey vertical slice:
+Phase 2 continues with the durable survey-intake use case:
 
-1. Versioned Survey Agent manifest and local interruption-tolerant spool.
-2. Synthetic LiDAR, camera, IMU, odometry, and timestamp fixture generator.
-3. Upload/job contract linking a raw survey package to an immutable draft input.
-4. Deterministic trajectory, sensor-clock, and coverage quality report.
-5. Worker boundary for SLAM outputs without committing to a production SLAM
-   engine before representative sensor benchmarks.
-6. Studio survey-session and coverage/replay surfaces over the shared 2D/3D
-   world.
+1. Survey-intake aggregate and PostgreSQL migration for upload, verification,
+   acceptance, and rejection states.
+2. Server-side resolution of completed upload hashes and byte lengths against
+   the sealed Embodied Survey manifest.
+3. Retry-safe Twin API/OpenAPI operations for intake creation, inspection, and
+   verification.
+4. Atomic attachment of accepted manifest, frame, calibration, trajectory,
+   reconstruction, and quality evidence to an editable Twin Draft.
+5. No-download GrandTour metadata gate plus an explicitly invoked sub-1 GB
+   external integration gate.
+6. Survey trajectory and coverage/replay surfaces over the shared 2D/3D world.
 
 ## Deliberately deferred
 
-- SLAM/GPU framework selection
+- Brash Embodied Controller SLAM implementation, which is outside this product
 - Web rendering engine selection
 - Production CAD/IFC importer
 - AI model/dataset selection
@@ -169,11 +185,11 @@ lifecycle are stable.
 
 ```text
 npm run check
-syntax/json: 199 files passed
-backend tests: 68/68 passed with PostgreSQL 16, ConSLAM, and IfcOpenShell
+syntax/json: 209 files passed
+backend tests: 75 total; 73 passed and 2 optional external tests skipped
 web tests: 30/30 passed with strict TypeScript and production build
-current full external total: 98/98 passed
-last full external gate: August 13, 2026; PostgreSQL 16 + ConSLAM + IfcOpenShell, 98/98 passed
+current local assertions: 103/103 passed; PostgreSQL and ConSLAM gates were not rerun because free disk is below the 6 GB safety threshold
+last full external gate: August 13, 2026; PostgreSQL 16 + ConSLAM + IfcOpenShell, 98/98 passed before Increment 13
 fixture: demo-plant@1 valid
 publication: immutable release store verified
 http: localhost API lifecycle verified
@@ -189,5 +205,6 @@ viewer: synchronized 2D/3D world, layers, selection, coordinate interaction and 
 svg import: security rejection, physical scale, transforms, hashes, warning report and real WebGL upload verified
 editor: node/edge/zone/asset commands, undo/redo, numeric correction and desktop/mobile 2D/3D QA verified
 manual twin: control-point alignment, residual policy, diff, validation, two-person approval and immutable read-only preview verified
+embodied survey: strict manifest, clock/frame/quality, hash/size policy and no-download GrandTour selection verified
 dataset: ConSLAM IFC/GT checksum, geometry and trajectory validation verified
 ```

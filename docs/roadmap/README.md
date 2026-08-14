@@ -29,16 +29,17 @@ source-code dependency.
 **Exit criterion:** An operator can publish a `MapRelease v1` containing topology
 and an optimized 3D scene for a real floor.
 
-## Phase 2 — Robot survey and SLAM pipeline
+## Phase 2 — Embodied survey integration
 
-- Survey Agent and sensor profiles.
-- Interruption-tolerant uploads.
-- SLAM Worker with trajectory and quality/coverage reports.
-- Automatic CAD–SLAM registration suggestions.
+- Brash Embodied Controller transfer contract and producer identity.
+- Interruption-tolerant uploads of externally produced survey artifacts.
+- Trajectory, reconstruction, clock/frame, and quality validation.
+- Automatic CAD-to-survey registration suggestions.
 - Survey replay and missing-coverage view.
 
-**Exit criterion:** A robot survey package produces repeatable 2D/3D
-reconstruction aligned to CAD with an error metric.
+**Exit criterion:** A processed robot survey produced by Brash Embodied
+Controller is ingested, verified, replayed, and aligned to CAD with an error
+metric without running SLAM inside Twin Studio.
 
 ## Phase 3 — Semantic assistance and operator approval
 

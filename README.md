@@ -11,7 +11,8 @@ published, versioned contracts and optimized map bundles.
 
 This project is responsible for:
 
-- Collecting LiDAR, camera, IMU, and odometry survey data.
+- Ingesting versioned LiDAR, camera, IMU, trajectory, and reconstruction outputs
+  produced by Brash Embodied Controller.
 - Aligning CAD/BIM and SLAM results in a shared coordinate system.
 - Producing a 2D plan, 3D scene, and navigation topology from one source of truth.
 - Presenting semantic object candidates for operator review.
@@ -24,6 +25,8 @@ This project is responsible for:
 This project is not responsible for:
 
 - Assigning robot missions or reserving traffic resources.
+- Running sensor drivers, real-time SLAM, localization, onboard autonomy, or
+  robot safety logic.
 - Writing directly to the Fleet Control database.
 - Leaking a vendor robot protocol into the Fleet Core domain.
 - Turning AI detections into permanent factory assets without human approval.
@@ -32,9 +35,9 @@ This project is not responsible for:
 
 ```text
 apps/          Operator-facing 2D/3D web application
-agents/        Data-collection agents running on survey robots or edge computers
+agents/        Contract documentation for external robot-side producers
 services/      API, job management, realtime delivery, and change management
-workers/       SLAM, CAD fusion, semantic inference, and scene optimization
+workers/       CAD fusion, semantic inference, and scene optimization
 packages/      Shared domain, contract, and geometry libraries
 integrations/  Controlled, one-way integration boundaries for external systems
 storage/       Metadata database and large binary artifact storage policies
@@ -54,8 +57,8 @@ docs/          Architecture, data model, roadmap, and operations documentation
    published twin represents validated `as-operated` reality.
 4. A published release is immutable. Corrections create a new revision.
 5. `Observation`, `ChangeCandidate`, and `TwinAsset` are separate concepts.
-6. Heavy SLAM and AI workloads run in queued workers and never block the API
-   process.
+6. Heavy fusion and AI workloads run in queued workers and never block the API;
+   robot-side SLAM remains in Brash Embodied Controller.
 7. Fleet Control integration uses only versioned contracts and bundles.
 
 ## Initial delivery target
@@ -126,6 +129,9 @@ The first Phase 0 increment is implemented:
 - Manual Twin acceptance milestone sealing the floorplan, alignment, editor
   state, validation, diff, and two-person approval into an immutable local
   release preview that can be reopened in read-only 2D or 3D.
+- Versioned Brash Embodied Controller survey-transfer and deterministic
+  manifest-only ingest-report contracts with clock, frame, quality, provenance,
+  safe-path, hash, and declared-byte policies.
 - Checksum-protected dataset adapter for ConSLAM IFC and ground-truth data.
 - Real BIM triangulation through IfcOpenShell and TUM trajectory quality checks.
 

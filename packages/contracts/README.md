@@ -18,8 +18,9 @@ changes require a new major contract or a controlled migration.
 
 `schemas/` contains v1 JSON schemas for the Raw Survey Package, Twin Map Bundle,
 coordinate frames, navigation topology, twin assets, scene manifest, Fleet live
-overlay, and deterministic draft-validation reports. `index.js` exports runtime
-contract and artifact constants.
+overlay, embodied survey transfer/ingest evidence, and deterministic
+draft-validation reports. `index.js` exports runtime contract and artifact
+constants.
 
 `openapi/twin-api.v1.yaml` defines the catalog, upload, draft artifact provenance,
 validation-job, and release API surface. Validation is job-backed; the API does

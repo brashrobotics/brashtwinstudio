@@ -1,9 +1,10 @@
-# SLAM Worker
+# External SLAM Output Boundary
 
-Produces metric reconstruction with measured uncertainty from a Raw Survey
-Package.
+Real-time SLAM and localization are owned by Brash Embodied Controller. Twin
+Studio does not select, run, package, or deploy a production SLAM engine.
 
-## Outputs
+This directory remains as architecture documentation for the external output
+adapter. Accepted outputs are:
 
 - Robot trajectory and pose covariance
 - 2D occupancy/elevation layers
@@ -12,5 +13,6 @@ Package.
 - Sensor coverage map
 - Reconstruction coordinate-frame definition
 
-Algorithm selection is made through adapters and configuration for each sensor
-profile; domain records must not contain algorithm-specific types.
+Algorithm selection and sensor-profile configuration remain external. Twin
+Studio records producer, algorithm, build, and configuration identity as
+provenance but keeps algorithm-specific types out of its domain.

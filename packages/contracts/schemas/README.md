@@ -18,6 +18,11 @@ The schemas in this directory define Twin Studio file and integration boundaries
 - `registration-report.v1.schema.json`: Control-point inputs, deterministic 2D
   solver identity, canonical transform, per-point residuals, RMSE, maximum
   error, and scale deviation.
+- `embodied-survey-package.v1.schema.json`: Versioned Brash Embodied Controller
+  transfer containing producer identity, clock/frame conventions, processed
+  trajectory/reconstruction artifacts, quality evidence, hashes, and sizes.
+- `embodied-survey-ingest-report.v1.schema.json`: Deterministic Twin Studio
+  acceptance or rejection evidence for an embodied survey manifest.
 
 Published schemas are extended only in backward-compatible ways. Changes to
 meaning or required fields require a new major version.

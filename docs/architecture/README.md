@@ -3,17 +3,20 @@
 ## Data flow
 
 ```text
-Survey Agent -> Raw Survey Package -> Object Store
+Brash Embodied Controller
+   sensor drivers + SLAM + localization
+                         |
+             Embodied Survey Package v1
                          |
                          v
-                  Job Orchestrator
+        Multipart Object Store + Ingest Validator
                          |
-       +-----------------+------------------+
-       v                 v                  v
-   SLAM Worker      Fusion Worker     Semantic Worker
-       +-----------------+------------------+
+              +----------+----------+
+              v                     v
+        Fusion Worker         Semantic Worker
+              +----------+----------+
                          v
-                      Map Draft
+                     Map Draft
                          |
                 Operator Review + Validation
                          |
@@ -30,7 +33,11 @@ Survey Agent -> Raw Survey Package -> Object Store
 ## Deployment boundaries
 
 - The API and Studio Web scale independently from GPU workers.
-- Raw sensor uploads go directly to the object store.
+- Large survey artifacts go directly to the object store.
+- Robot-side sensing, SLAM, localization, autonomy, and safety belong to Brash
+  Embodied Controller.
+- Twin Studio receives versioned processed outputs and never imports controller
+  source code or runtime libraries.
 - Durable queues and an outbox make job/event delivery reliable.
 - Drafts and published releases use different access and caching policies.
 - Fleet Control retains a separate deployment, repository, and data ownership.
@@ -75,7 +82,7 @@ HTTP filesystem-path endpoint; a future packager will supply its sealed input.
 
 ## Trust boundaries
 
-Survey agents authenticate with device identities; operators authenticate with
-user identities. Publication and baseline changes require separate permissions.
-Raw camera data is sensitive and is governed by access, audit, and retention
-policies.
+Embodied Controller producers authenticate with device identities; operators
+authenticate with user identities. Publication and baseline changes require
+separate permissions. Raw camera data is sensitive and is governed by access,
+audit, and retention policies.

@@ -9,6 +9,8 @@ export const CONTRACT_VERSIONS = Object.freeze({
   draftValidationReport: "brash.draft-validation-report/v1",
   floorplanImportReport: "brash.floorplan-import-report/v1",
   registrationReport: "brash.registration-report/v1",
+  embodiedSurveyPackage: "brash.embodied-survey-package/v1",
+  embodiedSurveyIngestReport: "brash.embodied-survey-ingest-report/v1",
 });
 
 export const ARTIFACT_ROLES = Object.freeze({

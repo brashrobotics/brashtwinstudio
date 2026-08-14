@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/embodied-survey-package.v1.schema.json",
+  "title": "Brash Embodied Survey Package v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "packageId",
+    "surveyId",
+    "siteId",
+    "floorId",
+    "robotId",
+    "completionStatus",
+    "producer",
+    "capture",
+    "clock",
+    "coordinateSystem",
+    "quality",
+    "artifacts"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "brash.embodied-survey-package/v1" },
+    "packageId": { "$ref": "#/$defs/nonEmptyString" },
+    "surveyId": { "$ref": "#/$defs/nonEmptyString" },
+    "siteId": { "$ref": "#/$defs/nonEmptyString" },
+    "floorId": { "$ref": "#/$defs/nonEmptyString" },
+    "robotId": { "$ref": "#/$defs/nonEmptyString" },
+    "completionStatus": { "enum": ["COMPLETE", "PARTIAL"] },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["interface", "product", "version", "buildSha256", "configurationSha256"],
+      "properties": {
+        "interface": { "const": "brash-embodied-controller" },
+        "product": { "$ref": "#/$defs/nonEmptyString" },
+        "version": { "$ref": "#/$defs/nonEmptyString" },
+        "buildSha256": { "$ref": "#/$defs/sha256" },
+        "configurationSha256": { "$ref": "#/$defs/sha256" },
+        "algorithm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version"],
+          "properties": {
+            "name": { "$ref": "#/$defs/nonEmptyString" },
+            "version": { "$ref": "#/$defs/nonEmptyString" }
+          }
+        }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startedAt", "completedAt"],
+      "properties": {
+        "startedAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "clock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timeBase", "source", "synchronized", "maximumOffsetMilliseconds"],
+      "properties": {
+        "timeBase": { "enum": ["UTC", "TAI", "MONOTONIC"] },
+        "source": { "$ref": "#/$defs/nonEmptyString" },
+        "synchronized": { "type": "boolean" },
+        "maximumOffsetMilliseconds": { "type": "number", "minimum": 0 }
+      }
+    },
+    "coordinateSystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rootFrameId", "robotBaseFrameId", "lengthUnit", "handedness", "upAxis"],
+      "properties": {
+        "rootFrameId": { "$ref": "#/$defs/nonEmptyString" },
+        "robotBaseFrameId": { "$ref": "#/$defs/nonEmptyString" },
+        "lengthUnit": { "const": "METRE" },
+        "handedness": { "const": "RIGHT_HANDED" },
+        "upAxis": { "const": "Z" }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "trajectoryPoseCount"],
+      "properties": {
+        "outcome": { "enum": ["PASSED", "WARNING", "FAILED"] },
+        "trajectoryPoseCount": { "type": "integer", "minimum": 1 },
+        "coverageRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "positionRmseMetres": { "type": "number", "minimum": 0 }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": { "$ref": "#/$defs/artifact" }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "safePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "role", "path", "mediaType", "sha256", "bytes"],
+      "properties": {
+        "artifactId": { "$ref": "#/$defs/nonEmptyString" },
+        "role": {
+          "enum": [
+            "COORDINATE_FRAMES",
+            "CALIBRATION",
+            "TRAJECTORY",
+            "POINT_CLOUD_MAP",
+            "OCCUPANCY_GRID",
+            "ELEVATION_MAP",
+            "RECONSTRUCTED_MESH",
+            "CAMERA_INDEX",
+            "IMAGE_ARCHIVE",
+            "QUALITY_REPORT",
+            "RAW_SENSOR_RECORDING"
+          ]
+        },
+        "path": { "$ref": "#/$defs/safePath" },
+        "mediaType": { "$ref": "#/$defs/nonEmptyString" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "frameId": { "$ref": "#/$defs/nonEmptyString" },
+        "sourceSensorIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "timeRange": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["startedAt", "completedAt"],
+          "properties": {
+            "startedAt": { "type": "string", "format": "date-time" },
+            "completedAt": { "type": "string", "format": "date-time" }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "role": {
+                "enum": [
+                  "TRAJECTORY",
+                  "POINT_CLOUD_MAP",
+                  "OCCUPANCY_GRID",
+                  "ELEVATION_MAP",
+                  "RECONSTRUCTED_MESH",
+                  "CAMERA_INDEX",
+                  "IMAGE_ARCHIVE"
+                ]
+              }
+            },
+            "required": ["role"]
+          },
+          "then": { "required": ["frameId"] }
+        }
+      ]
+    }
+  }
+}

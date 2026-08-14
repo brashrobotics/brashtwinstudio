@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "brash.embodied-survey-package/v1",
+  "packageId": "survey-package-demo-1",
+  "surveyId": "survey-demo-1",
+  "siteId": "demo-site",
+  "floorId": "production-floor",
+  "robotId": "embodied-demo-robot",
+  "completionStatus": "COMPLETE",
+  "producer": {
+    "interface": "brash-embodied-controller",
+    "product": "brashembodiedcontroller",
+    "version": "0.1.0",
+    "buildSha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "configurationSha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "algorithm": {
+      "name": "synthetic-reconstruction",
+      "version": "1.0.0"
+    }
+  },
+  "capture": {
+    "startedAt": "2026-08-14T08:00:00.000Z",
+    "completedAt": "2026-08-14T08:07:00.000Z"
+  },
+  "clock": {
+    "timeBase": "UTC",
+    "source": "ptp",
+    "synchronized": true,
+    "maximumOffsetMilliseconds": 2.5
+  },
+  "coordinateSystem": {
+    "rootFrameId": "slam-map",
+    "robotBaseFrameId": "base-link",
+    "lengthUnit": "METRE",
+    "handedness": "RIGHT_HANDED",
+    "upAxis": "Z"
+  },
+  "quality": {
+    "outcome": "PASSED",
+    "trajectoryPoseCount": 840,
+    "coverageRatio": 0.91,
+    "positionRmseMetres": 0.024
+  },
+  "artifacts": [
+    {
+      "artifactId": "frames-1",
+      "role": "COORDINATE_FRAMES",
+      "path": "frames/coordinate-frames.json",
+      "mediaType": "application/json",
+      "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "bytes": 1024
+    },
+    {
+      "artifactId": "calibration-1",
+      "role": "CALIBRATION",
+      "path": "calibration/sensors.json",
+      "mediaType": "application/json",
+      "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+      "bytes": 512
+    },
+    {
+      "artifactId": "trajectory-1",
+      "role": "TRAJECTORY",
+      "path": "trajectory/poses.mcap",
+      "mediaType": "application/vnd.ros2.mcap",
+      "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "bytes": 2048,
+      "frameId": "slam-map",
+      "sourceSensorIds": ["lidar-main", "imu-main"],
+      "timeRange": {
+        "startedAt": "2026-08-14T08:00:00.000Z",
+        "completedAt": "2026-08-14T08:07:00.000Z"
+      }
+    },
+    {
+      "artifactId": "point-cloud-map-1",
+      "role": "POINT_CLOUD_MAP",
+      "path": "reconstruction/map.ply",
+      "mediaType": "model/vnd.ply",
+      "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+      "bytes": 4096,
+      "frameId": "slam-map",
+      "sourceSensorIds": ["lidar-main"]
+    },
+    {
+      "artifactId": "quality-report-1",
+      "role": "QUALITY_REPORT",
+      "path": "quality/reconstruction.json",
+      "mediaType": "application/json",
+      "sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+      "bytes": 512
+    }
+  ]
+}

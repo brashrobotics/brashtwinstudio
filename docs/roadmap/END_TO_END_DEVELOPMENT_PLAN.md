@@ -5,6 +5,14 @@
 **Plan sürümü:** 1.0
 
 **Başlangıç durumu:** Faz 0 çekirdeği çalışıyor; 102 dosya ve 22 test yeşil.
+
+> **14 Ağustos 2026 sahiplik güncellemesi:** Bu plandaki Survey Agent ve SLAM
+> Worker iş paketleri Brash Embodied Controller ürününe aittir. Twin Studio
+> yalnız versiyonlanmış survey/rekonstrüksiyon çıktısını alır, doğrular, CAD ile
+> hizalar ve dijital ikize dönüştürür. Twin Studio içinde gerçek robot sensör
+> sürücüsü, SLAM, localization, onboard autonomy veya safety runtime'ı
+> geliştirilmeyecektir. Aşağıdaki eski bileşen adları dış entegrasyon sınırı
+> olarak okunmalıdır.
 **Kapsam:** Fabrika survey verisinden doğrulanmış 2B/3B dijital ikiz üretimi,
 semantik varlık yönetimi, değişiklik algılama ve Fleet Control canlı 3B görünümü.
 

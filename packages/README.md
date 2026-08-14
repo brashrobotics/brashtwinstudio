@@ -18,3 +18,5 @@ services, and workers live here.
   projections, and bounded undo/redo history.
 - `manual-twin/`: Deterministic control-point registration, validation, diff,
   two-person approval, and immutable local release-preview rules.
+- `embodied-survey/`: Manifest-only validation of processed survey transfers
+  produced through the Brash Embodied Controller interface.

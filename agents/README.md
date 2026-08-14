@@ -1,7 +1,7 @@
 # Agents
 
-This directory contains edge components that run close to sensors on the factory
-floor. Agents collect data safely without depending on central services and can
-resume uploads after connectivity returns.
+This directory records edge-producer contract expectations only. Real robot
+agents and their runtime implementation belong to Brash Embodied Controller,
+not Twin Studio.
 
-- `survey-agent/`: Produces time-synchronized survey packages from robot sensors.
+- `survey-agent/`: Non-runtime ownership and transfer-boundary documentation.

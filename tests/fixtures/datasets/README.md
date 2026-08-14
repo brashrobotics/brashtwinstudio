@@ -29,3 +29,11 @@ RSYNC_PASSWORD=m1743877 rsync --archive \
 
 Then run `npm run dataset:verify` and `npm run dataset:inspect` using the example
 in `tools/dataset-cli/README.md`.
+
+## GrandTour Mission 2 metadata selection
+
+`grandtour-eth2.selection.json` pins the metadata-only GrandTour Mission 2
+selection used to design the Embodied Controller transfer adapter. Nothing in
+the normal quality gate downloads these files. The base selection is about
+291 MB and the optional single-camera/IMU selection remains below the explicit
+1 GB local-development ceiling.

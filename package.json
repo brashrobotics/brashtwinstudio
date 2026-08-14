@@ -21,6 +21,7 @@
     "packages/viewer-sdk",
     "packages/spatial-editor",
     "packages/manual-twin",
+    "packages/embodied-survey",
     "tools/map-bundle-cli",
     "tools/dataset-cli",
     "tools/database-cli",

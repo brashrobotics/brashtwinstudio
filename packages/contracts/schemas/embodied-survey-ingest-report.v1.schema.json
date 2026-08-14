@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/embodied-survey-ingest-report.v1.schema.json",
+  "title": "Brash Embodied Survey Ingest Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "packageId",
+    "manifestSha256",
+    "outcome",
+    "artifactCount",
+    "declaredBytes",
+    "roles",
+    "validator",
+    "issues"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "brash.embodied-survey-ingest-report/v1" },
+    "packageId": { "type": ["string", "null"] },
+    "manifestSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "outcome": { "enum": ["ACCEPTED", "ACCEPTED_WITH_WARNINGS", "REJECTED"] },
+    "artifactCount": { "type": "integer", "minimum": 0 },
+    "declaredBytes": { "type": "integer", "minimum": 0 },
+    "roles": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 1 }
+    },
+    "validator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "policySha256"],
+      "properties": {
+        "name": { "const": "brash-embodied-survey-validator" },
+        "version": { "const": "1.0.0" },
+        "policySha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "severity", "location", "message"],
+        "properties": {
+          "code": { "type": "string", "minLength": 1 },
+          "severity": { "enum": ["ERROR", "WARNING"] },
+          "location": { "type": "string" },
+          "message": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}
