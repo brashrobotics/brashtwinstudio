@@ -5,6 +5,7 @@ import { ValidationJobError } from "@brash-twin/application/validation-jobs";
 import { SurveyIntakeError } from "@brash-twin/application/survey-intakes";
 import { SurveyMaterializationError } from "@brash-twin/application/survey-materializations";
 import { SurveyQualityReviewError } from "@brash-twin/application/survey-quality-reviews";
+import { SemanticCandidateError } from "@brash-twin/application/semantic-candidates";
 import { SurveyRegistrationError } from "@brash-twin/application/survey-registrations";
 import { ArtifactStoreError } from "@brash-twin/artifact-store";
 
@@ -14,6 +15,8 @@ const MANAGED_ARTIFACT_ROLES = new Set([
   "SURVEY_QUALITY_ACCEPTANCE",
   "REGISTRATION_REPORT",
   "REGISTRATION_ACCEPTANCE",
+  "ASSET_CANDIDATE_REPORT",
+  "ASSET_CANDIDATE_REVIEW",
   "VALIDATION_REPORT",
 ]);
 
@@ -25,6 +28,7 @@ export class TwinApi {
   #surveyMaterializations;
   #surveyQualityReviews;
   #surveyRegistrations;
+  #semanticCandidates;
   #validationJobs;
   #releaseStore;
   #readiness;
@@ -37,6 +41,7 @@ export class TwinApi {
     surveyMaterializations,
     surveyQualityReviews,
     surveyRegistrations,
+    semanticCandidates,
     validationJobs,
     releaseStore,
     readiness = async () => ({ ready: true, mode: "memory" }),
@@ -48,6 +53,7 @@ export class TwinApi {
     if (!surveyMaterializations) throw new TypeError("Survey materialization service is required.");
     if (!surveyQualityReviews) throw new TypeError("Survey quality review service is required.");
     if (!surveyRegistrations) throw new TypeError("Survey registration service is required.");
+    if (!semanticCandidates) throw new TypeError("Semantic candidate service is required.");
     if (!validationJobs) throw new TypeError("Validation job service is required.");
     if (!releaseStore) throw new TypeError("Release store is required.");
     if (typeof readiness !== "function") throw new TypeError("Readiness probe must be a function.");
@@ -58,6 +64,7 @@ export class TwinApi {
     this.#surveyMaterializations = surveyMaterializations;
     this.#surveyQualityReviews = surveyQualityReviews;
     this.#surveyRegistrations = surveyRegistrations;
+    this.#semanticCandidates = semanticCandidates;
     this.#validationJobs = validationJobs;
     this.#releaseStore = releaseStore;
     this.#readiness = readiness;
@@ -286,6 +293,32 @@ export class TwinApi {
       return response(201, { acceptance });
     }
 
+    const semanticCandidatesMatch = pathname.match(
+      /^\/api\/v1\/map-drafts\/([^/]+)\/semantic-candidates$/,
+    );
+    if (semanticCandidatesMatch) {
+      const draftId = segment(semanticCandidatesMatch[1]);
+      if (method === "GET") return response(200, { candidateSets: await this.#semanticCandidates.list(draftId) });
+      if (method === "POST") {
+        const candidateSet = await this.#semanticCandidates.create(draftId, objectBody(body, [
+          "candidateSetId", "registrationId", "observationBindingId", "operatorId",
+        ]));
+        return response(201, { candidateSet });
+      }
+    }
+
+    const semanticCandidateReviewMatch = pathname.match(
+      /^\/api\/v1\/map-drafts\/([^/]+)\/semantic-candidates\/([^/]+)\/review$/,
+    );
+    if (semanticCandidateReviewMatch && method === "POST") {
+      const review = await this.#semanticCandidates.review(
+        segment(semanticCandidateReviewMatch[1]),
+        segment(semanticCandidateReviewMatch[2]),
+        objectBody(body, ["decisions", "reviewerId", "note"]),
+      );
+      return response(201, { review });
+    }
+
     const surveyIntakeMaterializationsMatch = pathname.match(
       /^\/api\/v1\/survey-intakes\/([^/]+)\/materializations$/,
     );
@@ -485,6 +518,11 @@ function errorResponse(error) {
       error: { code: error.code, message: error.message },
     });
   }
+  if (error instanceof SemanticCandidateError) {
+    return response(statusForSemanticCandidateError(error.code), {
+      error: { code: error.code, message: error.message },
+    });
+  }
   if (error instanceof ArtifactStoreError) {
     const status = error.code === "RELEASE_ID_INVALID" ? 400 : 500;
     return response(status, { error: { code: error.code, message: error.message } });
@@ -609,5 +647,18 @@ function statusForSurveyQualityReviewError(code) {
     "SURVEY_QUALITY_FAILED",
   ].includes(code)) return 409;
   if (code === "SURVEY_QUALITY_INTEGRITY_FAILED") return 422;
+  return 400;
+}
+
+function statusForSemanticCandidateError(code) {
+  if (["SEMANTIC_CANDIDATE_NOT_FOUND", "SEMANTIC_OBSERVATIONS_NOT_FOUND"].includes(code)) return 404;
+  if ([
+    "SEMANTIC_CANDIDATE_CONFLICT",
+    "SEMANTIC_CANDIDATE_DRAFT_LOCKED",
+    "SEMANTIC_CANDIDATE_REGISTRATION_REQUIRED",
+    "SEMANTIC_CANDIDATE_REVIEW_CONFLICT",
+    "SEMANTIC_CANDIDATE_REVIEWER_CONFLICT",
+  ].includes(code)) return 409;
+  if (code === "SEMANTIC_CANDIDATE_INTEGRITY_FAILED") return 422;
   return 400;
 }

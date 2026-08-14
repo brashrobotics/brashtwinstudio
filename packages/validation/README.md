@@ -33,8 +33,14 @@ quality gates will eventually run together.
 
 `draft.js` implements the job-facing draft validator. A validation job seals the
 draft row version and the SHA-256 identity of every input binding before it runs.
-The validator then emits `brash.draft-validation-report/v1`, including a
+The validator then emits `brash.draft-validation-report/v2`, including a
 configuration hash, deterministic issue identifiers, severity counts, and
 locations that can be selected in a future 2D/3D issue panel. Validation-report
 artifacts are excluded from subsequent validation inputs so reruns do not create
 self-referential lineage.
+
+When registered survey evidence is present, the job reads each immutable
+registration-acceptance artifact by SHA-256 and records its verified decision in
+the report input snapshot. A missing, rejected, malformed, or provenance-mismatched
+decision produces `REGISTRATION_APPROVAL_REQUIRED`; publication eligibility
+therefore cannot rely on the mere presence of an acceptance-role artifact.

@@ -90,7 +90,7 @@ export class ValidationJobService {
         `Map draft ${draftId} must be IN_REVIEW before validation starts.`,
       );
     }
-    const artifacts = await validationInputs(this.#draftArtifacts, draftId);
+    const artifacts = await validationInputs(this.#draftArtifacts, this.#multipartStore, draftId);
     if (artifacts.length === 0) {
       throw new ValidationJobError("VALIDATION_INPUTS_REQUIRED", `Map draft ${draftId} has no artifacts to validate.`);
     }
@@ -157,7 +157,7 @@ export class ValidationJobService {
           `Map draft ${draft.draftId} changed to ${draft.status} before validation ran.`,
         );
       }
-      const artifacts = await validationInputs(this.#draftArtifacts, draft.draftId);
+      const artifacts = await validationInputs(this.#draftArtifacts, this.#multipartStore, draft.draftId);
       if (!sameIdentities(current.input.bindings, artifactIdentities(artifacts))
         || current.input.draftRowVersion !== draft.rowVersion) {
         throw new ValidationJobError(
@@ -256,8 +256,36 @@ export class ValidationJobService {
   }
 }
 
-async function validationInputs(draftArtifacts, draftId) {
-  return (await draftArtifacts.list(draftId)).filter((artifact) => artifact.role !== "VALIDATION_REPORT");
+async function validationInputs(draftArtifacts, multipartStore, draftId) {
+  const artifacts = (await draftArtifacts.list(draftId)).filter(
+    (artifact) => artifact.role !== "VALIDATION_REPORT",
+  );
+  return Promise.all(artifacts.map(async (artifact) => {
+    if (artifact.role !== "REGISTRATION_ACCEPTANCE") return artifact;
+    return Object.freeze({
+      ...artifact,
+      reviewDecision: await registrationDecision(multipartStore, artifact, draftId),
+    });
+  }));
+}
+
+async function registrationDecision(multipartStore, artifact, draftId) {
+  try {
+    const content = await multipartStore.get(artifact.artifactSha256);
+    if (!Buffer.isBuffer(content)
+      || content.byteLength > 1024 * 1024
+      || createHash("sha256").update(content).digest("hex") !== artifact.artifactSha256) return "INVALID";
+    const report = JSON.parse(content.toString("utf8"));
+    const input = artifact.inputBindings.length === 1 ? artifact.inputBindings[0] : null;
+    if (report?.schemaVersion !== "brash.survey-registration-acceptance/v1"
+      || report?.draftId !== draftId
+      || report?.registrationReport?.bindingId !== input?.bindingId
+      || report?.registrationReport?.sha256 !== input?.artifactSha256
+      || !["APPROVED", "REJECTED"].includes(report?.decision)) return "INVALID";
+    return report.decision;
+  } catch {
+    return "INVALID";
+  }
 }
 
 function artifactIdentities(artifacts) {

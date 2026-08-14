@@ -69,6 +69,12 @@ The operator interface for mapping and digital-twin workflows.
 - Survey quality report generation and independent review with declared
   coverage, sampled occupancy, point density, trajectory continuity, issue
   surfaces, and a toggleable occupancy layer in both 2D and 3D.
+- Semantic observation selection and canonical candidate extraction gated by an
+  approved registration, with independent operator accept/reject, name, type,
+  and JSON scalar-property review controls.
+- Unreviewed and accepted candidates render on the shared Assets layer in both
+  2D and 3D; rejected observations are hidden and no review silently promotes a
+  candidate into a permanent Twin asset.
 
 The milestone publication button creates a browser-local acceptance preview. It
 does not replace the production Twin API publication service, durable object

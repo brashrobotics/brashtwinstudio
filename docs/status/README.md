@@ -4,13 +4,13 @@ Last updated: August 14, 2026
 
 ## Active phase
 
-Phase 1 — Manual Mapping Studio MVP foundation.
+Phase 2 — Survey review and semantic evidence.
 
 ## Completed
 
 - Independent Node.js workspace and local package linking
 - Repository syntax and JSON quality checks
-- Thirteen versioned v1 external contracts
+- Twenty-four published versioned JSON Schemas
 - Coordinate-frame graph and 3D transform mathematics
 - `MapDraft -> review -> validated -> immutable release` domain flow
 - Twin Map Bundle semantic and integrity validator
@@ -21,7 +21,7 @@ Phase 1 — Manual Mapping Studio MVP foundation.
 - Symlink artifact protection
 - SHA-256 content-addressed local artifact store with deduplication
 - Immutable store preventing reuse of a release identity
-- Ten forward-only PostgreSQL metadata migrations
+- Fifteen forward-only PostgreSQL metadata migrations
 - Database-level immutability triggers for release records
 - In-memory catalog repository adapter
 - Driver-independent PostgreSQL repository adapter using parameterized SQL
@@ -72,7 +72,7 @@ Phase 1 — Manual Mapping Studio MVP foundation.
 - Append-only triggers preventing binding and input-edge updates or deletes
 - Draft artifact list/bind Twin API and OpenAPI operations
 - Source-to-derived provenance verified through real PostgreSQL 16 and HTTP
-- Machine-readable draft-validation report with deterministic validator/config
+- Machine-readable draft-validation report v2 with deterministic validator/config
   identity and UI-ready issue locations
 - Sealed validation-job input snapshots and multipart report publication
 - Validation-report provenance binding and immutable PostgreSQL validation runs
@@ -227,14 +227,26 @@ Phase 1 — Manual Mapping Studio MVP foundation.
   source and registered 2D/3D views
 - GrandTour seed quality generation preserves its missing design-coverage
   declaration as a visible failed issue instead of inventing passing evidence
+- Registration acceptance content is verified by artifact SHA-256 during release
+  validation; missing, rejected, malformed, or mismatched decisions block the
+  draft from becoming publishable
+- Versioned bounded semantic-observation, canonical asset-candidate, and
+  immutable candidate-review contracts with model/input/registration provenance
+- Semantic candidate application/API workflow requiring an approved registration
+  and preserving observations separately from operator asset decisions
+- Studio semantic review controls for accept/reject, name, type, and scalar JSON
+  properties, plus accepted/unreviewed candidate rendering on the 2D/3D Assets layer
+- PostgreSQL migration 015 and API protection preventing generic clients from
+  forging candidate report or review evidence
 
 ## Next development increment
 
-Phase 2 continues with survey review and semantic evidence:
+Phase 2 continues with asset promotion and observed-change evidence:
 
-1. Require an approved registration when registered survey evidence contributes
-   to a publishable map release.
-2. Begin semantic asset-candidate extraction from registered survey evidence.
+1. Promote accepted candidate decisions into a versioned `TWIN_ASSETS` draft
+   artifact through an explicit, auditable command.
+2. Compare later registered observations with promoted assets to create
+   moved/missing/new change candidates without mutating a published release.
 
 ## Deliberately deferred
 
@@ -251,10 +263,10 @@ lifecycle are stable.
 
 ```text
 npm run check
-syntax/json: 252 files passed
-backend tests: 107 total; 104 passed and 3 optional external tests skipped
-web tests: 38/38 passed with strict TypeScript and production build
-latest migration contract: schema version 14; last live PostgreSQL 16 gate passed with schema version 12
+syntax/json: 261 files passed
+backend tests: 111 total, 108 passed, 3 conditionally skipped, 0 failed
+web tests: 40/40 passed with strict TypeScript and production build
+latest migration contract: schema version 15; last live PostgreSQL 16 gate passed with schema version 12
 live GrandTour ETH-2 SHA-256/preview gate: passed against the 290,764,702-byte base selection
 ConSLAM/IfcOpenShell gate: last passed August 13, 2026 and remains opt-in
 fixture: demo-plant@1 valid
@@ -277,6 +289,7 @@ survey intake: atomic upload mapping, manifest-only verification, immutable reje
 survey materialization: immutable input, leased/retry-safe streaming, content-addressed preview, PostgreSQL provenance, HTTP lifecycle and source-frame 2D/3D browser QA verified
 survey registration: explicit design-target lineage, report v2 quality policy, immutable independent review, HTTP lifecycle, and fused/source-frame 2D/3D browser QA verified
 survey quality: deterministic coverage/trajectory/frame/reconstruction evidence, immutable independent review, registration gate, and 2D/3D coverage-layer QA verified
+semantic candidates: approved-registration transform, immutable operator decisions, HTTP lifecycle, and 2D/3D Assets-layer tests verified
 dataset: ConSLAM IFC/GT checksum, geometry and trajectory validation verified
 GrandTour: pinned SHA-256, safe Zarr/PLY bounds, real trajectory/TF/map metrics and bounded preview verified
 GrandTour seed: real 290,764,702-byte selection imported twice idempotently into a live Twin API and materialized for Studio

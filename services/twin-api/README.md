@@ -41,6 +41,8 @@ must not run in it.
 - `POST /api/v1/map-drafts/:draftId/survey-quality-reviews/:qualityReviewId/acceptance`
 - `GET|POST /api/v1/map-drafts/:draftId/survey-registrations`
 - `POST /api/v1/map-drafts/:draftId/survey-registrations/:registrationId/acceptance`
+- `GET|POST /api/v1/map-drafts/:draftId/semantic-candidates`
+- `POST /api/v1/map-drafts/:draftId/semantic-candidates/:candidateSetId/review`
 - `GET|POST /api/v1/map-drafts/:draftId/validation-jobs`
 - `GET /api/v1/validation-jobs/:jobId`
 - `POST /api/v1/validation-jobs/:jobId/run`
@@ -53,9 +55,16 @@ must not run in it.
 
 The generic artifact binding endpoint accepts source data and externally
 produced map derivatives. Workflow evidence roles such as survey previews,
-quality decisions, registration decisions, and validation reports are
+quality decisions, registration decisions, semantic candidate reports/reviews,
+and validation reports are
 system-managed and can only be created by their dedicated application
 workflows. This prevents clients from forging evidence used by later gates.
+
+`SEMANTIC_OBSERVATIONS` is intentionally accepted as an externally produced
+derived artifact: it must name same-draft camera/LiDAR/survey inputs and carry a
+model producer/configuration identity. The semantic-candidate workflow verifies
+those inputs and an approved registration before emitting canonical candidates.
+Review records operator decisions but does not create permanent Twin assets.
 
 Release publication does not accept a server filesystem path through the API.
 The bootstrap now constructs the trusted publication application service for

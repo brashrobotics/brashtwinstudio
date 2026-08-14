@@ -48,6 +48,9 @@ describe("Studio Web shell", () => {
       listSurveyRegistrations: async () => [surveyRegistration()],
       createSurveyRegistration: async () => { throw new Error("Not used by this test."); },
       reviewSurveyRegistration: async () => { throw new Error("Not used by this test."); },
+      listSemanticCandidateSets: async () => [],
+      createSemanticCandidateSet: async () => { throw new Error("Not used by this test."); },
+      reviewSemanticCandidateSet: async () => { throw new Error("Not used by this test."); },
       listReleases: async () => [{
         schemaVersion: "brash.twin-map-bundle/v1", bundleId: "bundle-plant-2", mapReleaseId: "plant@2", familyId: "plant", revision: 2, status: "PUBLISHED", createdAt: "2026-08-13T00:00:00.000Z", canonicalFrameId: "plant/floor-1", artifacts: [],
       }],
@@ -60,6 +63,7 @@ describe("Studio Web shell", () => {
     expect(await screen.findByText("validation-job-3")).toBeTruthy();
     expect(await screen.findByText(/survey-materialization-1/)).toBeTruthy();
     expect(await screen.findByText("Registered survey overlay")).toBeTruthy();
+    expect(await screen.findByText("Semantic asset candidates")).toBeTruthy();
     expect(await screen.findByText("91.0%")).toBeTruthy();
     expect(await screen.findByText("plant@2")).toBeTruthy();
   });

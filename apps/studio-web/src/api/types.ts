@@ -339,6 +339,77 @@ export interface ReviewSurveyRegistrationInput {
   note?: string;
 }
 
+export interface AssetCandidate {
+  candidateId: string;
+  sourceObservationId: string;
+  suggestedClass: string;
+  confidence: number;
+  canonicalPosition: [number, number, number];
+  dimensions: [number, number, number];
+  evidence: Array<{ bindingId: string; artifactSha256: string }>;
+}
+
+export interface AssetCandidateReport {
+  schemaVersion: "brash.asset-candidate-report/v1";
+  candidateSetId: string;
+  draftId: string;
+  registrationId: string;
+  registrationAcceptance: { bindingId: string; sha256: string };
+  observations: { bindingId: string; sha256: string; observationSetId: string; sourceFrameId: string };
+  canonicalFrameId: string;
+  extraction: { name: string; version: string; configurationSha256: string };
+  candidates: AssetCandidate[];
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface AssetCandidateDecision {
+  candidateId: string;
+  decision: "ACCEPTED" | "REJECTED";
+  displayName: string | null;
+  assetType: string | null;
+  properties: Record<string, string | number | boolean>;
+}
+
+export interface AssetCandidateReviewReport {
+  schemaVersion: "brash.asset-candidate-review/v1";
+  candidateSetId: string;
+  draftId: string;
+  candidateReport: { bindingId: string; sha256: string };
+  decisions: AssetCandidateDecision[];
+  summary: { acceptedCount: number; rejectedCount: number };
+  reviewerId: string;
+  note: string | null;
+  reviewedAt: string;
+}
+
+export interface AssetCandidateReviewRecord {
+  reportBindingId: string;
+  reportUploadId: string;
+  reportSha256: string;
+  report: AssetCandidateReviewReport;
+}
+
+export interface AssetCandidateSetRecord {
+  reportBindingId: string;
+  reportUploadId: string;
+  reportSha256: string;
+  report: AssetCandidateReport;
+  review: AssetCandidateReviewRecord | null;
+}
+
+export interface ReviewAssetCandidateSetInput {
+  reviewerId: string;
+  note?: string;
+  decisions: Array<{
+    candidateId: string;
+    decision: "ACCEPTED" | "REJECTED";
+    displayName?: string;
+    assetType?: string;
+    properties?: Record<string, string | number | boolean>;
+  }>;
+}
+
 export interface ReleaseManifest {
   schemaVersion: "brash.twin-map-bundle/v1";
   bundleId: string;

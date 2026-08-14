@@ -48,12 +48,22 @@ materialization preview. The report and independent operator decision are
 content-addressed artifacts. A failed report cannot be approved, and
 registration requires the approved acceptance binding as an immutable input.
 
+`semantic-candidates.js` reads bounded `SEMANTIC_OBSERVATIONS` produced by an
+external camera/LiDAR model, verifies model and evidence provenance, requires a
+quality-passed independently approved registration, and transforms every
+observation into the canonical draft frame. Its candidate report remains
+separate from the immutable operator review; accepted names, types, and scalar
+properties are review evidence and are not promoted to Twin assets yet.
+
 `validation-jobs.js` creates a sealed validation snapshot while a draft is
 `IN_REVIEW`, runs the deterministic validator, streams its JSON report through
 the multipart object-store boundary, and binds the report with producer/config
 provenance. A failed quality outcome remains a successful, auditable job while
 leaving the draft in review; only a `PASSED` report moves the draft to
 `VALIDATED`. Infrastructure failures move the job to `FAILED`.
+Registration-acceptance content is read through its SHA-256 object identity and
+included in validation report v2. A registration report without a matching
+`APPROVED` decision makes the release-validation outcome fail.
 
 `publications.js` seals a validated bundle, requires approval by a second
 operator, publishes it through the immutable release store, and atomically

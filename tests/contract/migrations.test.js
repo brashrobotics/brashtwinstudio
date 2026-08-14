@@ -22,6 +22,7 @@ test("metadata migrations are ordered, transactional, and forward-only", async (
     "012_survey_artifact_lineage.sql",
     "013_registration_acceptance.sql",
     "014_survey_quality_review.sql",
+    "015_semantic_asset_candidates.sql",
   ]);
 
   for (const file of files) {
@@ -30,6 +31,14 @@ test("metadata migrations are ordered, transactional, and forward-only", async (
     assert.match(sql, /COMMIT;\s*$/);
     assert.doesNotMatch(sql, /\b(?:DROP\s+TABLE|TRUNCATE|DELETE\s+FROM)\b/i);
   }
+});
+
+test("semantic observations and reviewed asset candidates extend immutable provenance", async () => {
+  const sql = await readFile(`${migrationDirectory}/015_semantic_asset_candidates.sql`, "utf8");
+  assert.match(sql, /'SEMANTIC_OBSERVATIONS'/);
+  assert.match(sql, /'ASSET_CANDIDATE_REPORT'/);
+  assert.match(sql, /'ASSET_CANDIDATE_REVIEW'/);
+  assert.match(sql, /twin_draft_artifacts_spatial_frame_check/);
 });
 
 test("survey quality reports and acceptance extend immutable provenance", async () => {

@@ -1643,6 +1643,26 @@ migration 014, application/API/browser boundaries, deterministic tests, and the
 idempotent local demo cover the quality-to-registration provenance chain. Fleet
 Control and robot-side SLAM sources were not changed.
 
+### Increment 20 — Publication registration gate and semantic candidates
+
+- Verify registration acceptance content by immutable SHA-256 identity during
+  release validation and fail eligibility unless the decision is `APPROVED`
+- Publish draft-validation report v2 while retaining the legacy v1 schema
+- Accept bounded model observations only as derived evidence with model and
+  same-draft camera/LiDAR/survey provenance
+- Transform observations into canonical asset candidates through one approved
+  registration without automatically creating Twin assets
+- Seal independent operator accept/reject, name, type, and scalar-property
+  decisions as immutable review evidence
+- Render unreviewed/accepted candidates in the shared 2D/3D Assets layer and
+  keep rejected observations hidden
+
+**Status:** Completed on August 14, 2026. JSON Schema, OpenAPI, PostgreSQL
+migration 015, deterministic application/API/viewer tests, release-validation
+gating, and the synthetic idempotent demo cover observation-to-review
+provenance. Permanent asset promotion, change detection, Fleet Control, and
+robot-side SLAM remain outside this increment.
+
 ---
 
 ## 30. Karar kapıları

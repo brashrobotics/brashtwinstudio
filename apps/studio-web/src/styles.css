@@ -217,6 +217,17 @@ button:focus-visible, select:focus-visible { box-shadow: 0 0 0 2px var(--bg), 0 
 .viewer-layers button:not(.is-visible) i { opacity: .25; }
 .viewer-layers button:hover { color: #e4eaec; background: #151b20; }
 .viewer-layers i { width: 6px; height: 6px; border-radius: 50%; box-shadow: 0 0 7px currentColor; }
+.semantic-candidate-list { display: grid; gap: 8px; margin-top: 10px; }
+.semantic-candidate-list article { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 9px; background: rgba(185,242,39,.035); border: 1px solid rgba(185,242,39,.16); border-radius: 5px; }
+.semantic-candidate-list header { grid-column: 1 / -1; display: flex; justify-content: space-between; color: #dce7e8; font: 8px ui-monospace, monospace; text-transform: uppercase; }
+.semantic-candidate-list header span { color: var(--lime); }
+.semantic-candidate-list select, .semantic-candidate-list input, .semantic-candidate-list textarea { min-width: 0; width: 100%; padding: 6px; color: #dce7e8; background: rgba(6,14,16,.85); border: 1px solid rgba(133,153,160,.24); border-radius: 3px; font: 8px ui-monospace, monospace; }
+.semantic-candidate-list select, .semantic-candidate-list textarea { grid-column: 1 / -1; }
+.semantic-candidate-list textarea { min-height: 48px; resize: vertical; }
+.semantic-review-list { display: grid; gap: 5px; margin: 9px 0; padding: 0; list-style: none; }
+.semantic-review-list li { display: flex; justify-content: space-between; gap: 8px; padding: 7px; border: 1px solid rgba(133,153,160,.15); border-radius: 4px; }
+.semantic-review-list strong { color: #dce7e8; font-size: 8px; }
+.semantic-review-list span { color: var(--lime); font: 700 7px ui-monospace, monospace; }
 .selection-card { position: absolute; z-index: 4; right: 15px; bottom: 49px; display: grid; gap: 3px; max-width: min(260px, calc(100% - 30px)); padding: 10px 12px; color: #cdd5d8; background: rgba(12,17,21,.94); border: 1px solid rgba(185,242,39,.38); border-radius: 5px; text-align: left; cursor: pointer; box-shadow: 0 10px 35px rgba(0,0,0,.26); }
 .selection-card span { color: var(--lime); font: 7px ui-monospace, monospace; letter-spacing: .1em; }.selection-card strong { font-size: 11px; }.selection-card small { color: #6d7981; font: 8px ui-monospace, monospace; }
 .feature-inspector { position: absolute; z-index: 5; right: 15px; bottom: 49px; width: min(286px, calc(100% - 30px)); max-height: calc(100% - 104px); overflow: auto; padding: 10px; color: #c9d1d4; background: rgba(10,14,18,.96); border: 1px solid rgba(185,242,39,.34); border-radius: 6px; box-shadow: 0 14px 40px rgba(0,0,0,.34); }

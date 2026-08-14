@@ -3,6 +3,8 @@ import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { TwinApiClient } from "../../api/client";
 import type {
   DraftArtifactBinding,
+  AssetCandidateSetRecord,
+  ReviewAssetCandidateSetInput,
   MapDraft,
   MapDraftStatus,
   SurveyMaterializationJob,
@@ -67,6 +69,11 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
     queryFn: ({ signal }) => api.listSurveyQualityReviews(draftId, signal),
     enabled: draftId !== "",
   });
+  const semanticCandidateSets = useQuery({
+    queryKey: ["semantic-candidates", draftId],
+    queryFn: ({ signal }) => api.listSemanticCandidateSets(draftId, signal),
+    enabled: draftId !== "",
+  });
   const releases = useQuery({
     queryKey: ["releases"],
     queryFn: ({ signal }) => api.listReleases(signal),
@@ -102,6 +109,10 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
     () => latestSurveyQualityReview(surveyQualityReviews.data ?? [], latestMaterialization?.jobId),
     [surveyQualityReviews.data, latestMaterialization?.jobId],
   );
+  const latestCandidateSet = useMemo(
+    () => latestSemanticCandidateSet(semanticCandidateSets.data ?? []),
+    [semanticCandidateSets.data],
+  );
   const createQuality = useMutation({
     mutationFn: () => api.createSurveyQualityReview(draftId, {
       materializationJobId: latestMaterialization!.jobId,
@@ -134,10 +145,29 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
     ),
     onSuccess: async () => queryClient.invalidateQueries({ queryKey: ["survey-registrations", draftId] }),
   });
+  const createCandidateSet = useMutation({
+    mutationFn: (observationBindingId: string) => api.createSemanticCandidateSet(draftId, {
+      registrationId: latestRegistration!.report.registrationId,
+      observationBindingId,
+      operatorId: identity.subject,
+    }),
+    onSuccess: async () => queryClient.invalidateQueries({ queryKey: ["semantic-candidates", draftId] }),
+  });
+  const reviewCandidateSet = useMutation({
+    mutationFn: (input: ReviewAssetCandidateSetInput) => api.reviewSemanticCandidateSet(
+      draftId,
+      latestCandidateSet!.report.candidateSetId,
+      input,
+    ),
+    onSuccess: async () => queryClient.invalidateQueries({ queryKey: ["semantic-candidates", draftId] }),
+  });
   const registrationTargets = useMemo(() => (draftArtifacts.data ?? []).filter(
     (artifact) => ["BIM_SOURCE", "FLOORPLAN_SOURCE"].includes(artifact.role)
       && artifact.coordinateFrameId === selectedDraft?.canonicalFrameId,
   ), [draftArtifacts.data, selectedDraft?.canonicalFrameId]);
+  const semanticObservationBindings = useMemo(() => (draftArtifacts.data ?? []).filter(
+    (artifact) => artifact.role === "SEMANTIC_OBSERVATIONS",
+  ), [draftArtifacts.data]);
   const firstError = [sites.error, floors.error, families.error, drafts.error].find(Boolean);
   const initialLoading = sites.isPending;
 
@@ -213,6 +243,7 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
               surveyPreview={surveyPreview.data ?? null}
               surveyRegistration={latestRegistration?.report ?? null}
               surveyQuality={latestQuality?.report ?? null}
+              semanticCandidateSet={latestCandidateSet}
             />
           </Suspense>
 
@@ -245,10 +276,21 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
               onRegister={(targetBindingId, controlPoints) => createRegistration.mutateAsync({ targetBindingId, controlPoints })}
               onReview={(decision, reviewerId) => reviewRegistration.mutateAsync({ decision, reviewerId })}
             />
+            <SemanticCandidatesPanel
+              registration={latestRegistration}
+              candidateSet={latestCandidateSet}
+              observationBindings={semanticObservationBindings}
+              busy={createCandidateSet.isPending || reviewCandidateSet.isPending}
+              error={[createCandidateSet.error, reviewCandidateSet.error].find(
+                (candidate) => candidate instanceof Error,
+              )?.message ?? null}
+              onCreate={(observationBindingId) => createCandidateSet.mutateAsync(observationBindingId)}
+              onReview={(input) => reviewCandidateSet.mutateAsync(input)}
+            />
             <ValidationPanel job={latestValidation} loading={validationJobs.isPending && draftId !== ""} />
             <section className="panel release-panel">
               <div className="panel-heading compact">
-                <div><p className="section-index">08 / OUTPUT</p><h3>{t("latestReleases")}</h3></div>
+                <div><p className="section-index">09 / OUTPUT</p><h3>{t("latestReleases")}</h3></div>
                 <span className="count-chip">{releases.data?.length ?? 0}</span>
               </div>
               {(releases.data?.length ?? 0) === 0 ? <p className="muted-copy">{t("noReleases")}</p> : (
@@ -313,7 +355,7 @@ function ValidationPanel({ job, loading }: { job: ValidationJob | null; loading:
   return (
     <section className="panel validation-panel">
       <div className="panel-heading compact">
-        <div><p className="section-index">07 / VALIDATE</p><h3>{t("validation")}</h3></div>
+        <div><p className="section-index">08 / VALIDATE</p><h3>{t("validation")}</h3></div>
         {job && <span className={`job-state job-${job.status.toLowerCase()}`}>{job.status}</span>}
       </div>
       {loading ? <div className="skeleton-row" /> : job ? (
@@ -325,6 +367,151 @@ function ValidationPanel({ job, loading }: { job: ValidationJob | null; loading:
           <p className="job-id">{job.jobId}</p>
         </>
       ) : <p className="muted-copy">{t("validationNotRun")}</p>}
+    </section>
+  );
+}
+
+type CandidateDecisionDraft = {
+  decision: "ACCEPTED" | "REJECTED";
+  displayName: string;
+  assetType: string;
+  propertiesJson: string;
+};
+
+function SemanticCandidatesPanel({
+  registration,
+  candidateSet,
+  observationBindings,
+  busy,
+  error,
+  onCreate,
+  onReview,
+}: {
+  registration: SurveyRegistrationRecord | null;
+  candidateSet: AssetCandidateSetRecord | null;
+  observationBindings: DraftArtifactBinding[];
+  busy: boolean;
+  error: string | null;
+  onCreate(observationBindingId: string): Promise<unknown>;
+  onReview(input: ReviewAssetCandidateSetInput): Promise<unknown>;
+}) {
+  const { t } = useI18n();
+  const [observationBindingId, setObservationBindingId] = useState("");
+  const [reviewerId, setReviewerId] = useState("factory-asset-reviewer");
+  const [decisionDrafts, setDecisionDrafts] = useState<Record<string, CandidateDecisionDraft>>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const registrationApproved = registration?.acceptance?.report.decision === "APPROVED";
+
+  useEffect(() => {
+    setObservationBindingId((current) => observationBindings.some(
+      (binding) => binding.bindingId === current,
+    ) ? current : observationBindings[0]?.bindingId ?? "");
+  }, [observationBindings]);
+
+  useEffect(() => {
+    if (!candidateSet || candidateSet.review) return;
+    setDecisionDrafts(Object.fromEntries(candidateSet.report.candidates.map((candidate) => [
+      candidate.candidateId,
+      {
+        decision: "ACCEPTED",
+        displayName: candidate.suggestedClass.replaceAll("-", " "),
+        assetType: candidate.suggestedClass,
+        propertiesJson: "{}",
+      },
+    ])));
+    setFormError(null);
+  }, [candidateSet?.report.candidateSetId, candidateSet?.review?.report.reviewedAt]);
+
+  async function submitReview(): Promise<void> {
+    if (!candidateSet) return;
+    try {
+      const decisions: ReviewAssetCandidateSetInput["decisions"] = candidateSet.report.candidates.map((candidate) => {
+        const draft = decisionDrafts[candidate.candidateId];
+        if (!draft) throw new Error(t("candidateReviewIncomplete"));
+        if (draft.decision === "REJECTED") return { candidateId: candidate.candidateId, decision: "REJECTED" };
+        const properties = JSON.parse(draft.propertiesJson) as unknown;
+        if (!properties || typeof properties !== "object" || Array.isArray(properties)) {
+          throw new Error(t("candidatePropertiesInvalid"));
+        }
+        return {
+          candidateId: candidate.candidateId,
+          decision: "ACCEPTED",
+          displayName: draft.displayName,
+          assetType: draft.assetType,
+          properties: properties as Record<string, string | number | boolean>,
+        };
+      });
+      setFormError(null);
+      await onReview({ reviewerId, decisions });
+    } catch (candidateError) {
+      setFormError(candidateError instanceof Error ? candidateError.message : t("candidatePropertiesInvalid"));
+    }
+  }
+
+  return (
+    <section className="panel semantic-candidates-panel">
+      <div className="panel-heading compact">
+        <div><p className="section-index">07 / SEMANTICS</p><h3>{t("semanticCandidates")}</h3></div>
+        {candidateSet && <span className={`job-state job-${candidateSet.review ? "succeeded" : "pending"}`}>
+          {candidateSet.review ? t("reviewed") : t("candidate")}
+        </span>}
+      </div>
+      {!registrationApproved ? <p className="muted-copy">{t("semanticNeedsRegistration")}</p> : !candidateSet ? (
+        observationBindings.length === 0 ? <p className="muted-copy">{t("semanticNeedsObservations")}</p> : (
+          <>
+            <label className="registration-target-select">
+              <span>{t("semanticObservationSet")}</span>
+              <select value={observationBindingId} onChange={(event) => setObservationBindingId(event.target.value)}>
+                {observationBindings.map((binding) => <option key={binding.bindingId} value={binding.bindingId}>{binding.bindingId}</option>)}
+              </select>
+            </label>
+            <button className="registration-submit" type="button" disabled={busy || !observationBindingId} onClick={() => void onCreate(observationBindingId)}>
+              {t("extractCandidates")}
+            </button>
+          </>
+        )
+      ) : candidateSet.review ? (
+        <>
+          <dl className="metadata-list">
+            <div><dt>{t("acceptedCandidates")}</dt><dd>{candidateSet.review.report.summary.acceptedCount}</dd></div>
+            <div><dt>{t("rejectedCandidates")}</dt><dd>{candidateSet.review.report.summary.rejectedCount}</dd></div>
+          </dl>
+          <ul className="semantic-review-list">{candidateSet.review.report.decisions.map((decision) => (
+            <li key={decision.candidateId}><strong>{decision.displayName ?? decision.candidateId}</strong><span>{decision.decision}</span></li>
+          ))}</ul>
+          <p className="job-id">{candidateSet.review.report.reviewerId}</p>
+        </>
+      ) : (
+        <>
+          <p className="muted-copy">{t("semanticCandidatesAreObservations")}</p>
+          <div className="semantic-candidate-list">{candidateSet.report.candidates.map((candidate) => {
+            const decision = decisionDrafts[candidate.candidateId];
+            if (!decision) return null;
+            return (
+              <article key={candidate.candidateId}>
+                <header><strong>{candidate.suggestedClass}</strong><span>{(candidate.confidence * 100).toFixed(0)}%</span></header>
+                <select value={decision.decision} onChange={(event) => setDecisionDrafts((current) => ({
+                  ...current,
+                  [candidate.candidateId]: { ...decision, decision: event.target.value as CandidateDecisionDraft["decision"] },
+                }))}>
+                  <option value="ACCEPTED">{t("acceptCandidate")}</option>
+                  <option value="REJECTED">{t("rejectCandidate")}</option>
+                </select>
+                {decision.decision === "ACCEPTED" && <>
+                  <input aria-label={t("assetName")} value={decision.displayName} onChange={(event) => setDecisionDrafts((current) => ({ ...current, [candidate.candidateId]: { ...decision, displayName: event.target.value } }))} />
+                  <input aria-label={t("assetType")} value={decision.assetType} onChange={(event) => setDecisionDrafts((current) => ({ ...current, [candidate.candidateId]: { ...decision, assetType: event.target.value } }))} />
+                  <textarea aria-label={t("assetProperties")} value={decision.propertiesJson} onChange={(event) => setDecisionDrafts((current) => ({ ...current, [candidate.candidateId]: { ...decision, propertiesJson: event.target.value } }))} />
+                </>}
+              </article>
+            );
+          })}</div>
+          <div className="registration-review">
+            <label><span>{t("reviewerIdentity")}</span><input value={reviewerId} onChange={(event) => setReviewerId(event.target.value)} /></label>
+            <button type="button" disabled={busy || reviewerId.trim() === ""} onClick={() => void submitReview()}>{t("saveCandidateReview")}</button>
+          </div>
+        </>
+      )}
+      {(formError || error) && <p className="registration-error" role="alert">{formError ?? error}</p>}
     </section>
   );
 }
@@ -579,5 +766,10 @@ function latestSurveyRegistration(registrations: SurveyRegistrationRecord[]): Su
 function latestSurveyQualityReview(reviews: SurveyQualityRecord[], materializationJobId?: string): SurveyQualityRecord | null {
   return [...reviews]
     .filter((review) => materializationJobId === undefined || review.report.materializationJobId === materializationJobId)
+    .sort((left, right) => right.report.createdAt.localeCompare(left.report.createdAt))[0] ?? null;
+}
+
+function latestSemanticCandidateSet(candidateSets: AssetCandidateSetRecord[]): AssetCandidateSetRecord | null {
+  return [...candidateSets]
     .sort((left, right) => right.report.createdAt.localeCompare(left.report.createdAt))[0] ?? null;
 }

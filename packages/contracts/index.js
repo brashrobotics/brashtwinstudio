@@ -6,7 +6,7 @@ export const CONTRACT_VERSIONS = Object.freeze({
   twinAssets: "brash.twin-assets/v1",
   sceneManifest: "brash.scene-manifest/v1",
   liveOverlay: "brash.fleet-live-overlay/v1",
-  draftValidationReport: "brash.draft-validation-report/v1",
+  draftValidationReport: "brash.draft-validation-report/v2",
   floorplanImportReport: "brash.floorplan-import-report/v1",
   registrationReport: "brash.registration-report/v1",
   embodiedSurveyPackage: "brash.embodied-survey-package/v1",
@@ -18,6 +18,9 @@ export const CONTRACT_VERSIONS = Object.freeze({
   surveyCalibration: "brash.survey-calibration/v1",
   surveyRegistrationReport: "brash.survey-registration-report/v2",
   surveyRegistrationAcceptance: "brash.survey-registration-acceptance/v1",
+  semanticObservations: "brash.semantic-observations/v1",
+  assetCandidateReport: "brash.asset-candidate-report/v1",
+  assetCandidateReview: "brash.asset-candidate-review/v1",
 });
 
 export const ARTIFACT_ROLES = Object.freeze({
@@ -51,6 +54,9 @@ export const DRAFT_ARTIFACT_ROLES = Object.freeze([
   "SURVEY_PREVIEW",
   "SURVEY_QUALITY_REPORT",
   "SURVEY_QUALITY_ACCEPTANCE",
+  "SEMANTIC_OBSERVATIONS",
+  "ASSET_CANDIDATE_REPORT",
+  "ASSET_CANDIDATE_REVIEW",
   "REGISTERED_POINT_CLOUD",
   "RECONSTRUCTED_MESH",
   "OCCUPANCY",

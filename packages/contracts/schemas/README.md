@@ -9,9 +9,10 @@ The schemas in this directory define Twin Studio file and integration boundaries
 - `twin-assets.v1.schema.json`: 2D/3D semantic asset catalog.
 - `scene-manifest.v1.schema.json`: Optimized scene and LOD parts.
 - `fleet-live-overlay.v1.schema.json`: Future live 3D visualization boundary.
-- `draft-validation-report.v1.schema.json`: Immutable validation evidence,
+- `draft-validation-report.v1.schema.json`: Legacy immutable validation evidence.
+- `draft-validation-report.v2.schema.json`: Immutable validation evidence,
   deterministic validator identity, issue severity, and UI-ready spatial or
-  document locations.
+  document locations, including verified registration-review decisions.
 - `floorplan-import-report.v1.schema.json`: Deterministic SVG source and
   configuration provenance, metre-normalized floorplan geometry, bounds, and
   non-fatal import warnings.
@@ -41,6 +42,12 @@ The schemas in this directory define Twin Studio file and integration boundaries
   BIM/floorplan target evidence and deterministic quality-policy results.
 - `survey-registration-acceptance.v1.schema.json`: Immutable two-person reviewer
   approval or rejection derived from one quality-scored registration report.
+- `semantic-observations.v1.schema.json`: Bounded model observations in a survey
+  frame with model identity and sealed camera/LiDAR evidence references.
+- `asset-candidate-report.v1.schema.json`: Canonical candidates derived through
+  one approved registration while preserving source observation evidence.
+- `asset-candidate-review.v1.schema.json`: Immutable operator accept/reject,
+  name, type, and scalar-property decisions without automatic asset promotion.
 
 Published schemas are extended only in backward-compatible ways. Changes to
 meaning or required fields require a new major version.

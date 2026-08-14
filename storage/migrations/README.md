@@ -49,6 +49,8 @@ Published releases and audit history must never be deleted during migration.
   derived from one quality-scored survey-to-design registration report.
 - `014_survey_quality_review.sql`: Spatial survey-quality report and immutable
   operator acceptance roles derived from one materialization preview.
+- `015_semantic_asset_candidates.sql`: Derived semantic observations, canonical
+  asset-candidate reports, and immutable operator-review provenance roles.
 
 PostgreSQL triggers prevent updates and deletes to primary release records,
 release-artifact bindings, and asset revisions linked to a release. Draft artifact

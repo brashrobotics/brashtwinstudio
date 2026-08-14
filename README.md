@@ -154,9 +154,15 @@ The first Phase 0 increment is implemented:
   sampled coverage, trajectory timing/continuity, frame consistency,
   reconstruction density, and preview warnings, with a bounded 2D/3D occupancy
   layer and independent immutable approval.
+- Draft-validation report v2 verifies the content of registration acceptance
+  evidence and blocks release eligibility unless every registration report has
+  an immutable `APPROVED` decision.
+- Provenance-backed semantic model observations are transformed through an
+  approved registration into canonical asset candidates. Operators can name,
+  type, annotate, accept, or reject them without prematurely creating assets.
 - A compact local demo seed that exercises upload, intake, verification,
-  materialization, artifact lineage, and registration without downloading an
-  external dataset.
+  materialization, artifact lineage, registration, and semantic candidates
+  without downloading an external dataset.
 - A bounded GrandTour ETH-2 seed that verifies the pinned real dataset, exports
   all 4,305 DLIO poses to the standard TUM boundary, preserves the original
   17-million-point PLY as source evidence, and opens it as a separate Studio

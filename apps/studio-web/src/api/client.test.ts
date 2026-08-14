@@ -125,4 +125,26 @@ describe("Twin API client", () => {
       "http://twin.local/api/v1/map-drafts/draft%20%2F%201/survey-quality-reviews/quality%20%2F%201/acceptance",
     ]);
   });
+
+  it("creates and reviews semantic candidate evidence through encoded draft paths", async () => {
+    const fetchImplementation = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ candidateSet: { report: { candidateSetId: "set-1" } } }), {
+        status: 201, headers: { "content-type": "application/json" },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ review: { report: { summary: { acceptedCount: 1 } } } }), {
+        status: 201, headers: { "content-type": "application/json" },
+      }));
+    const api = createTwinApiClient({ baseUrl: "http://twin.local", fetchImplementation });
+    const createInput = { registrationId: "registration-1", observationBindingId: "observations-1", operatorId: "operator-1" };
+    expect((await api.createSemanticCandidateSet("draft / 1", createInput)).report.candidateSetId).toBe("set-1");
+    const reviewInput = {
+      reviewerId: "reviewer-1",
+      decisions: [{ candidateId: "candidate-1", decision: "ACCEPTED" as const, displayName: "Panel", assetType: "panel" }],
+    };
+    expect((await api.reviewSemanticCandidateSet("draft / 1", "set / 1", reviewInput)).report.summary.acceptedCount).toBe(1);
+    expect(fetchImplementation.mock.calls.map(([url]) => url)).toEqual([
+      "http://twin.local/api/v1/map-drafts/draft%20%2F%201/semantic-candidates",
+      "http://twin.local/api/v1/map-drafts/draft%20%2F%201/semantic-candidates/set%20%2F%201/review",
+    ]);
+  });
 });

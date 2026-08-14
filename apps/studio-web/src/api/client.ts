@@ -14,6 +14,9 @@ import type {
   CreateSurveyRegistrationInput,
   ReviewSurveyRegistrationInput,
   SurveyRegistrationAcceptanceRecord,
+  AssetCandidateSetRecord,
+  AssetCandidateReviewRecord,
+  ReviewAssetCandidateSetInput,
   TwinApiErrorBody,
   ValidationJob,
 } from "./types";
@@ -45,6 +48,9 @@ export interface TwinApiClient {
   listSurveyRegistrations(draftId: string, signal?: AbortSignal): Promise<SurveyRegistrationRecord[]>;
   createSurveyRegistration(draftId: string, input: CreateSurveyRegistrationInput, signal?: AbortSignal): Promise<SurveyRegistrationRecord>;
   reviewSurveyRegistration(draftId: string, registrationId: string, input: ReviewSurveyRegistrationInput, signal?: AbortSignal): Promise<SurveyRegistrationAcceptanceRecord>;
+  listSemanticCandidateSets(draftId: string, signal?: AbortSignal): Promise<AssetCandidateSetRecord[]>;
+  createSemanticCandidateSet(draftId: string, input: { registrationId: string; observationBindingId: string; operatorId: string }, signal?: AbortSignal): Promise<AssetCandidateSetRecord>;
+  reviewSemanticCandidateSet(draftId: string, candidateSetId: string, input: ReviewAssetCandidateSetInput, signal?: AbortSignal): Promise<AssetCandidateReviewRecord>;
   listReleases(signal?: AbortSignal): Promise<ReleaseManifest[]>;
 }
 
@@ -169,6 +175,26 @@ export function createTwinApiClient({
         },
       )
     ).acceptance,
+    listSemanticCandidateSets: async (draftId, signal) => (
+      await request<{ candidateSets: AssetCandidateSetRecord[] }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/semantic-candidates`,
+        signal,
+      )
+    ).candidateSets,
+    createSemanticCandidateSet: async (draftId, input, signal) => (
+      await request<{ candidateSet: AssetCandidateSetRecord }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/semantic-candidates`,
+        signal,
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) },
+      )
+    ).candidateSet,
+    reviewSemanticCandidateSet: async (draftId, candidateSetId, input, signal) => (
+      await request<{ review: AssetCandidateReviewRecord }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/semantic-candidates/${encodeURIComponent(candidateSetId)}/review`,
+        signal,
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) },
+      )
+    ).review,
     listReleases: async (signal) => (
       await request<{ releases: ReleaseManifest[] }>("/api/v1/releases", signal)
     ).releases,

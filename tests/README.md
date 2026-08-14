@@ -18,10 +18,17 @@ The survey-quality gate covers deterministic metric and occupancy-grid output,
 preview/report/acceptance provenance, requester/reviewer separation, failed
 quality rejection, and the registration dependency on approved evidence.
 
+The semantic-candidate gate covers bounded model observations, producer and
+input identities, approved-registration dependency, deterministic canonical
+coordinates, immutable all-candidate review, operator names/types/properties,
+and 2D/3D accepted/rejected rendering behavior.
+
 The validation quality gate covers deterministic reports, UI-ready issue
 locations, sealed input snapshots, multipart report storage, HTTP job execution,
 real PostgreSQL job/run transactions, report-binding consistency triggers, and
-immutable validation history.
+immutable validation history. Registration decisions are parsed from
+content-addressed acceptance evidence; rejected or invalid decisions cannot
+make a draft release-eligible.
 
 The publication quality gate injects failures on both sides of the release-store
 marker, verifies reconciliation, enforces second-person approval, and checks the

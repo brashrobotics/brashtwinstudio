@@ -75,8 +75,9 @@ if (!qualityReview.acceptance) {
   );
 }
 const registrationList = await request("GET", "/api/v1/map-drafts/demo-draft-1/survey-registrations");
-if (!registrationList.registrations.some(({ report }) => report.registrationId === "demo-registration-1")) {
-  await request("POST", "/api/v1/map-drafts/demo-draft-1/survey-registrations", {
+let registration = registrationList.registrations.find(({ report }) => report.registrationId === "demo-registration-1");
+if (!registration) {
+  registration = (await request("POST", "/api/v1/map-drafts/demo-draft-1/survey-registrations", {
     registrationId: "demo-registration-1",
     materializationJobId: "demo-materialization-1",
     targetBindingId: "demo-floorplan-target",
@@ -87,8 +88,16 @@ if (!registrationList.registrations.some(({ report }) => report.registrationId =
       { controlPointId: "cp-2", source: { x: 4, y: -3 }, target: { x: -1, y: -6 } },
       { controlPointId: "cp-3", source: { x: 4, y: 3 }, target: { x: -1, y: 0 } },
     ],
-  });
+  })).registration;
 }
+if (!registration.acceptance) {
+  await request(
+    "POST",
+    "/api/v1/map-drafts/demo-draft-1/survey-registrations/demo-registration-1/acceptance",
+    { decision: "APPROVED", reviewerId: "demo-registration-reviewer" },
+  );
+}
+await ensureSemanticCandidates(materialization.job.output);
 
 async function ensureRegistrationTarget() {
   const content = await readFile(resolve("tests/fixtures/floorplans/demo-floorplan.svg"));
@@ -104,6 +113,71 @@ async function ensureRegistrationTarget() {
   });
 }
 
+async function ensureSemanticCandidates(materializationOutput) {
+  const model = {
+    name: "brash-demo-semantic-fixture",
+    version: "1.0.0",
+    parametersSha256: "7".repeat(64),
+  };
+  const observations = Buffer.from(`${JSON.stringify({
+    schemaVersion: "brash.semantic-observations/v1",
+    observationSetId: "demo-observations-1",
+    sourceFrameId: materializationOutput.sourceFrameId,
+    model,
+    observations: [
+      {
+        observationId: "electrical-panel-1",
+        classId: "electrical-panel",
+        confidence: 0.96,
+        position: [-2.5, -1, 1.1],
+        dimensions: [0.9, 0.3, 1.8],
+        evidence: [{
+          bindingId: materializationOutput.previewBindingId,
+          artifactSha256: materializationOutput.previewSha256,
+        }],
+      },
+      {
+        observationId: "conveyor-1",
+        classId: "conveyor",
+        confidence: 0.91,
+        position: [1.5, 1, 0.7],
+        dimensions: [3.5, 1.1, 1.4],
+        evidence: [{
+          bindingId: materializationOutput.previewBindingId,
+          artifactSha256: materializationOutput.previewSha256,
+        }],
+      },
+    ],
+  }, null, 2)}\n`);
+  await upload(
+    "demo-semantic-observations",
+    observations,
+    "application/json",
+    "demo-semantic-observations.json",
+  );
+  const artifacts = await request("GET", "/api/v1/map-drafts/demo-draft-1/artifacts");
+  if (!artifacts.artifacts.some(({ bindingId }) => bindingId === "demo-semantic-observations")) {
+    await request("POST", "/api/v1/map-drafts/demo-draft-1/artifacts", {
+      bindingId: "demo-semantic-observations",
+      uploadId: "demo-semantic-observations",
+      role: "SEMANTIC_OBSERVATIONS",
+      coordinateFrameId: materializationOutput.sourceFrameId,
+      inputBindingIds: [materializationOutput.previewBindingId],
+      producer: model,
+      operatorId: "demo-semantic-worker",
+    });
+  }
+  const candidateSets = await request("GET", "/api/v1/map-drafts/demo-draft-1/semantic-candidates");
+  if (!candidateSets.candidateSets.some(({ report }) => report.candidateSetId === "demo-candidate-set-1")) {
+    await request("POST", "/api/v1/map-drafts/demo-draft-1/semantic-candidates", {
+      candidateSetId: "demo-candidate-set-1",
+      registrationId: "demo-registration-1",
+      observationBindingId: "demo-semantic-observations",
+      operatorId: "demo-semantic-operator",
+    });
+  }
+}
+
 console.log(JSON.stringify({
   siteId: "demo-site",
   draftId: "demo-draft-1",
@@ -111,6 +185,7 @@ console.log(JSON.stringify({
   previewBindingId: materialization.job.output.previewBindingId,
   qualityReviewId: "demo-survey-quality-1",
   registrationId: "demo-registration-1",
+  candidateSetId: "demo-candidate-set-1",
   studioUrl: "http://127.0.0.1:4390/",
 }, null, 2));
 

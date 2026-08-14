@@ -468,6 +468,59 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /api/v1/map-drafts/{draftId}/semantic-candidates:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+    get:
+      operationId: listSemanticCandidateSets
+      responses:
+        "200":
+          description: Provenance-bound canonical asset candidate reports and operator reviews.
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createSemanticCandidateSet
+      description: Transforms bounded model observations into canonical candidates using an approved registration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSemanticCandidateSet"
+      responses:
+        "201":
+          description: Immutable candidate report created; no Twin asset has been promoted yet.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/map-drafts/{draftId}/semantic-candidates/{candidateSetId}/review:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+      - name: candidateSetId
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Identifier"
+    post:
+      operationId: reviewSemanticCandidateSet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewSemanticCandidateSet"
+      responses:
+        "201":
+          description: Immutable operator naming, properties, and accept/reject decisions created.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /api/v1/survey-intakes/{intakeId}/materializations:
     parameters:
       - $ref: "#/components/parameters/IntakeId"
@@ -933,6 +986,56 @@ components:
         note:
           type: string
           maxLength: 2000
+    CreateSemanticCandidateSet:
+      type: object
+      additionalProperties: false
+      required: [registrationId, observationBindingId, operatorId]
+      properties:
+        candidateSetId:
+          $ref: "#/components/schemas/Identifier"
+        registrationId:
+          $ref: "#/components/schemas/Identifier"
+        observationBindingId:
+          $ref: "#/components/schemas/Identifier"
+        operatorId:
+          type: string
+          minLength: 1
+    ReviewSemanticCandidateSet:
+      type: object
+      additionalProperties: false
+      required: [decisions, reviewerId]
+      properties:
+        decisions:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: object
+            additionalProperties: false
+            required: [candidateId, decision]
+            properties:
+              candidateId:
+                $ref: "#/components/schemas/Identifier"
+              decision:
+                type: string
+                enum: [ACCEPTED, REJECTED]
+              displayName:
+                type: string
+                maxLength: 200
+              assetType:
+                type: string
+                maxLength: 100
+              properties:
+                type: object
+                maxProperties: 20
+                additionalProperties:
+                  type: [string, number, boolean]
+        reviewerId:
+          type: string
+          minLength: 1
+        note:
+          type: string
+          maxLength: 2000
     DraftArtifactRole:
       type: string
       enum:
@@ -946,6 +1049,9 @@ components:
         - SURVEY_PREVIEW
         - SURVEY_QUALITY_REPORT
         - SURVEY_QUALITY_ACCEPTANCE
+        - SEMANTIC_OBSERVATIONS
+        - ASSET_CANDIDATE_REPORT
+        - ASSET_CANDIDATE_REVIEW
         - REGISTERED_POINT_CLOUD
         - RECONSTRUCTED_MESH
         - OCCUPANCY
@@ -965,6 +1071,7 @@ components:
         - CAMERA_SOURCE
         - CALIBRATION_SOURCE
         - SURVEY_SOURCE
+        - SEMANTIC_OBSERVATIONS
         - REGISTERED_POINT_CLOUD
         - RECONSTRUCTED_MESH
         - OCCUPANCY

@@ -103,6 +103,7 @@ export function createDraftValidationReport({
       bindingId: artifact.bindingId,
       artifactSha256: artifact.artifactSha256,
       role: artifact.role,
+      ...(artifact.reviewDecision === undefined ? {} : { reviewDecision: artifact.reviewDecision }),
     }))),
     startedAt: iso(startedAt, "startedAt"),
     completedAt: iso(completedAt, "completedAt"),
@@ -114,7 +115,7 @@ export function createDraftValidationReport({
 
 export function serializeDraftValidationReport(report) {
   if (!report || report.schemaVersion !== CONTRACT_VERSIONS.draftValidationReport) {
-    throw new DraftValidationError("VALIDATION_REPORT_INVALID", "A v1 draft validation report is required.");
+    throw new DraftValidationError("VALIDATION_REPORT_INVALID", "A v2 draft validation report is required.");
   }
   return Buffer.from(`${JSON.stringify(report, null, 2)}\n`, "utf8");
 }
@@ -148,6 +149,7 @@ export function defaultDraftValidationRules() {
         location: artifactLocation(artifact),
       }))),
     rule("DERIVED_PROVENANCE_INVALID", ({ artifacts }) => derivedProvenanceIssues(artifacts)),
+    rule("REGISTRATION_APPROVAL_REQUIRED", ({ artifacts }) => registrationApprovalIssues(artifacts)),
     rule("CANONICAL_FRAME_UNUSED", ({ draft, artifacts }) => artifacts
       .some((artifact) => artifact.coordinateFrameId === draft.canonicalFrameId) ? [] : [{
         severity: "WARNING",
@@ -155,6 +157,36 @@ export function defaultDraftValidationRules() {
         location: { coordinateFrameId: draft.canonicalFrameId, jsonPointer: "" },
       }]),
   ];
+}
+
+function registrationApprovalIssues(artifacts) {
+  const approvalsByReport = new Map();
+  const approvedAcceptanceBindings = new Set();
+  for (const acceptance of artifacts.filter((artifact) => artifact.role === "REGISTRATION_ACCEPTANCE")) {
+    const input = acceptance.inputBindings.length === 1 ? acceptance.inputBindings[0] : null;
+    if (!input || acceptance.reviewDecision !== "APPROVED") continue;
+    approvalsByReport.set(input.bindingId, input.artifactSha256);
+    approvedAcceptanceBindings.add(acceptance.bindingId);
+  }
+  const issues = artifacts.filter((artifact) => artifact.role === "REGISTRATION_REPORT")
+    .filter((report) => approvalsByReport.get(report.bindingId) !== report.artifactSha256)
+    .map((report) => ({
+      severity: "ERROR",
+      message: "Registered survey evidence requires an immutable APPROVED registration acceptance before validation can pass.",
+      location: artifactLocation(report),
+    }));
+  for (const artifact of artifacts.filter((candidate) => [
+    "REGISTERED_POINT_CLOUD",
+    "ASSET_CANDIDATE_REPORT",
+  ].includes(candidate.role))) {
+    if (artifact.inputBindings.some((input) => approvedAcceptanceBindings.has(input.bindingId))) continue;
+    issues.push({
+      severity: "ERROR",
+      message: `${artifact.role} must directly reference a content-verified APPROVED registration acceptance.`,
+      location: artifactLocation(artifact),
+    });
+  }
+  return issues;
 }
 
 function derivedProvenanceIssues(artifacts) {
@@ -212,6 +244,10 @@ function validateSnapshot(snapshot) {
       throw new DraftValidationError("VALIDATION_ARTIFACT_INVALID", `artifacts[${index}] has an invalid SHA-256.`);
     }
     requiredText(artifact.role, `artifacts[${index}].role`);
+    if (artifact.reviewDecision !== undefined
+      && !["APPROVED", "REJECTED", "INVALID"].includes(artifact.reviewDecision)) {
+      throw new DraftValidationError("VALIDATION_ARTIFACT_INVALID", `artifacts[${index}] has an invalid review decision.`);
+    }
     if (!["SOURCE", "DERIVED"].includes(artifact.kind)
       || !Array.isArray(artifact.inputBindings)) {
       throw new DraftValidationError("VALIDATION_ARTIFACT_INVALID", `artifacts[${index}] is malformed.`);

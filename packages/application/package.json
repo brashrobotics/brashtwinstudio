@@ -10,6 +10,7 @@
     "./survey-intakes": "./survey-intakes.js",
     "./survey-materializations": "./survey-materializations.js",
     "./survey-quality-reviews": "./survey-quality-reviews.js",
+    "./semantic-candidates": "./semantic-candidates.js",
     "./survey-registrations": "./survey-registrations.js",
     "./uploads": "./uploads.js",
     "./validation-jobs": "./validation-jobs.js"

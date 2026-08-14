@@ -19,13 +19,14 @@ import {
 } from "@brash-twin/manual-twin";
 import { useEffect, useRef, useState, useSyncExternalStore, type ChangeEvent } from "react";
 import { useI18n } from "../../i18n/i18n";
-import type { SurveyMaterializationPreview, SurveyQualityReport, SurveyRegistrationReport } from "../../api/types";
+import type { AssetCandidateSetRecord, SurveyMaterializationPreview, SurveyQualityReport, SurveyRegistrationReport } from "../../api/types";
 import { diagnosticEntities, diagnosticLayers } from "./diagnosticWorld";
 import { diagnosticEditorFeatures } from "./editorSeed";
 import { EditorToolbar, FeatureInspector } from "./EditorControls";
 import { ManualTwinMilestone } from "./ManualTwinMilestone";
 import { ThreeWorldRuntime, type WorldInteraction } from "./threeRuntime";
 import { surveyCoverageWorldEntities, surveyPreviewWorldEntities } from "./surveyPreviewWorld";
+import { semanticCandidateWorldEntities } from "./semanticCandidateWorld";
 
 export function SpatialWorkspace({
   canonicalFrameId,
@@ -34,6 +35,7 @@ export function SpatialWorkspace({
   surveyPreview,
   surveyRegistration,
   surveyQuality,
+  semanticCandidateSet,
 }: {
   canonicalFrameId: string;
   familyId: string;
@@ -41,6 +43,7 @@ export function SpatialWorkspace({
   surveyPreview: SurveyMaterializationPreview | null;
   surveyRegistration: SurveyRegistrationReport | null;
   surveyQuality: SurveyQualityReport | null;
+  semanticCandidateSet: AssetCandidateSetRecord | null;
 }) {
   const { t } = useI18n();
   const [editorStore] = useState<SpatialEditorStore>(() => createSpatialEditorStore(diagnosticEditorFeatures));
@@ -185,6 +188,7 @@ export function SpatialWorkspace({
       ...alignedCad,
       ...registeredSurvey,
       ...registeredCoverage,
+      ...(semanticCandidateSet ? semanticCandidateWorldEntities(semanticCandidateSet) : []),
       ...evidence,
       ...spatialFeaturesToWorldEntities(editorSnapshot.document.features),
       ...zonePreviewEntities(zoneDraftPoints),
@@ -204,6 +208,7 @@ export function SpatialWorkspace({
     surveyPreview,
     surveyRegistration,
     surveyQuality,
+    semanticCandidateSet,
     surveySourceView,
     zoneDraftPoints,
   ]);
