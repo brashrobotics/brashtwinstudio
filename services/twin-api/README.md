@@ -37,6 +37,8 @@ must not run in it.
 - `GET /api/v1/survey-materializations/:jobId`
 - `POST /api/v1/survey-materializations/:jobId/run`
 - `GET /api/v1/survey-materializations/:jobId/preview`
+- `GET|POST /api/v1/map-drafts/:draftId/survey-quality-reviews`
+- `POST /api/v1/map-drafts/:draftId/survey-quality-reviews/:qualityReviewId/acceptance`
 - `GET|POST /api/v1/map-drafts/:draftId/survey-registrations`
 - `POST /api/v1/map-drafts/:draftId/survey-registrations/:registrationId/acceptance`
 - `GET|POST /api/v1/map-drafts/:draftId/validation-jobs`
@@ -48,6 +50,12 @@ must not run in it.
 - `POST /api/v1/uploads/:uploadId/cancel`
 - `GET /api/v1/releases`
 - `GET /api/v1/releases/:releaseId`
+
+The generic artifact binding endpoint accepts source data and externally
+produced map derivatives. Workflow evidence roles such as survey previews,
+quality decisions, registration decisions, and validation reports are
+system-managed and can only be created by their dedicated application
+workflows. This prevents clients from forging evidence used by later gates.
 
 Release publication does not accept a server filesystem path through the API.
 The bootstrap now constructs the trusted publication application service for
@@ -97,6 +105,11 @@ frame. The generated v2 report seals both artifact identities, the rigid
 transform, residual metrics, and deterministic quality thresholds. A different
 reviewer may then create exactly one immutable approval or rejection artifact;
 a failed quality result cannot be approved.
+
+Survey quality review runs before registration. It seals coverage, trajectory,
+frame, reconstruction-density, and warning evidence derived from the successful
+preview. A different operator must approve the passing report; the acceptance
+artifact becomes a required registration provenance input.
 
 Clients cannot mark a draft validated by supplying an arbitrary SHA-256 value.
 They create and run a validation job instead. The service snapshots draft inputs,

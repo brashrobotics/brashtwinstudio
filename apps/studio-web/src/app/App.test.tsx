@@ -42,6 +42,9 @@ describe("Studio Web shell", () => {
         qualityWarnings: [],
         generatedBy: { name: "materializer", version: "1" },
       }),
+      listSurveyQualityReviews: async () => [surveyQuality()],
+      createSurveyQualityReview: async () => { throw new Error("Not used by this test."); },
+      reviewSurveyQuality: async () => { throw new Error("Not used by this test."); },
       listSurveyRegistrations: async () => [surveyRegistration()],
       createSurveyRegistration: async () => { throw new Error("Not used by this test."); },
       reviewSurveyRegistration: async () => { throw new Error("Not used by this test."); },
@@ -57,9 +60,38 @@ describe("Studio Web shell", () => {
     expect(await screen.findByText("validation-job-3")).toBeTruthy();
     expect(await screen.findByText(/survey-materialization-1/)).toBeTruthy();
     expect(await screen.findByText("Registered survey overlay")).toBeTruthy();
+    expect(await screen.findByText("91.0%")).toBeTruthy();
     expect(await screen.findByText("plant@2")).toBeTruthy();
   });
 });
+
+function surveyQuality() {
+  return {
+    reportBindingId: "survey-quality-report-1",
+    reportUploadId: "survey-quality-upload-1",
+    reportSha256: "1".repeat(64),
+    report: {
+      schemaVersion: "brash.survey-quality-report/v1" as const,
+      qualityReviewId: "quality-1",
+      draftId: "draft-1",
+      materializationJobId: "survey-materialization-1",
+      sourcePreview: { bindingId: "survey-preview-1", sha256: "d".repeat(64), frameId: "slam-map" },
+      outcome: "PASSED" as const,
+      metrics: { declaredCoverageRatio: 0.91, sampledOccupancyRatio: 0.5, trajectoryPoseCount: 5, trajectoryDurationSeconds: 4, trajectoryMedianRateHz: 1, trajectoryMaximumStepMetres: 2.8, trajectoryNonIncreasingTimestampCount: 0, reconstructionVertexCount: 6, reconstructionFootprintSquareMetres: 16, pointDensityPerSquareMetre: 1.5, previewWarningCount: 0, frameConsistent: true },
+      policy: { thresholds: { minimumCoverageRatio: 0.8, minimumTrajectoryPoseCount: 3, maximumTrajectoryStepMetres: 3, maximumNonIncreasingTimestamps: 0, minimumPointDensityPerSquareMetre: 1, maximumPreviewWarnings: 0 }, policySha256: "2".repeat(64) },
+      issues: [],
+      coverageGrid: { frameId: "slam-map", columns: 2, rows: 2, bounds: { minimum: [-1, -2] as [number, number], maximum: [3, 2] as [number, number] }, cells: [{ column: 0, row: 0, sampleCount: 3 }, { column: 1, row: 1, sampleCount: 3 }] },
+      createdBy: "quality-operator",
+      createdAt: "2026-08-13T01:01:30.000Z",
+    },
+    acceptance: {
+      reportBindingId: "survey-quality-acceptance-1",
+      reportUploadId: "survey-quality-acceptance-upload-1",
+      reportSha256: "3".repeat(64),
+      report: { schemaVersion: "brash.survey-quality-acceptance/v1" as const, qualityReviewId: "quality-1", draftId: "draft-1", qualityReport: { bindingId: "survey-quality-report-1", sha256: "1".repeat(64) }, decision: "APPROVED" as const, qualityOutcome: "PASSED" as const, reviewerId: "quality-reviewer", note: null, reviewedAt: "2026-08-13T01:01:45.000Z" },
+    },
+  };
+}
 
 function surveyRegistration() {
   const residuals = [
@@ -93,5 +125,6 @@ function surveyRegistration() {
       createdAt: "2026-08-13T01:02:00.000Z",
     },
     acceptance: null,
+    surveyQualityAcceptanceBindingId: "survey-quality-acceptance-1",
   };
 }

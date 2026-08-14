@@ -39,7 +39,11 @@ test("survey registration persists a versioned report derived from a sealed prev
     (candidate) => candidate.bindingId === registration.reportBindingId,
   );
   assert.equal(binding.role, "REGISTRATION_REPORT");
-  assert.deepEqual(binding.inputBindings.map((input) => input.bindingId), ["survey-preview-1", "floorplan-target-1"]);
+  assert.deepEqual(binding.inputBindings.map((input) => input.bindingId), [
+    "survey-preview-1",
+    "floorplan-target-1",
+    "survey-quality-acceptance-1",
+  ]);
 
   const acceptance = await system.registrations.review("draft-1", "registration-1", {
     decision: "APPROVED",
@@ -122,7 +126,22 @@ test("survey registration requires canonical design evidence and distinct qualit
   );
 });
 
-async function registrationSystem() {
+test("survey registration requires approved materialization quality", async () => {
+  const system = await registrationSystem(false);
+  await assert.rejects(
+    () => system.registrations.create("draft-1", {
+      registrationId: "registration-without-quality",
+      materializationJobId: "materialization-1",
+      targetBindingId: "floorplan-target-1",
+      operatorId: "operator-1",
+      controlPoints: controlPoints(),
+    }),
+    (error) => error instanceof SurveyRegistrationError
+      && error.code === "SURVEY_REGISTRATION_QUALITY_REVIEW_REQUIRED",
+  );
+});
+
+async function registrationSystem(approvedQuality = true) {
   const clock = () => new Date("2026-08-14T15:00:00.000Z");
   const store = new LocalMultipartArtifactStore(await mkdtemp(join(tmpdir(), "brash-registration-")), { clock });
   const uploads = new UploadService({
@@ -168,6 +187,25 @@ async function registrationSystem() {
     producer: { name: "materializer", version: "1", parametersSha256: "a".repeat(64) },
     operatorId: "operator-1",
   });
+  const qualityReport = await upload(uploads, store, "quality-report-upload", Buffer.from("sealed quality report"));
+  await draftArtifacts.bind("draft-1", {
+    bindingId: "survey-quality-report-1",
+    uploadId: qualityReport.uploadId,
+    role: "SURVEY_QUALITY_REPORT",
+    coordinateFrameId: "slam-map",
+    inputBindingIds: ["survey-preview-1"],
+    producer: { name: "brash-survey-quality", version: "1", parametersSha256: "b".repeat(64) },
+    operatorId: "operator-1",
+  });
+  const qualityAcceptance = await upload(uploads, store, "quality-acceptance-upload", Buffer.from("sealed quality acceptance"));
+  await draftArtifacts.bind("draft-1", {
+    bindingId: "survey-quality-acceptance-1",
+    uploadId: qualityAcceptance.uploadId,
+    role: "SURVEY_QUALITY_ACCEPTANCE",
+    inputBindingIds: ["survey-quality-report-1"],
+    producer: { name: "brash-survey-quality-review", version: "1", parametersSha256: "c".repeat(64) },
+    operatorId: "reviewer-1",
+  });
   const materialization = {
     jobId: "materialization-1",
     draftId: "draft-1",
@@ -181,6 +219,14 @@ async function registrationSystem() {
   const registrations = new SurveyRegistrationService({
     catalog,
     materializations: { get: async () => materialization },
+    qualityReviews: {
+      findApprovedForMaterialization: async () => approvedQuality ? ({
+        acceptance: {
+          reportBindingId: "survey-quality-acceptance-1",
+          reportSha256: qualityAcceptance.artifactSha256,
+        },
+      }) : null,
+    },
     draftArtifacts,
     uploads,
     multipartStore: store,

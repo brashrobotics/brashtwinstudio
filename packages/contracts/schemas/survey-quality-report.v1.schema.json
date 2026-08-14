@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/survey-quality-report.v1.schema.json",
+  "title": "Brash Survey Quality Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "qualityReviewId", "draftId", "materializationJobId", "sourcePreview", "outcome", "metrics", "policy", "issues", "coverageGrid", "createdBy", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "brash.survey-quality-report/v1" },
+    "qualityReviewId": { "$ref": "#/$defs/identifier" },
+    "draftId": { "$ref": "#/$defs/identifier" },
+    "materializationJobId": { "$ref": "#/$defs/identifier" },
+    "sourcePreview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bindingId", "sha256", "frameId"],
+      "properties": {
+        "bindingId": { "$ref": "#/$defs/identifier" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "frameId": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "outcome": { "enum": ["PASSED", "FAILED"] },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declaredCoverageRatio", "sampledOccupancyRatio", "trajectoryPoseCount", "trajectoryDurationSeconds", "trajectoryMedianRateHz", "trajectoryMaximumStepMetres", "trajectoryNonIncreasingTimestampCount", "reconstructionVertexCount", "reconstructionFootprintSquareMetres", "pointDensityPerSquareMetre", "previewWarningCount", "frameConsistent"],
+      "properties": {
+        "declaredCoverageRatio": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "sampledOccupancyRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "trajectoryPoseCount": { "type": "integer", "minimum": 0 },
+        "trajectoryDurationSeconds": { "type": "number", "minimum": 0 },
+        "trajectoryMedianRateHz": { "type": "number", "minimum": 0 },
+        "trajectoryMaximumStepMetres": { "type": "number", "minimum": 0 },
+        "trajectoryNonIncreasingTimestampCount": { "type": "integer", "minimum": 0 },
+        "reconstructionVertexCount": { "type": "integer", "minimum": 0 },
+        "reconstructionFootprintSquareMetres": { "type": "number", "minimum": 0 },
+        "pointDensityPerSquareMetre": { "type": "number", "minimum": 0 },
+        "previewWarningCount": { "type": "integer", "minimum": 0 },
+        "frameConsistent": { "type": "boolean" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["thresholds", "policySha256"],
+      "properties": {
+        "thresholds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["minimumCoverageRatio", "minimumTrajectoryPoseCount", "maximumTrajectoryStepMetres", "maximumNonIncreasingTimestamps", "minimumPointDensityPerSquareMetre", "maximumPreviewWarnings"],
+          "properties": {
+            "minimumCoverageRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+            "minimumTrajectoryPoseCount": { "type": "integer", "minimum": 2 },
+            "maximumTrajectoryStepMetres": { "type": "number", "minimum": 0 },
+            "maximumNonIncreasingTimestamps": { "type": "integer", "minimum": 0 },
+            "minimumPointDensityPerSquareMetre": { "type": "number", "minimum": 0 },
+            "maximumPreviewWarnings": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "policySha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "metric", "observed", "limit"],
+        "properties": {
+          "code": { "$ref": "#/$defs/nonEmptyString" },
+          "metric": { "$ref": "#/$defs/nonEmptyString" },
+          "observed": { "type": ["number", "boolean", "null"] },
+          "limit": { "type": ["number", "boolean"] }
+        }
+      }
+    },
+    "coverageGrid": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["frameId", "columns", "rows", "bounds", "cells"],
+      "properties": {
+        "frameId": { "$ref": "#/$defs/nonEmptyString" },
+        "columns": { "type": "integer", "minimum": 1, "maximum": 16 },
+        "rows": { "type": "integer", "minimum": 1, "maximum": 16 },
+        "bounds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["minimum", "maximum"],
+          "properties": {
+            "minimum": { "$ref": "#/$defs/point2" },
+            "maximum": { "$ref": "#/$defs/point2" }
+          }
+        },
+        "cells": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["column", "row", "sampleCount"],
+            "properties": {
+              "column": { "type": "integer", "minimum": 0, "maximum": 15 },
+              "row": { "type": "integer", "minimum": 0, "maximum": 15 },
+              "sampleCount": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    },
+    "createdBy": { "$ref": "#/$defs/nonEmptyString" },
+    "createdAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "identifier": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "point2": {
+      "type": "array",
+      "prefixItems": [{ "type": "number" }, { "type": "number" }],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    }
+  }
+}

@@ -25,6 +25,7 @@ export class SurveyRegistrationError extends Error {
 export class SurveyRegistrationService {
   #catalog;
   #materializations;
+  #qualityReviews;
   #draftArtifacts;
   #uploads;
   #multipartStore;
@@ -35,6 +36,7 @@ export class SurveyRegistrationService {
   constructor({
     catalog,
     materializations,
+    qualityReviews,
     draftArtifacts,
     uploads,
     multipartStore,
@@ -44,6 +46,9 @@ export class SurveyRegistrationService {
   }) {
     if (!catalog || typeof catalog.getMapDraftContext !== "function") invalidConfiguration("Catalog lookup is required.");
     if (!materializations || typeof materializations.get !== "function") invalidConfiguration("Materialization lookup is required.");
+    if (!qualityReviews || typeof qualityReviews.findApprovedForMaterialization !== "function") {
+      invalidConfiguration("Approved survey quality lookup is required.");
+    }
     if (!draftArtifacts || typeof draftArtifacts.bind !== "function" || typeof draftArtifacts.list !== "function") {
       invalidConfiguration("Draft artifact provenance operations are required.");
     }
@@ -58,6 +63,7 @@ export class SurveyRegistrationService {
     }
     this.#catalog = catalog;
     this.#materializations = materializations;
+    this.#qualityReviews = qualityReviews;
     this.#draftArtifacts = draftArtifacts;
     this.#uploads = uploads;
     this.#multipartStore = multipartStore;
@@ -91,6 +97,16 @@ export class SurveyRegistrationService {
         "Registration requires a successful, provenance-bound preview from the same draft.",
       );
     }
+    const approvedQuality = await this.#qualityReviews.findApprovedForMaterialization(
+      draftId,
+      input.materializationJobId,
+    );
+    if (!approvedQuality) {
+      throw new SurveyRegistrationError(
+        "SURVEY_REGISTRATION_QUALITY_REVIEW_REQUIRED",
+        "Registration requires an approved survey quality report for the materialization.",
+      );
+    }
     const target = (await this.#draftArtifacts.list(draftId)).find(
       (binding) => binding.bindingId === input.targetBindingId,
     );
@@ -117,6 +133,7 @@ export class SurveyRegistrationService {
       targetSha256: target.artifactSha256,
       controlPoints: solved.controlPoints,
       qualityThresholds: this.#qualityThresholds,
+      surveyQualityAcceptanceSha256: approvedQuality.acceptance.reportSha256,
     }));
     const report = Object.freeze({
       schemaVersion: REPORT_SCHEMA_VERSION,
@@ -170,7 +187,11 @@ export class SurveyRegistrationService {
         uploadId: reportUploadId,
         role: "REGISTRATION_REPORT",
         coordinateFrameId: context.draft.canonicalFrameId,
-        inputBindingIds: [materialization.output.previewBindingId, target.bindingId],
+        inputBindingIds: [
+          materialization.output.previewBindingId,
+          target.bindingId,
+          approvedQuality.acceptance.reportBindingId,
+        ],
         producer: {
           name: "brash-survey-registration",
           version: SOLVER_VERSION,
@@ -184,13 +205,14 @@ export class SurveyRegistrationService {
       }
       throw error;
     }
-    return record(binding, report, null);
+    return record(binding, report, null, approvedQuality.acceptance.reportBindingId);
   }
 
   async list(draftId) {
     identifier(draftId, "draftId");
     await this.#catalog.getMapDraftContext(draftId);
     const allBindings = await this.#draftArtifacts.list(draftId);
+    const bindingsById = new Map(allBindings.map((binding) => [binding.bindingId, binding]));
     const bindings = allBindings.filter(
       (binding) => binding.role === "REGISTRATION_REPORT"
         && binding.producer?.name === "brash-survey-registration",
@@ -216,17 +238,26 @@ export class SurveyRegistrationService {
     for (const binding of bindings) {
       const report = await this.#readReport(binding, REPORT_SCHEMA_VERSION);
       const inputIdentities = new Map(binding.inputBindings.map((input) => [input.bindingId, input.artifactSha256]));
+      const qualityAcceptanceInputs = binding.inputBindings.filter(
+        (input) => bindingsById.get(input.bindingId)?.role === "SURVEY_QUALITY_ACCEPTANCE",
+      );
       if (report?.schemaVersion !== REPORT_SCHEMA_VERSION
         || report?.draftId !== draftId
         || inputIdentities.get(report?.sourcePreview?.bindingId) !== report?.sourcePreview?.sha256
         || inputIdentities.get(report?.targetEvidence?.bindingId) !== report?.targetEvidence?.sha256
-        || binding.inputBindings.length !== 2) {
+        || !new Set([2, 3]).has(binding.inputBindings.length)
+        || qualityAcceptanceInputs.length !== binding.inputBindings.length - 2) {
         throw new SurveyRegistrationError(
           "SURVEY_REGISTRATION_INTEGRITY_FAILED",
           `Stored report ${binding.bindingId} does not match its sealed provenance.`,
         );
       }
-      registrations.push(record(binding, report, acceptancesByInput.get(binding.bindingId) ?? null));
+      registrations.push(record(
+        binding,
+        report,
+        acceptancesByInput.get(binding.bindingId) ?? null,
+        qualityAcceptanceInputs[0]?.bindingId ?? null,
+      ));
     }
     return registrations.sort((left, right) => left.report.createdAt.localeCompare(right.report.createdAt));
   }
@@ -256,6 +287,12 @@ export class SurveyRegistrationService {
     }
     if (registration.acceptance) {
       throw new SurveyRegistrationError("SURVEY_REGISTRATION_REVIEW_CONFLICT", `Registration ${registrationId} was already reviewed.`);
+    }
+    if (!registration.surveyQualityAcceptanceBindingId) {
+      throw new SurveyRegistrationError(
+        "SURVEY_REGISTRATION_QUALITY_REVIEW_REQUIRED",
+        "Legacy registration evidence without an approved survey quality input cannot be reviewed.",
+      );
     }
     if (registration.report.createdBy === input.reviewerId) {
       throw new SurveyRegistrationError(
@@ -511,13 +548,14 @@ async function storeReport({ uploads, multipartStore, uploadId, content, expecte
   return completed;
 }
 
-function record(binding, report, acceptance) {
+function record(binding, report, acceptance, surveyQualityAcceptanceBindingId) {
   return Object.freeze({
     reportBindingId: binding.bindingId,
     reportUploadId: binding.uploadId,
     reportSha256: binding.artifactSha256,
     report: Object.freeze(structuredClone(report)),
     acceptance,
+    surveyQualityAcceptanceBindingId,
   });
 }
 

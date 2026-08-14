@@ -13,7 +13,7 @@ const schemaDirectory = fileURLToPath(new URL("../../packages/contracts/schemas"
 test("every published schema has a unique HTTPS identifier", async () => {
   const files = (await readdir(schemaDirectory)).filter((file) => file.endsWith(".schema.json"));
   const schemas = await Promise.all(files.map(async (file) => JSON.parse(await readFile(`${schemaDirectory}/${file}`, "utf8"))));
-  assert.equal(files.length, 18);
+  assert.equal(files.length, 20);
   assert.equal(new Set(schemas.map((schema) => schema.$id)).size, schemas.length);
   for (const schema of schemas) {
     assert.match(schema.$id, /^https:\/\/schemas\.brashrobotics\.com\//);
@@ -30,6 +30,8 @@ test("every published schema has a unique HTTPS identifier", async () => {
   assert.equal(CONTRACT_VERSIONS.surveyCalibration, "brash.survey-calibration/v1");
   assert.equal(CONTRACT_VERSIONS.surveyRegistrationReport, "brash.survey-registration-report/v2");
   assert.equal(CONTRACT_VERSIONS.surveyRegistrationAcceptance, "brash.survey-registration-acceptance/v1");
+  assert.equal(CONTRACT_VERSIONS.surveyQualityReport, "brash.survey-quality-report/v1");
+  assert.equal(CONTRACT_VERSIONS.surveyQualityAcceptance, "brash.survey-quality-acceptance/v1");
 });
 
 test("OpenAPI catalog documents every implemented operation", async () => {
@@ -69,6 +71,9 @@ test("OpenAPI catalog documents every implemented operation", async () => {
     "listDraftSurveyRegistrations",
     "createSurveyRegistration",
     "reviewSurveyRegistration",
+    "listSurveyQualityReviews",
+    "createSurveyQualityReview",
+    "reviewSurveyQuality",
     "listUploadSessions",
     "initiateUploadSession",
     "getUploadSession",

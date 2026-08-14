@@ -42,6 +42,12 @@ edges, residuals, solver configuration, and quality policy. Review is a separate
 immutable artifact, enforces requester/reviewer separation, and never permits
 approval of a failed quality result.
 
+`survey-quality-reviews.js` derives bounded coverage-grid, trajectory, frame,
+reconstruction-density, and preview-warning metrics from one integrity-checked
+materialization preview. The report and independent operator decision are
+content-addressed artifacts. A failed report cannot be approved, and
+registration requires the approved acceptance binding as an immutable input.
+
 `validation-jobs.js` creates a sealed validation snapshot while a draft is
 `IN_REVIEW`, runs the deterministic validator, streams its JSON report through
 the multipart object-store boundary, and binds the report with producer/config

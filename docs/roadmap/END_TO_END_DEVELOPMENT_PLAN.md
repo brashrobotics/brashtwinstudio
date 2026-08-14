@@ -1627,6 +1627,22 @@ PostgreSQL migration 013, service/API/web tests, and the local demo cover the
 full target-to-review provenance chain. Fleet Control and robot-side SLAM
 sources were not changed.
 
+### Increment 19 — Survey quality review and coverage evidence
+
+- Derive deterministic coverage, trajectory, frame, reconstruction-density, and
+  warning metrics from a successful materialization preview
+- Store a bounded source-frame occupancy grid for 2D/3D operator inspection
+- Seal the quality report and one independent approval or rejection as immutable
+  draft artifacts
+- Prevent approval of failed quality and prevent registration without approved
+  materialization-quality evidence
+- Expose report generation, review, issues, metrics, and coverage layer in Studio
+
+**Status:** Completed on August 14, 2026. JSON Schema, OpenAPI, PostgreSQL
+migration 014, application/API/browser boundaries, deterministic tests, and the
+idempotent local demo cover the quality-to-registration provenance chain. Fleet
+Control and robot-side SLAM sources were not changed.
+
 ---
 
 ## 30. Karar kapıları
@@ -1691,6 +1707,6 @@ olması bundle/live-overlay demo ölçümünden sonra kararlaştırılır.
 - Kabul ölçütü sessizce gevşetilmez; waiver açık audit kararıdır.
 - Fleet Control entegrasyon kapsamı yalnız ortak contract kararıyla genişletilir.
 
-The next active work adds coverage and reconstruction review, connects approved
-registration evidence to publication eligibility, and then begins semantic
-asset-candidate extraction from registered survey evidence.
+The next active work connects approved registration evidence to publication
+eligibility and then begins semantic asset-candidate extraction from registered
+survey evidence.

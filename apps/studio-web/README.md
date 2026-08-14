@@ -66,6 +66,9 @@ The operator interface for mapping and digital-twin workflows.
 - Registration target selection limited to canonical-frame CAD/BIM or floorplan
   evidence, with deterministic quality status and immutable independent-reviewer
   approval/rejection controls.
+- Survey quality report generation and independent review with declared
+  coverage, sampled occupancy, point density, trajectory continuity, issue
+  surfaces, and a toggleable occupancy layer in both 2D and 3D.
 
 The milestone publication button creates a browser-local acceptance preview. It
 does not replace the production Twin API publication service, durable object

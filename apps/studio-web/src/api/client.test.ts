@@ -106,4 +106,23 @@ describe("Twin API client", () => {
       body: JSON.stringify(review),
     }));
   });
+
+  it("creates and reviews survey quality evidence through encoded draft paths", async () => {
+    const fetchImplementation = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ qualityReview: { report: { qualityReviewId: "quality-1" } } }), {
+        status: 201, headers: { "content-type": "application/json" },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ acceptance: { report: { decision: "APPROVED" } } }), {
+        status: 201, headers: { "content-type": "application/json" },
+      }));
+    const api = createTwinApiClient({ baseUrl: "http://twin.local", fetchImplementation });
+    const createInput = { materializationJobId: "materialization-1", operatorId: "operator-1" };
+    expect((await api.createSurveyQualityReview("draft / 1", createInput)).report.qualityReviewId).toBe("quality-1");
+    const reviewInput = { decision: "APPROVED" as const, reviewerId: "reviewer-1" };
+    expect((await api.reviewSurveyQuality("draft / 1", "quality / 1", reviewInput)).report.decision).toBe("APPROVED");
+    expect(fetchImplementation.mock.calls.map(([url]) => url)).toEqual([
+      "http://twin.local/api/v1/map-drafts/draft%20%2F%201/survey-quality-reviews",
+      "http://twin.local/api/v1/map-drafts/draft%20%2F%201/survey-quality-reviews/quality%20%2F%201/acceptance",
+    ]);
+  });
 });

@@ -98,6 +98,19 @@ async function main() {
       "/api/v1/survey-materializations/grandtour-eth2-materialization/run",
       { workerId: "grandtour-materializer", operatorId },
     );
+    const qualityReviews = await request(
+      "GET",
+      "/api/v1/map-drafts/grandtour-eth2-draft/survey-quality-reviews",
+    );
+    if (!qualityReviews.qualityReviews.some(
+      ({ report }) => report.qualityReviewId === "grandtour-eth2-quality",
+    )) {
+      await request("POST", "/api/v1/map-drafts/grandtour-eth2-draft/survey-quality-reviews", {
+        qualityReviewId: "grandtour-eth2-quality",
+        materializationJobId: "grandtour-eth2-materialization",
+        operatorId,
+      });
+    }
 
     console.log(JSON.stringify({
       datasetId: exported.datasetId,
@@ -108,6 +121,7 @@ async function main() {
       draftId: "grandtour-eth2-draft",
       materializationJobId: materialization.job.jobId,
       previewBindingId: materialization.job.output.previewBindingId,
+      qualityReviewId: "grandtour-eth2-quality",
       summary: exported.summary,
       studioUrl: "http://127.0.0.1:4390/",
     }, null, 2));

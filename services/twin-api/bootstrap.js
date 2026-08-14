@@ -5,6 +5,7 @@ import { ValidationJobService } from "@brash-twin/application/validation-jobs";
 import { PublicationService } from "@brash-twin/application/publications";
 import { SurveyIntakeService } from "@brash-twin/application/survey-intakes";
 import { SurveyMaterializationService } from "@brash-twin/application/survey-materializations";
+import { SurveyQualityReviewService } from "@brash-twin/application/survey-quality-reviews";
 import { SurveyRegistrationService } from "@brash-twin/application/survey-registrations";
 import {
   ImmutableReleaseStore,
@@ -158,9 +159,17 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     draftArtifacts,
     multipartStore: multipartArtifactStore,
   });
+  const surveyQualityReviews = new SurveyQualityReviewService({
+    catalog,
+    materializations: surveyMaterializations,
+    draftArtifacts,
+    uploads,
+    multipartStore: multipartArtifactStore,
+  });
   const surveyRegistrations = new SurveyRegistrationService({
     catalog,
     materializations: surveyMaterializations,
+    qualityReviews: surveyQualityReviews,
     draftArtifacts,
     uploads,
     multipartStore: multipartArtifactStore,
@@ -176,6 +185,7 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     draftArtifacts,
     surveyIntakes,
     surveyMaterializations,
+    surveyQualityReviews,
     surveyRegistrations,
     validationJobs,
     releaseStore,
@@ -197,6 +207,7 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     draftArtifacts,
     surveyIntakes,
     surveyMaterializations,
+    surveyQualityReviews,
     surveyRegistrations,
     validationJobs,
     publications,

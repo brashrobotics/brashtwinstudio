@@ -14,6 +14,10 @@ The draft-artifact quality gate covers role/provenance domain rules, server-side
 input-hash resolution, the transaction boundary, the HTTP source-to-derived
 chain, and PostgreSQL append-only triggers.
 
+The survey-quality gate covers deterministic metric and occupancy-grid output,
+preview/report/acceptance provenance, requester/reviewer separation, failed
+quality rejection, and the registration dependency on approved evidence.
+
 The validation quality gate covers deterministic reports, UI-ready issue
 locations, sealed input snapshots, multipart report storage, HTTP job execution,
 real PostgreSQL job/run transactions, report-binding consistency triggers, and

@@ -7,6 +7,7 @@ import type {
   MapDraftStatus,
   SurveyMaterializationJob,
   SurveyMaterializationPreview,
+  SurveyQualityRecord,
   SurveyRegistrationControlPoint,
   SurveyRegistrationRecord,
   ValidationJob,
@@ -61,6 +62,11 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
     queryFn: ({ signal }) => api.listSurveyRegistrations(draftId, signal),
     enabled: draftId !== "",
   });
+  const surveyQualityReviews = useQuery({
+    queryKey: ["survey-quality-reviews", draftId],
+    queryFn: ({ signal }) => api.listSurveyQualityReviews(draftId, signal),
+    enabled: draftId !== "",
+  });
   const releases = useQuery({
     queryKey: ["releases"],
     queryFn: ({ signal }) => api.listReleases(signal),
@@ -92,6 +98,23 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
     () => latestSurveyRegistration(surveyRegistrations.data ?? []),
     [surveyRegistrations.data],
   );
+  const latestQuality = useMemo(
+    () => latestSurveyQualityReview(surveyQualityReviews.data ?? [], latestMaterialization?.jobId),
+    [surveyQualityReviews.data, latestMaterialization?.jobId],
+  );
+  const createQuality = useMutation({
+    mutationFn: () => api.createSurveyQualityReview(draftId, {
+      materializationJobId: latestMaterialization!.jobId,
+      operatorId: identity.subject,
+    }),
+    onSuccess: async () => queryClient.invalidateQueries({ queryKey: ["survey-quality-reviews", draftId] }),
+  });
+  const reviewQuality = useMutation({
+    mutationFn: ({ decision, reviewerId }: { decision: "APPROVED" | "REJECTED"; reviewerId: string }) => (
+      api.reviewSurveyQuality(draftId, latestQuality!.report.qualityReviewId, { decision, reviewerId })
+    ),
+    onSuccess: async () => queryClient.invalidateQueries({ queryKey: ["survey-quality-reviews", draftId] }),
+  });
   const createRegistration = useMutation({
     mutationFn: ({ targetBindingId, controlPoints }: {
       targetBindingId: string;
@@ -189,6 +212,7 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
               revision={selectedDraft?.revision ?? 1}
               surveyPreview={surveyPreview.data ?? null}
               surveyRegistration={latestRegistration?.report ?? null}
+              surveyQuality={latestQuality?.report ?? null}
             />
           </Suspense>
 
@@ -199,10 +223,21 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
               loading={surveyMaterializations.isPending && draftId !== ""}
               previewReady={surveyPreview.isSuccess}
             />
+            <SurveyQualityPanel
+              materialization={latestMaterialization}
+              quality={latestQuality}
+              busy={createQuality.isPending || reviewQuality.isPending}
+              error={[createQuality.error, reviewQuality.error].find(
+                (candidate) => candidate instanceof Error,
+              )?.message ?? null}
+              onCreate={() => createQuality.mutateAsync()}
+              onReview={(decision, reviewerId) => reviewQuality.mutateAsync({ decision, reviewerId })}
+            />
             <SurveyRegistrationPanel
               preview={surveyPreview.data ?? null}
               registration={latestRegistration}
               targets={registrationTargets}
+              qualityApproved={latestQuality?.acceptance?.report.decision === "APPROVED"}
               busy={createRegistration.isPending || reviewRegistration.isPending}
               error={[createRegistration.error, reviewRegistration.error].find(
                 (candidate) => candidate instanceof Error,
@@ -213,7 +248,7 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
             <ValidationPanel job={latestValidation} loading={validationJobs.isPending && draftId !== ""} />
             <section className="panel release-panel">
               <div className="panel-heading compact">
-                <div><p className="section-index">07 / OUTPUT</p><h3>{t("latestReleases")}</h3></div>
+                <div><p className="section-index">08 / OUTPUT</p><h3>{t("latestReleases")}</h3></div>
                 <span className="count-chip">{releases.data?.length ?? 0}</span>
               </div>
               {(releases.data?.length ?? 0) === 0 ? <p className="muted-copy">{t("noReleases")}</p> : (
@@ -278,7 +313,7 @@ function ValidationPanel({ job, loading }: { job: ValidationJob | null; loading:
   return (
     <section className="panel validation-panel">
       <div className="panel-heading compact">
-        <div><p className="section-index">06 / QUALITY</p><h3>{t("validation")}</h3></div>
+        <div><p className="section-index">07 / VALIDATE</p><h3>{t("validation")}</h3></div>
         {job && <span className={`job-state job-${job.status.toLowerCase()}`}>{job.status}</span>}
       </div>
       {loading ? <div className="skeleton-row" /> : job ? (
@@ -290,6 +325,53 @@ function ValidationPanel({ job, loading }: { job: ValidationJob | null; loading:
           <p className="job-id">{job.jobId}</p>
         </>
       ) : <p className="muted-copy">{t("validationNotRun")}</p>}
+    </section>
+  );
+}
+
+function SurveyQualityPanel({ materialization, quality, busy, error, onCreate, onReview }: {
+  materialization: SurveyMaterializationJob | null;
+  quality: SurveyQualityRecord | null;
+  busy: boolean;
+  error: string | null;
+  onCreate(): Promise<unknown>;
+  onReview(decision: "APPROVED" | "REJECTED", reviewerId: string): Promise<unknown>;
+}) {
+  const { t } = useI18n();
+  const [reviewerId, setReviewerId] = useState("survey-quality-reviewer");
+  const acceptance = quality?.acceptance?.report ?? null;
+  return (
+    <section className="panel survey-quality-panel">
+      <div className="panel-heading compact">
+        <div><p className="section-index">05 / QUALITY</p><h3>{t("surveyQualityReview")}</h3></div>
+        {quality && <span className={`job-state job-${acceptance?.decision === "APPROVED" ? "succeeded" : quality.report.outcome === "PASSED" ? "pending" : "failed"}`}>
+          {acceptance?.decision ?? quality.report.outcome}
+        </span>}
+      </div>
+      {!materialization || materialization.status !== "SUCCEEDED" ? <p className="muted-copy">{t("qualityNeedsPreview")}</p> : !quality ? (
+        <button className="registration-submit" type="button" disabled={busy} onClick={() => void onCreate()}>{t("generateQualityReport")}</button>
+      ) : (
+        <>
+          <dl className="metadata-list quality-review-summary">
+            <div><dt>{t("declaredCoverage")}</dt><dd>{quality.report.metrics.declaredCoverageRatio === null ? "–" : `${(quality.report.metrics.declaredCoverageRatio * 100).toFixed(1)}%`}</dd></div>
+            <div><dt>{t("sampledOccupancy")}</dt><dd>{(quality.report.metrics.sampledOccupancyRatio * 100).toFixed(1)}%</dd></div>
+            <div><dt>{t("pointDensity")}</dt><dd>{quality.report.metrics.pointDensityPerSquareMetre.toFixed(1)} pt/m²</dd></div>
+            <div><dt>{t("maximumStep")}</dt><dd>{quality.report.metrics.trajectoryMaximumStepMetres.toFixed(2)} m</dd></div>
+          </dl>
+          {quality.report.issues.length > 0 && <ul className="quality-issue-list">{quality.report.issues.map((issue) => <li key={issue.code}>{issue.code}</li>)}</ul>}
+          {!acceptance && (
+            <div className="registration-review">
+              <label><span>{t("reviewerIdentity")}</span><input value={reviewerId} onChange={(event) => setReviewerId(event.target.value)} /></label>
+              <div>
+                <button type="button" disabled={busy || reviewerId.trim() === "" || quality.report.outcome !== "PASSED"} onClick={() => void onReview("APPROVED", reviewerId)}>{t("approveSurveyQuality")}</button>
+                <button type="button" disabled={busy || reviewerId.trim() === ""} onClick={() => void onReview("REJECTED", reviewerId)}>{t("rejectSurveyQuality")}</button>
+              </div>
+            </div>
+          )}
+          {acceptance && <p className="job-id">{acceptance.decision} · {acceptance.reviewerId}</p>}
+        </>
+      )}
+      {error && <p className="registration-error" role="alert">{error}</p>}
     </section>
   );
 }
@@ -320,10 +402,11 @@ function SurveyPanel({ job, loading, previewReady }: {
   );
 }
 
-function SurveyRegistrationPanel({ preview, registration, targets, busy, error, onRegister, onReview }: {
+function SurveyRegistrationPanel({ preview, registration, targets, qualityApproved, busy, error, onRegister, onReview }: {
   preview: SurveyMaterializationPreview | null;
   registration: SurveyRegistrationRecord | null;
   targets: DraftArtifactBinding[];
+  qualityApproved: boolean;
   busy: boolean;
   error: string | null;
   onRegister(targetBindingId: string, controlPoints: SurveyRegistrationControlPoint[]): Promise<unknown>;
@@ -350,13 +433,14 @@ function SurveyRegistrationPanel({ preview, registration, targets, busy, error, 
   return (
     <section className="panel survey-registration-panel">
       <div className="panel-heading compact">
-        <div><p className="section-index">05 / ALIGN</p><h3>{t("surveyRegistration")}</h3></div>
+        <div><p className="section-index">06 / ALIGN</p><h3>{t("surveyRegistration")}</h3></div>
         {registration && <span className={`job-state job-${review?.decision === "APPROVED" ? "succeeded" : registration.report.quality.outcome === "PASSED" ? "pending" : "failed"}`}>
           {review?.decision ?? registration.report.quality.outcome}
         </span>}
       </div>
       {!preview ? <p className="muted-copy">{t("registrationNeedsPreview")}</p> : (
         <>
+          {!qualityApproved && !registration && <p className="muted-copy">{t("registrationNeedsQualityApproval")}</p>}
           {targets.length === 0 ? <p className="muted-copy">{t("registrationNeedsTarget")}</p> : (
             <label className="registration-target-select">
               <span>{t("registrationTarget")}</span>
@@ -382,7 +466,7 @@ function SurveyRegistrationPanel({ preview, registration, targets, busy, error, 
           <button
             className="registration-submit"
             type="button"
-            disabled={busy || controlPoints.length < 2 || targetBindingId === ""}
+            disabled={busy || controlPoints.length < 2 || targetBindingId === "" || !qualityApproved}
             onClick={() => void onRegister(targetBindingId, controlPoints)}
           >{busy ? t("registeringSurvey") : t("saveRegistrationVersion")}</button>
           {registration && (
@@ -490,4 +574,10 @@ function latestSurveyMaterialization(jobs: SurveyMaterializationJob[]): SurveyMa
 
 function latestSurveyRegistration(registrations: SurveyRegistrationRecord[]): SurveyRegistrationRecord | null {
   return [...registrations].sort((left, right) => right.report.createdAt.localeCompare(left.report.createdAt))[0] ?? null;
+}
+
+function latestSurveyQualityReview(reviews: SurveyQualityRecord[], materializationJobId?: string): SurveyQualityRecord | null {
+  return [...reviews]
+    .filter((review) => materializationJobId === undefined || review.report.materializationJobId === materializationJobId)
+    .sort((left, right) => right.report.createdAt.localeCompare(left.report.createdAt))[0] ?? null;
 }

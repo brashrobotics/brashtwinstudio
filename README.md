@@ -150,6 +150,10 @@ The first Phase 0 increment is implemented:
 - Explicit same-draft CAD/BIM target evidence, sealed registration quality
   thresholds, and immutable two-person approval or rejection before a transform
   can be treated as accepted evidence.
+- Deterministic pre-registration survey quality reports covering declared and
+  sampled coverage, trajectory timing/continuity, frame consistency,
+  reconstruction density, and preview warnings, with a bounded 2D/3D occupancy
+  layer and independent immutable approval.
 - A compact local demo seed that exercises upload, intake, verification,
   materialization, artifact lineage, and registration without downloading an
   external dataset.

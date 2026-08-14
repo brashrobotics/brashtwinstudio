@@ -4,8 +4,18 @@ import { UploadError } from "@brash-twin/application/uploads";
 import { ValidationJobError } from "@brash-twin/application/validation-jobs";
 import { SurveyIntakeError } from "@brash-twin/application/survey-intakes";
 import { SurveyMaterializationError } from "@brash-twin/application/survey-materializations";
+import { SurveyQualityReviewError } from "@brash-twin/application/survey-quality-reviews";
 import { SurveyRegistrationError } from "@brash-twin/application/survey-registrations";
 import { ArtifactStoreError } from "@brash-twin/artifact-store";
+
+const MANAGED_ARTIFACT_ROLES = new Set([
+  "SURVEY_PREVIEW",
+  "SURVEY_QUALITY_REPORT",
+  "SURVEY_QUALITY_ACCEPTANCE",
+  "REGISTRATION_REPORT",
+  "REGISTRATION_ACCEPTANCE",
+  "VALIDATION_REPORT",
+]);
 
 export class TwinApi {
   #catalog;
@@ -13,6 +23,7 @@ export class TwinApi {
   #draftArtifacts;
   #surveyIntakes;
   #surveyMaterializations;
+  #surveyQualityReviews;
   #surveyRegistrations;
   #validationJobs;
   #releaseStore;
@@ -24,6 +35,7 @@ export class TwinApi {
     draftArtifacts,
     surveyIntakes,
     surveyMaterializations,
+    surveyQualityReviews,
     surveyRegistrations,
     validationJobs,
     releaseStore,
@@ -34,6 +46,7 @@ export class TwinApi {
     if (!draftArtifacts) throw new TypeError("Draft artifact service is required.");
     if (!surveyIntakes) throw new TypeError("Survey intake service is required.");
     if (!surveyMaterializations) throw new TypeError("Survey materialization service is required.");
+    if (!surveyQualityReviews) throw new TypeError("Survey quality review service is required.");
     if (!surveyRegistrations) throw new TypeError("Survey registration service is required.");
     if (!validationJobs) throw new TypeError("Validation job service is required.");
     if (!releaseStore) throw new TypeError("Release store is required.");
@@ -43,6 +56,7 @@ export class TwinApi {
     this.#draftArtifacts = draftArtifacts;
     this.#surveyIntakes = surveyIntakes;
     this.#surveyMaterializations = surveyMaterializations;
+    this.#surveyQualityReviews = surveyQualityReviews;
     this.#surveyRegistrations = surveyRegistrations;
     this.#validationJobs = validationJobs;
     this.#releaseStore = releaseStore;
@@ -141,7 +155,7 @@ export class TwinApi {
         return response(200, { artifacts: await this.#draftArtifacts.list(draftId) });
       }
       if (method === "POST") {
-        const artifact = await this.#draftArtifacts.bind(draftId, objectBody(body, [
+        const input = objectBody(body, [
           "bindingId",
           "uploadId",
           "role",
@@ -149,7 +163,15 @@ export class TwinApi {
           "inputBindingIds",
           "producer",
           "operatorId",
-        ]));
+        ]);
+        if (MANAGED_ARTIFACT_ROLES.has(input.role)) {
+          throw new ApiError(
+            "ARTIFACT_ROLE_MANAGED",
+            `Artifact role ${input.role} can only be created by its owning workflow.`,
+            403,
+          );
+        }
+        const artifact = await this.#draftArtifacts.bind(draftId, input);
         return response(201, { artifact });
       }
     }
@@ -223,6 +245,33 @@ export class TwinApi {
         ]));
         return response(201, { registration });
       }
+    }
+
+    const draftSurveyQualityMatch = pathname.match(
+      /^\/api\/v1\/map-drafts\/([^/]+)\/survey-quality-reviews$/,
+    );
+    if (draftSurveyQualityMatch) {
+      const draftId = segment(draftSurveyQualityMatch[1]);
+      if (method === "GET") return response(200, { qualityReviews: await this.#surveyQualityReviews.list(draftId) });
+      if (method === "POST") {
+        const qualityReview = await this.#surveyQualityReviews.create(
+          draftId,
+          objectBody(body, ["qualityReviewId", "materializationJobId", "operatorId"]),
+        );
+        return response(201, { qualityReview });
+      }
+    }
+
+    const surveyQualityAcceptanceMatch = pathname.match(
+      /^\/api\/v1\/map-drafts\/([^/]+)\/survey-quality-reviews\/([^/]+)\/acceptance$/,
+    );
+    if (surveyQualityAcceptanceMatch && method === "POST") {
+      const acceptance = await this.#surveyQualityReviews.review(
+        segment(surveyQualityAcceptanceMatch[1]),
+        segment(surveyQualityAcceptanceMatch[2]),
+        objectBody(body, ["decision", "reviewerId", "note"]),
+      );
+      return response(201, { acceptance });
     }
 
     const surveyRegistrationReviewMatch = pathname.match(
@@ -426,6 +475,11 @@ function errorResponse(error) {
       error: { code: error.code, message: error.message },
     });
   }
+  if (error instanceof SurveyQualityReviewError) {
+    return response(statusForSurveyQualityReviewError(error.code), {
+      error: { code: error.code, message: error.message },
+    });
+  }
   if (error instanceof SurveyRegistrationError) {
     return response(statusForSurveyRegistrationError(error.code), {
       error: { code: error.code, message: error.message },
@@ -538,7 +592,22 @@ function statusForSurveyRegistrationError(code) {
     "SURVEY_REGISTRATION_REVIEW_CONFLICT",
     "SURVEY_REGISTRATION_REVIEWER_CONFLICT",
     "SURVEY_REGISTRATION_QUALITY_FAILED",
+    "SURVEY_REGISTRATION_QUALITY_REVIEW_REQUIRED",
   ].includes(code)) return 409;
   if (code === "SURVEY_REGISTRATION_INTEGRITY_FAILED") return 422;
+  return 400;
+}
+
+function statusForSurveyQualityReviewError(code) {
+  if (code === "SURVEY_QUALITY_NOT_FOUND") return 404;
+  if ([
+    "SURVEY_QUALITY_CONFLICT",
+    "SURVEY_QUALITY_DRAFT_LOCKED",
+    "SURVEY_QUALITY_PREVIEW_INELIGIBLE",
+    "SURVEY_QUALITY_REVIEW_CONFLICT",
+    "SURVEY_QUALITY_REVIEWER_CONFLICT",
+    "SURVEY_QUALITY_FAILED",
+  ].includes(code)) return 409;
+  if (code === "SURVEY_QUALITY_INTEGRITY_FAILED") return 422;
   return 400;
 }

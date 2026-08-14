@@ -158,6 +158,77 @@ export interface SurveyMaterializationPreview {
   generatedBy: { name: string; version: string };
 }
 
+export interface SurveyQualityReport {
+  schemaVersion: "brash.survey-quality-report/v1";
+  qualityReviewId: string;
+  draftId: string;
+  materializationJobId: string;
+  sourcePreview: { bindingId: string; sha256: string; frameId: string };
+  outcome: "PASSED" | "FAILED";
+  metrics: {
+    declaredCoverageRatio: number | null;
+    sampledOccupancyRatio: number;
+    trajectoryPoseCount: number;
+    trajectoryDurationSeconds: number;
+    trajectoryMedianRateHz: number;
+    trajectoryMaximumStepMetres: number;
+    trajectoryNonIncreasingTimestampCount: number;
+    reconstructionVertexCount: number;
+    reconstructionFootprintSquareMetres: number;
+    pointDensityPerSquareMetre: number;
+    previewWarningCount: number;
+    frameConsistent: boolean;
+  };
+  policy: {
+    thresholds: {
+      minimumCoverageRatio: number;
+      minimumTrajectoryPoseCount: number;
+      maximumTrajectoryStepMetres: number;
+      maximumNonIncreasingTimestamps: number;
+      minimumPointDensityPerSquareMetre: number;
+      maximumPreviewWarnings: number;
+    };
+    policySha256: string;
+  };
+  issues: Array<{ code: string; metric: string; observed: number | boolean | null; limit: number | boolean }>;
+  coverageGrid: {
+    frameId: string;
+    columns: number;
+    rows: number;
+    bounds: { minimum: [number, number]; maximum: [number, number] };
+    cells: Array<{ column: number; row: number; sampleCount: number }>;
+  };
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface SurveyQualityAcceptanceReport {
+  schemaVersion: "brash.survey-quality-acceptance/v1";
+  qualityReviewId: string;
+  draftId: string;
+  qualityReport: { bindingId: string; sha256: string };
+  decision: "APPROVED" | "REJECTED";
+  qualityOutcome: "PASSED" | "FAILED";
+  reviewerId: string;
+  note: string | null;
+  reviewedAt: string;
+}
+
+export interface SurveyQualityAcceptanceRecord {
+  reportBindingId: string;
+  reportUploadId: string;
+  reportSha256: string;
+  report: SurveyQualityAcceptanceReport;
+}
+
+export interface SurveyQualityRecord {
+  reportBindingId: string;
+  reportUploadId: string;
+  reportSha256: string;
+  report: SurveyQualityReport;
+  acceptance: SurveyQualityAcceptanceRecord | null;
+}
+
 export interface SurveyBounds {
   minimum: [number, number, number];
   maximum: [number, number, number];
@@ -231,6 +302,7 @@ export interface SurveyRegistrationRecord {
   reportSha256: string;
   report: SurveyRegistrationReport;
   acceptance: SurveyRegistrationAcceptanceRecord | null;
+  surveyQualityAcceptanceBindingId: string | null;
 }
 
 export interface SurveyRegistrationAcceptanceReport {

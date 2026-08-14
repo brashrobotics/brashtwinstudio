@@ -213,16 +213,28 @@ Phase 1 — Manual Mapping Studio MVP foundation.
   and PostgreSQL migration 013 provenance support
 - Studio target selection, quality outcome, and independent reviewer controls
   backed by the Twin API acceptance endpoint
+- Versioned `brash.survey-quality-report/v1` with declared coverage, sampled
+  occupancy, trajectory continuity/timing, frame consistency, reconstruction
+  density, preview-warning metrics, deterministic policy identity, and a bounded
+  source-frame occupancy grid
+- Immutable `brash.survey-quality-acceptance/v1` review evidence with
+  requester/reviewer separation and failed-quality approval prevention
+- Registration creation requires the approved survey-quality acceptance as a
+  third immutable provenance input alongside preview and design target
+- Workflow-managed quality, registration, preview, and validation evidence
+  cannot be forged through the generic artifact binding API
+- Studio quality generation/review controls plus a toggleable coverage layer in
+  source and registered 2D/3D views
+- GrandTour seed quality generation preserves its missing design-coverage
+  declaration as a visible failed issue instead of inventing passing evidence
 
 ## Next development increment
 
 Phase 2 continues with survey review and semantic evidence:
 
-1. Add coverage, timing, frame-quality, and reconstruction-review surfaces
-   before CAD alignment and semantic asset review.
-2. Require an approved registration when registered survey evidence contributes
+1. Require an approved registration when registered survey evidence contributes
    to a publishable map release.
-3. Begin semantic asset-candidate extraction from registered survey evidence.
+2. Begin semantic asset-candidate extraction from registered survey evidence.
 
 ## Deliberately deferred
 
@@ -239,10 +251,10 @@ lifecycle are stable.
 
 ```text
 npm run check
-syntax/json: 247 files passed
-backend tests: 103 total; 100 passed and 3 optional external tests skipped
-web tests: 36/36 passed with strict TypeScript and production build
-latest migration contract: schema version 13; last live PostgreSQL 16 gate passed with schema version 12
+syntax/json: 252 files passed
+backend tests: 107 total; 104 passed and 3 optional external tests skipped
+web tests: 38/38 passed with strict TypeScript and production build
+latest migration contract: schema version 14; last live PostgreSQL 16 gate passed with schema version 12
 live GrandTour ETH-2 SHA-256/preview gate: passed against the 290,764,702-byte base selection
 ConSLAM/IfcOpenShell gate: last passed August 13, 2026 and remains opt-in
 fixture: demo-plant@1 valid
@@ -264,6 +276,7 @@ embodied survey: strict manifest, clock/frame/quality, hash/size policy and no-d
 survey intake: atomic upload mapping, manifest-only verification, immutable rejection evidence and HTTP lifecycle verified
 survey materialization: immutable input, leased/retry-safe streaming, content-addressed preview, PostgreSQL provenance, HTTP lifecycle and source-frame 2D/3D browser QA verified
 survey registration: explicit design-target lineage, report v2 quality policy, immutable independent review, HTTP lifecycle, and fused/source-frame 2D/3D browser QA verified
+survey quality: deterministic coverage/trajectory/frame/reconstruction evidence, immutable independent review, registration gate, and 2D/3D coverage-layer QA verified
 dataset: ConSLAM IFC/GT checksum, geometry and trajectory validation verified
 GrandTour: pinned SHA-256, safe Zarr/PLY bounds, real trajectory/TF/map metrics and bounded preview verified
 GrandTour seed: real 290,764,702-byte selection imported twice idempotently into a live Twin API and materialized for Studio

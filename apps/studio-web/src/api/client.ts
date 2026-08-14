@@ -8,6 +8,8 @@ import type {
   Site,
   SurveyMaterializationJob,
   SurveyMaterializationPreview,
+  SurveyQualityAcceptanceRecord,
+  SurveyQualityRecord,
   SurveyRegistrationRecord,
   CreateSurveyRegistrationInput,
   ReviewSurveyRegistrationInput,
@@ -37,6 +39,9 @@ export interface TwinApiClient {
   listValidationJobs(draftId: string, signal?: AbortSignal): Promise<ValidationJob[]>;
   listSurveyMaterializations(draftId: string, signal?: AbortSignal): Promise<SurveyMaterializationJob[]>;
   getSurveyMaterializationPreview(jobId: string, signal?: AbortSignal): Promise<SurveyMaterializationPreview>;
+  listSurveyQualityReviews(draftId: string, signal?: AbortSignal): Promise<SurveyQualityRecord[]>;
+  createSurveyQualityReview(draftId: string, input: { materializationJobId: string; operatorId: string }, signal?: AbortSignal): Promise<SurveyQualityRecord>;
+  reviewSurveyQuality(draftId: string, qualityReviewId: string, input: ReviewSurveyRegistrationInput, signal?: AbortSignal): Promise<SurveyQualityAcceptanceRecord>;
   listSurveyRegistrations(draftId: string, signal?: AbortSignal): Promise<SurveyRegistrationRecord[]>;
   createSurveyRegistration(draftId: string, input: CreateSurveyRegistrationInput, signal?: AbortSignal): Promise<SurveyRegistrationRecord>;
   reviewSurveyRegistration(draftId: string, registrationId: string, input: ReviewSurveyRegistrationInput, signal?: AbortSignal): Promise<SurveyRegistrationAcceptanceRecord>;
@@ -116,6 +121,26 @@ export function createTwinApiClient({
         signal,
       )
     ).preview,
+    listSurveyQualityReviews: async (draftId, signal) => (
+      await request<{ qualityReviews: SurveyQualityRecord[] }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/survey-quality-reviews`,
+        signal,
+      )
+    ).qualityReviews,
+    createSurveyQualityReview: async (draftId, input, signal) => (
+      await request<{ qualityReview: SurveyQualityRecord }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/survey-quality-reviews`,
+        signal,
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) },
+      )
+    ).qualityReview,
+    reviewSurveyQuality: async (draftId, qualityReviewId, input, signal) => (
+      await request<{ acceptance: SurveyQualityAcceptanceRecord }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/survey-quality-reviews/${encodeURIComponent(qualityReviewId)}/acceptance`,
+        signal,
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) },
+      )
+    ).acceptance,
     listSurveyRegistrations: async (draftId, signal) => (
       await request<{ registrations: SurveyRegistrationRecord[] }>(
         `/api/v1/map-drafts/${encodeURIComponent(draftId)}/survey-registrations`,

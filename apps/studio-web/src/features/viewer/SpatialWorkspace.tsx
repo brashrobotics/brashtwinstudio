@@ -19,13 +19,13 @@ import {
 } from "@brash-twin/manual-twin";
 import { useEffect, useRef, useState, useSyncExternalStore, type ChangeEvent } from "react";
 import { useI18n } from "../../i18n/i18n";
-import type { SurveyMaterializationPreview, SurveyRegistrationReport } from "../../api/types";
+import type { SurveyMaterializationPreview, SurveyQualityReport, SurveyRegistrationReport } from "../../api/types";
 import { diagnosticEntities, diagnosticLayers } from "./diagnosticWorld";
 import { diagnosticEditorFeatures } from "./editorSeed";
 import { EditorToolbar, FeatureInspector } from "./EditorControls";
 import { ManualTwinMilestone } from "./ManualTwinMilestone";
 import { ThreeWorldRuntime, type WorldInteraction } from "./threeRuntime";
-import { surveyPreviewWorldEntities } from "./surveyPreviewWorld";
+import { surveyCoverageWorldEntities, surveyPreviewWorldEntities } from "./surveyPreviewWorld";
 
 export function SpatialWorkspace({
   canonicalFrameId,
@@ -33,12 +33,14 @@ export function SpatialWorkspace({
   revision,
   surveyPreview,
   surveyRegistration,
+  surveyQuality,
 }: {
   canonicalFrameId: string;
   familyId: string;
   revision: number;
   surveyPreview: SurveyMaterializationPreview | null;
   surveyRegistration: SurveyRegistrationReport | null;
+  surveyQuality: SurveyQualityReport | null;
 }) {
   const { t } = useI18n();
   const [editorStore] = useState<SpatialEditorStore>(() => createSpatialEditorStore(diagnosticEditorFeatures));
@@ -155,7 +157,10 @@ export function SpatialWorkspace({
   useEffect(() => {
     if (surveySourceView && surveyPreview) {
       store.setLayerVisibility("survey", true);
-      store.setEntities(surveyPreviewWorldEntities(surveyPreview));
+      store.setEntities([
+        ...surveyPreviewWorldEntities(surveyPreview),
+        ...(surveyQuality ? surveyCoverageWorldEntities(surveyQuality) : []),
+      ]);
       runtimeRef.current?.sync(store.getSnapshot());
       runtimeRef.current?.fitWorld();
       previousSurveySourceViewRef.current = true;
@@ -173,9 +178,13 @@ export function SpatialWorkspace({
     const registeredSurvey = surveyPreview && surveyRegistration
       ? surveyPreviewWorldEntities(surveyPreview, surveyRegistration)
       : [];
+    const registeredCoverage = surveyQuality && surveyRegistration
+      ? surveyCoverageWorldEntities(surveyQuality, surveyRegistration)
+      : [];
     store.setEntities([
       ...alignedCad,
       ...registeredSurvey,
+      ...registeredCoverage,
       ...evidence,
       ...spatialFeaturesToWorldEntities(editorSnapshot.document.features),
       ...zonePreviewEntities(zoneDraftPoints),
@@ -194,6 +203,7 @@ export function SpatialWorkspace({
     store,
     surveyPreview,
     surveyRegistration,
+    surveyQuality,
     surveySourceView,
     zoneDraftPoints,
   ]);

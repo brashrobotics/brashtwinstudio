@@ -11,6 +11,7 @@ import { UploadService } from "@brash-twin/application/uploads";
 import { ValidationJobService } from "@brash-twin/application/validation-jobs";
 import { SurveyIntakeService } from "@brash-twin/application/survey-intakes";
 import { SurveyMaterializationService } from "@brash-twin/application/survey-materializations";
+import { SurveyQualityReviewService } from "@brash-twin/application/survey-quality-reviews";
 import { SurveyRegistrationService } from "@brash-twin/application/survey-registrations";
 import {
   ImmutableReleaseStore,
@@ -58,11 +59,19 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
     uploadSystem,
     { draftArtifacts, clock: () => new Date("2026-08-13T14:00:00.000Z") },
   );
+  const surveyQualityReviews = memorySurveyQualityReviews(
+    catalog,
+    surveyMaterializations,
+    draftArtifacts,
+    uploadSystem,
+    { clock: () => new Date("2026-08-13T14:00:00.000Z") },
+  );
   const surveyRegistrations = memorySurveyRegistrations(
     catalog,
     surveyMaterializations,
     draftArtifacts,
     uploadSystem,
+    surveyQualityReviews,
     { clock: () => new Date("2026-08-13T14:00:00.000Z") },
   );
   const api = new TwinApi({
@@ -71,6 +80,7 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
     draftArtifacts,
     surveyIntakes,
     surveyMaterializations,
+    surveyQualityReviews,
     surveyRegistrations,
     validationJobs,
     releaseStore,
@@ -311,6 +321,43 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
     assert.equal(materializationPreview.body.preview.coordinateSystem.rootFrameId, "slam-map");
     assert.equal(materializationPreview.body.preview.reconstruction.vertexCount, 6);
 
+    const qualityCreated = await request(
+      baseUrl,
+      "POST",
+      "/api/v1/map-drafts/draft-demo-2/survey-quality-reviews",
+      {
+        qualityReviewId: "survey-quality-1",
+        materializationJobId: "survey-materialization-1",
+        operatorId: "mapping-quality-operator",
+      },
+    );
+    assert.equal(qualityCreated.status, 201);
+    assert.equal(qualityCreated.body.qualityReview.report.outcome, "PASSED");
+    assert.ok(qualityCreated.body.qualityReview.report.coverageGrid.cells.length > 0);
+    const qualityAccepted = await request(
+      baseUrl,
+      "POST",
+      "/api/v1/map-drafts/draft-demo-2/survey-quality-reviews/survey-quality-1/acceptance",
+      { decision: "APPROVED", reviewerId: "mapping-quality-reviewer" },
+    );
+    assert.equal(qualityAccepted.status, 201);
+    assert.equal(qualityAccepted.body.acceptance.report.decision, "APPROVED");
+
+    const forgedQualityAcceptance = await request(
+      baseUrl,
+      "POST",
+      "/api/v1/map-drafts/draft-demo-2/artifacts",
+      {
+        bindingId: "forged-quality-acceptance",
+        uploadId: "upload-ifc-1",
+        role: "SURVEY_QUALITY_ACCEPTANCE",
+        coordinateFrameId: "demo-plant/floor-1",
+        operatorId: "untrusted-client",
+      },
+    );
+    assert.equal(forgedQualityAcceptance.status, 403);
+    assert.equal(forgedQualityAcceptance.body.error.code, "ARTIFACT_ROLE_MANAGED");
+
     const sourceBinding = await request(baseUrl, "POST", "/api/v1/map-drafts/draft-demo-2/artifacts", {
       bindingId: "source-ifc-1",
       uploadId: "upload-ifc-1",
@@ -405,11 +452,20 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
     );
     assert.deepEqual(
       provenance.body.artifacts
-        .filter((artifact) => ["IMPORT_REPORT", "BIM_SOURCE", "REGISTRATION_REPORT", "REGISTRATION_ACCEPTANCE"].includes(artifact.role))
+        .filter((artifact) => [
+          "IMPORT_REPORT",
+          "BIM_SOURCE",
+          "SURVEY_QUALITY_REPORT",
+          "SURVEY_QUALITY_ACCEPTANCE",
+          "REGISTRATION_REPORT",
+          "REGISTRATION_ACCEPTANCE",
+        ].includes(artifact.role))
         .map((artifact) => artifact.bindingId),
       [
         "import-report-1",
         "source-ifc-1",
+        "survey-quality-acceptance-survey-quality-1",
+        "survey-quality-report-survey-quality-1",
         "survey-registration-acceptance-survey-registration-1",
         "survey-registration-report-survey-registration-1",
       ],
@@ -436,13 +492,15 @@ test("HTTP boundary rejects malformed JSON without invoking application logic", 
   const draftArtifacts = memoryDraftArtifacts(catalog, uploadSystem.uploads);
   const surveyIntakes = memorySurveyIntakes(catalog, uploadSystem);
   const surveyMaterializations = memorySurveyMaterializations(catalog, surveyIntakes, uploadSystem, { draftArtifacts });
-  const surveyRegistrations = memorySurveyRegistrations(catalog, surveyMaterializations, draftArtifacts, uploadSystem);
+  const surveyQualityReviews = memorySurveyQualityReviews(catalog, surveyMaterializations, draftArtifacts, uploadSystem);
+  const surveyRegistrations = memorySurveyRegistrations(catalog, surveyMaterializations, draftArtifacts, uploadSystem, surveyQualityReviews);
   const api = new TwinApi({
     catalog,
     uploads: uploadSystem.uploads,
     draftArtifacts,
     surveyIntakes,
     surveyMaterializations,
+    surveyQualityReviews,
     surveyRegistrations,
     validationJobs: memoryValidationJobs(catalog, draftArtifacts, uploadSystem),
     releaseStore: new ImmutableReleaseStore(storeRoot),
@@ -526,10 +584,22 @@ function memorySurveyMaterializations(catalog, surveyIntakes, uploadSystem, opti
   });
 }
 
-function memorySurveyRegistrations(catalog, materializations, draftArtifacts, uploadSystem, options = {}) {
+function memorySurveyQualityReviews(catalog, materializations, draftArtifacts, uploadSystem, options = {}) {
+  return new SurveyQualityReviewService({
+    catalog,
+    materializations,
+    draftArtifacts,
+    uploads: uploadSystem.uploads,
+    multipartStore: uploadSystem.multipartStore,
+    ...options,
+  });
+}
+
+function memorySurveyRegistrations(catalog, materializations, draftArtifacts, uploadSystem, qualityReviews, options = {}) {
   return new SurveyRegistrationService({
     catalog,
     materializations,
+    qualityReviews,
     draftArtifacts,
     uploads: uploadSystem.uploads,
     multipartStore: uploadSystem.multipartStore,

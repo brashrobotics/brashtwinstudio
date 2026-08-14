@@ -2,6 +2,7 @@ import type { WorldEntity } from "@brash-twin/viewer-sdk";
 import type {
   SurveyBounds,
   SurveyMaterializationPreview,
+  SurveyQualityReport,
   SurveyRegistrationReport,
 } from "../../api/types";
 
@@ -43,6 +44,36 @@ export function surveyPreviewWorldEntities(
       },
     },
   ];
+}
+
+export function surveyCoverageWorldEntities(
+  quality: SurveyQualityReport,
+  registration: SurveyRegistrationReport | null = null,
+): WorldEntity[] {
+  const { columns, rows, bounds } = quality.coverageGrid;
+  const width = (bounds.maximum[0] - bounds.minimum[0]) / columns;
+  const height = (bounds.maximum[1] - bounds.minimum[1]) / rows;
+  return quality.coverageGrid.cells.map((cell) => {
+    const minimumX = bounds.minimum[0] + cell.column * width;
+    const minimumY = bounds.minimum[1] + cell.row * height;
+    const maximumX = minimumX + width;
+    const maximumY = minimumY + height;
+    return {
+      entityId: `survey-coverage-${cell.row}-${cell.column}`,
+      layerId: "coverage",
+      label: `Coverage cell · ${cell.sampleCount} samples`,
+      position: { x: 0, y: 0, z: 0 },
+      geometry: {
+        type: "POLYGON",
+        points: [
+          { x: minimumX, y: minimumY, z: 0.04 },
+          { x: maximumX, y: minimumY, z: 0.04 },
+          { x: maximumX, y: maximumY, z: 0.04 },
+          { x: minimumX, y: maximumY, z: 0.04 },
+        ].map((point) => transformPosition(point, registration)),
+      },
+    };
+  });
 }
 
 function vector(

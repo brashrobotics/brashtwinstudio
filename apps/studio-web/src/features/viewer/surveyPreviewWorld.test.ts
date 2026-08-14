@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { SurveyMaterializationPreview, SurveyRegistrationReport } from "../../api/types";
-import { surveyPreviewWorldEntities } from "./surveyPreviewWorld";
+import type { SurveyMaterializationPreview, SurveyQualityReport, SurveyRegistrationReport } from "../../api/types";
+import { surveyCoverageWorldEntities, surveyPreviewWorldEntities } from "./surveyPreviewWorld";
 
 describe("survey preview world adapter", () => {
   it("creates bounded cloud, trajectory, and reconstruction extents in the source frame", () => {
@@ -32,7 +32,32 @@ describe("survey preview world adapter", () => {
       geometry: { type: "BOX", size: { x: 4, y: 4, z: 2 }, style: "WIREFRAME" },
     }));
   });
+
+  it("renders bounded occupancy evidence in source and registered frames", () => {
+    const source = surveyCoverageWorldEntities(quality());
+    const registered = surveyCoverageWorldEntities(quality(), registration());
+    expect(source).toHaveLength(2);
+    expect(source[0]).toEqual(expect.objectContaining({
+      entityId: "survey-coverage-0-0",
+      layerId: "coverage",
+      geometry: expect.objectContaining({ type: "POLYGON" }),
+    }));
+    expect(registered[0]?.geometry).toEqual(expect.objectContaining({
+      points: expect.arrayContaining([{ x: 12, y: 19, z: 0.04 }]),
+    }));
+  });
 });
+
+function quality(): SurveyQualityReport {
+  return {
+    schemaVersion: "brash.survey-quality-report/v1", qualityReviewId: "quality-1", draftId: "draft-1", materializationJobId: "materialization-1",
+    sourcePreview: { bindingId: "survey-preview-1", sha256: "b".repeat(64), frameId: "slam-map" }, outcome: "PASSED",
+    metrics: { declaredCoverageRatio: 0.9, sampledOccupancyRatio: 0.5, trajectoryPoseCount: 5, trajectoryDurationSeconds: 4, trajectoryMedianRateHz: 1, trajectoryMaximumStepMetres: 2, trajectoryNonIncreasingTimestampCount: 0, reconstructionVertexCount: 6, reconstructionFootprintSquareMetres: 16, pointDensityPerSquareMetre: 0.375, previewWarningCount: 0, frameConsistent: true },
+    policy: { thresholds: { minimumCoverageRatio: 0.8, minimumTrajectoryPoseCount: 3, maximumTrajectoryStepMetres: 3, maximumNonIncreasingTimestamps: 0, minimumPointDensityPerSquareMetre: 0.25, maximumPreviewWarnings: 0 }, policySha256: "f".repeat(64) },
+    issues: [], coverageGrid: { frameId: "slam-map", columns: 2, rows: 2, bounds: { minimum: [-1, -2], maximum: [3, 2] }, cells: [{ column: 0, row: 0, sampleCount: 3 }, { column: 1, row: 1, sampleCount: 3 }] },
+    createdBy: "operator-1", createdAt: "2026-08-14T15:00:00.000Z",
+  };
+}
 
 function preview(): SurveyMaterializationPreview {
   return {

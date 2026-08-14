@@ -55,6 +55,25 @@ const materialization = await request("POST", "/api/v1/survey-materializations/d
   workerId: "demo-materializer",
   operatorId,
 });
+const qualityReviews = await request("GET", "/api/v1/map-drafts/demo-draft-1/survey-quality-reviews");
+let qualityReview = qualityReviews.qualityReviews.find(
+  ({ report }) => report.qualityReviewId === "demo-survey-quality-1",
+);
+if (!qualityReview) {
+  const created = await request("POST", "/api/v1/map-drafts/demo-draft-1/survey-quality-reviews", {
+    qualityReviewId: "demo-survey-quality-1",
+    materializationJobId: "demo-materialization-1",
+    operatorId,
+  });
+  qualityReview = created.qualityReview;
+}
+if (!qualityReview.acceptance) {
+  await request(
+    "POST",
+    "/api/v1/map-drafts/demo-draft-1/survey-quality-reviews/demo-survey-quality-1/acceptance",
+    { decision: "APPROVED", reviewerId: "demo-quality-reviewer" },
+  );
+}
 const registrationList = await request("GET", "/api/v1/map-drafts/demo-draft-1/survey-registrations");
 if (!registrationList.registrations.some(({ report }) => report.registrationId === "demo-registration-1")) {
   await request("POST", "/api/v1/map-drafts/demo-draft-1/survey-registrations", {
@@ -90,6 +109,7 @@ console.log(JSON.stringify({
   draftId: "demo-draft-1",
   materializationJobId: materialization.job.jobId,
   previewBindingId: materialization.job.output.previewBindingId,
+  qualityReviewId: "demo-survey-quality-1",
   registrationId: "demo-registration-1",
   studioUrl: "http://127.0.0.1:4390/",
 }, null, 2));

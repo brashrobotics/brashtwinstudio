@@ -6,6 +6,11 @@ exports the DLIO odometry to TUM without changing its source evidence, uploads
 the real PLY reconstruction, and executes the normal survey intake and
 materialization pipeline.
 
+The seed also generates a deterministic survey-quality report. GrandTour does
+not declare a factory design-coverage denominator, so the report intentionally
+surfaces `COVERAGE_BELOW_MINIMUM` and remains unapproved; the adapter never
+invents a coverage claim merely to pass the registration gate.
+
 The base selection must already exist at `.local/datasets/grandtour-eth2`. The
 command never downloads data and does not include the optional camera or IMU
 archives.

@@ -276,7 +276,7 @@ paths:
           $ref: "#/components/responses/NotFound"
     post:
       operationId: bindDraftArtifact
-      description: Binds a completed, integrity-verified upload to an editable draft with immutable provenance.
+      description: Binds a completed, integrity-verified upload to an editable draft with immutable provenance. Workflow-managed evidence roles are created only by their dedicated endpoints.
       requestBody:
         required: true
         content:
@@ -297,6 +297,8 @@ paths:
                     $ref: "#/components/schemas/DraftArtifactBinding"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -389,6 +391,58 @@ paths:
           $ref: "#/components/responses/Conflict"
         "404":
           $ref: "#/components/responses/NotFound"
+  /api/v1/map-drafts/{draftId}/survey-quality-reviews:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+    get:
+      operationId: listSurveyQualityReviews
+      responses:
+        "200":
+          description: Provenance-bound survey quality reports and immutable review evidence.
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createSurveyQualityReview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSurveyQualityReview"
+      responses:
+        "201":
+          description: Deterministic survey quality report created.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/map-drafts/{draftId}/survey-quality-reviews/{qualityReviewId}/acceptance:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+      - name: qualityReviewId
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Identifier"
+    post:
+      operationId: reviewSurveyQuality
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewSurveyQuality"
+      responses:
+        "201":
+          description: Immutable survey quality approval or rejection created.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /api/v1/map-drafts/{draftId}/survey-registrations/{registrationId}/acceptance:
     parameters:
       - $ref: "#/components/parameters/DraftId"
@@ -628,6 +682,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: The requested operation is reserved for a trusted workflow.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
     NotFound:
       description: Resource not found.
       content:
@@ -833,6 +893,32 @@ components:
         operatorId:
           type: string
           minLength: 1
+    CreateSurveyQualityReview:
+      type: object
+      additionalProperties: false
+      required: [materializationJobId, operatorId]
+      properties:
+        qualityReviewId:
+          $ref: "#/components/schemas/Identifier"
+        materializationJobId:
+          $ref: "#/components/schemas/Identifier"
+        operatorId:
+          type: string
+          minLength: 1
+    ReviewSurveyQuality:
+      type: object
+      additionalProperties: false
+      required: [decision, reviewerId]
+      properties:
+        decision:
+          type: string
+          enum: [APPROVED, REJECTED]
+        reviewerId:
+          type: string
+          minLength: 1
+        note:
+          type: string
+          maxLength: 2000
     ReviewSurveyRegistration:
       type: object
       additionalProperties: false
@@ -858,6 +944,8 @@ components:
         - CALIBRATION_SOURCE
         - SURVEY_SOURCE
         - SURVEY_PREVIEW
+        - SURVEY_QUALITY_REPORT
+        - SURVEY_QUALITY_ACCEPTANCE
         - REGISTERED_POINT_CLOUD
         - RECONSTRUCTED_MESH
         - OCCUPANCY
@@ -867,6 +955,22 @@ components:
         - REGISTRATION_REPORT
         - REGISTRATION_ACCEPTANCE
         - VALIDATION_REPORT
+    BindableDraftArtifactRole:
+      type: string
+      enum:
+        - BIM_SOURCE
+        - FLOORPLAN_SOURCE
+        - POINT_CLOUD_SOURCE
+        - TRAJECTORY_SOURCE
+        - CAMERA_SOURCE
+        - CALIBRATION_SOURCE
+        - SURVEY_SOURCE
+        - REGISTERED_POINT_CLOUD
+        - RECONSTRUCTED_MESH
+        - OCCUPANCY
+        - ELEVATION
+        - SCENE_TILESET
+        - IMPORT_REPORT
     ArtifactProducer:
       type: object
       additionalProperties: false
@@ -890,7 +994,7 @@ components:
         uploadId:
           $ref: "#/components/schemas/Identifier"
         role:
-          $ref: "#/components/schemas/DraftArtifactRole"
+          $ref: "#/components/schemas/BindableDraftArtifactRole"
         coordinateFrameId:
           type: string
           minLength: 1
