@@ -38,6 +38,13 @@ Its isolated dependencies are pinned separately:
 .local/venv-ifc/bin/pip install -r workers/fusion-worker/requirements-grandtour.txt
 ```
 
+`grandtour_survey_exporter.py` converts the verified processed survey into the
+vendor-neutral Twin Studio intake boundary. It writes a full TUM trajectory and
+small frame, calibration, and quality documents while referencing the original
+checksum-pinned PLY without copying or modifying it. `npm run grandtour:seed`
+uses those artifacts to exercise the normal upload, intake, provenance, and
+materialization services.
+
 The worker registers CAD/BIM geometry and SLAM reconstruction in one canonical
 frame.
 

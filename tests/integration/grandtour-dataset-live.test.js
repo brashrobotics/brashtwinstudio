@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { resolve } from "node:path";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
 import {
@@ -46,4 +48,28 @@ test("real GrandTour ETH-2 processed survey produces a bounded materialization p
   assert.deepEqual(preview.qualityWarnings.map((warning) => warning.code), [
     "TF_TIMESTAMP_NON_INCREASING",
   ]);
+
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "brash-grandtour-export-test-"));
+  try {
+    const outputDirectory = join(temporaryRoot, "survey");
+    const exportedProcess = await executeFile(resolve(pythonExecutable), [
+      resolve("workers/fusion-worker/grandtour_survey_exporter.py"),
+      selectionPath,
+      resolve(datasetDirectory),
+      outputDirectory,
+    ], { encoding: "utf8", maxBuffer: 2 * 1024 * 1024 });
+    const exported = JSON.parse(exportedProcess.stdout);
+    assert.equal(exported.schemaVersion, "brash.grandtour-survey-export/v1");
+    assert.equal(exported.frameId, "dlio_map");
+    assert.equal(exported.summary.trajectoryPoseCount, 4_305);
+    assert.equal(exported.summary.pointCloudVertexCount, 17_388_758);
+    assert.equal(exported.artifacts.find(({ role }) => role === "POINT_CLOUD_MAP").sha256,
+      "c330c109191bb6e7bcb9bd334404982fab52273685aff52a910a0d77221fb0b6");
+    const trajectory = await readFile(join(outputDirectory, "trajectory.tum"), "utf8");
+    const lines = trajectory.trim().split("\n");
+    assert.equal(lines.length, 4_305);
+    assert.ok(lines.every((line) => line.trim().split(/\s+/).length === 8));
+  } finally {
+    await rm(temporaryRoot, { recursive: true, force: true });
+  }
 });

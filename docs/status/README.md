@@ -167,6 +167,9 @@ Phase 1 — Manual Mapping Studio MVP foundation.
   from pinned upstream repository paths and optional evidence
 - Real GrandTour ETH-2 inspection of 4,305 DLIO odometry poses, 47,567 TF
   samples, and a 17,388,758-vertex processed PLY map without archive extraction
+- Idempotent `grandtour:seed` development import that exports every DLIO pose to
+  TUM, uploads the checksum-pinned real PLY, creates a separate ETH site/draft,
+  and executes the production-format intake and materialization boundaries
 - Bounded `brash.survey-materialization-preview/v1` trajectory, frame,
   reconstruction-bounds, and deterministic 4,096-point preview contract
 - Development-only safe Zarr-v2 Blosc/LZ4 and binary PLY inspector with decoded
@@ -260,4 +263,5 @@ survey materialization: immutable input, leased/retry-safe streaming, content-ad
 survey registration: complete source/preview/report lineage, versioned rigid transform evidence, HTTP lifecycle, operator controls, and fused/source-frame 2D/3D browser QA verified
 dataset: ConSLAM IFC/GT checksum, geometry and trajectory validation verified
 GrandTour: pinned SHA-256, safe Zarr/PLY bounds, real trajectory/TF/map metrics and bounded preview verified
+GrandTour seed: real 290,764,702-byte selection imported twice idempotently into a live Twin API and materialized for Studio
 ```

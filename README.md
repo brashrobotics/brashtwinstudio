@@ -149,6 +149,10 @@ The first Phase 0 increment is implemented:
 - A compact local demo seed that exercises upload, intake, verification,
   materialization, artifact lineage, and registration without downloading an
   external dataset.
+- A bounded GrandTour ETH-2 seed that verifies the pinned real dataset, exports
+  all 4,305 DLIO poses to the standard TUM boundary, preserves the original
+  17-million-point PLY as source evidence, and opens it as a separate Studio
+  draft without claiming a CAD registration.
 
 Run the local quality gate:
 
@@ -184,6 +188,18 @@ TWIN_OBJECT_STORE_PATH=.local/demo-object-store npm run demo:seed
 Open `http://127.0.0.1:4390/`. See
 [`tools/demo-seed/README.md`](tools/demo-seed/README.md) for the exact local
 configuration boundary.
+
+If the pinned GrandTour base selection is already present, import the real ETH
+Mainbuilding survey into the same running API:
+
+```bash
+TWIN_OBJECT_STORE_PATH=.local/demo-object-store npm run grandtour:seed
+```
+
+Select `GrandTour ETH Mainbuilding` in the Studio site selector. The command
+does not download optional images or IMU data. See
+[`tools/grandtour-seed/README.md`](tools/grandtour-seed/README.md) for the
+dataset, Python environment, and object-store boundaries.
 
 See [docs/status/README.md](docs/status/README.md) for the current implementation
 status and the
