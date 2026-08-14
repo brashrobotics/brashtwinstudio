@@ -22,6 +22,12 @@ export const UPLOAD_STATUS = Object.freeze({
   expired: "EXPIRED",
 });
 
+export const SURVEY_INTAKE_STATUS = Object.freeze({
+  open: "OPEN",
+  accepted: "ACCEPTED",
+  rejected: "REJECTED",
+});
+
 export const DRAFT_ARTIFACT_KIND = Object.freeze({
   source: "SOURCE",
   derived: "DERIVED",
@@ -657,6 +663,117 @@ export function createDraftArtifactBindingRecord({
   });
 }
 
+export function createSurveyIntakeRecord({
+  intakeId,
+  draftId,
+  manifestUploadId,
+  manifestArtifactSha256,
+  artifactUploads,
+  operatorId,
+  occurredAt = new Date(),
+}) {
+  kebabIdentifier(intakeId, "intakeId");
+  kebabIdentifier(draftId, "draftId");
+  kebabIdentifier(manifestUploadId, "manifestUploadId");
+  sha256(manifestArtifactSha256, "manifestArtifactSha256");
+  requiredIdentifier(operatorId, "operatorId");
+  if (!Array.isArray(artifactUploads) || artifactUploads.length < 1 || artifactUploads.length > 256) {
+    throw new TwinDomainError(
+      "SURVEY_INTAKE_ARTIFACTS_INVALID",
+      "artifactUploads must contain between 1 and 256 completed upload mappings.",
+    );
+  }
+  const artifactIds = new Set();
+  const uploadIds = new Set([manifestUploadId]);
+  const normalizedUploads = artifactUploads.map((mapping, index) => {
+    if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) {
+      throw new TwinDomainError("SURVEY_INTAKE_ARTIFACTS_INVALID", `artifactUploads[${index}] must be an object.`);
+    }
+    boundedText(mapping.artifactId, `artifactUploads[${index}].artifactId`, 1024);
+    kebabIdentifier(mapping.uploadId, `artifactUploads[${index}].uploadId`);
+    sha256(mapping.artifactSha256, `artifactUploads[${index}].artifactSha256`);
+    if (!Number.isSafeInteger(mapping.bytes) || mapping.bytes < 1) {
+      throw new TwinDomainError("SURVEY_INTAKE_ARTIFACTS_INVALID", `artifactUploads[${index}].bytes must be positive.`);
+    }
+    boundedText(mapping.mediaType, `artifactUploads[${index}].mediaType`, 255);
+    if (artifactIds.has(mapping.artifactId)) {
+      throw new TwinDomainError("SURVEY_INTAKE_ARTIFACTS_INVALID", "Artifact IDs must be unique within an intake.");
+    }
+    if (uploadIds.has(mapping.uploadId)) {
+      throw new TwinDomainError(
+        "SURVEY_INTAKE_ARTIFACTS_INVALID",
+        "Manifest and artifact upload IDs must be unique within an intake.",
+      );
+    }
+    artifactIds.add(mapping.artifactId);
+    uploadIds.add(mapping.uploadId);
+    return Object.freeze({
+      artifactId: mapping.artifactId,
+      uploadId: mapping.uploadId,
+      artifactSha256: mapping.artifactSha256,
+      bytes: mapping.bytes,
+      mediaType: mapping.mediaType,
+    });
+  });
+  normalizedUploads.sort((left, right) => left.artifactId.localeCompare(right.artifactId));
+  const timestamp = isoDate(occurredAt, "occurredAt");
+  return Object.freeze({
+    intakeId,
+    draftId,
+    manifestUploadId,
+    manifestArtifactSha256,
+    status: SURVEY_INTAKE_STATUS.open,
+    artifactUploads: Object.freeze(normalizedUploads),
+    manifestSchemaVersion: null,
+    manifestSha256: null,
+    packageId: null,
+    surveyId: null,
+    sourceSiteId: null,
+    sourceFloorId: null,
+    report: null,
+    rowVersion: 1,
+    createdBy: operatorId,
+    createdAt: timestamp,
+    verifiedBy: null,
+    verifiedAt: null,
+  });
+}
+
+export function completeSurveyIntakeRecord(record, {
+  manifest,
+  report,
+  operatorId,
+  occurredAt = new Date(),
+}) {
+  if (!record || typeof record !== "object" || record.status !== SURVEY_INTAKE_STATUS.open) {
+    throw new TwinDomainError("SURVEY_INTAKE_TRANSITION_INVALID", "Only an open survey intake can be verified.");
+  }
+  requiredIdentifier(operatorId, "operatorId");
+  if (!report || typeof report !== "object" || Array.isArray(report)) {
+    throw new TwinDomainError("SURVEY_INTAKE_REPORT_INVALID", "A survey ingest report is required.");
+  }
+  sha256(report.manifestSha256, "report.manifestSha256");
+  if (!["ACCEPTED", "ACCEPTED_WITH_WARNINGS", "REJECTED"].includes(report.outcome)) {
+    throw new TwinDomainError("SURVEY_INTAKE_REPORT_INVALID", "Survey ingest report outcome is invalid.");
+  }
+  const manifestRecord = manifest && typeof manifest === "object" && !Array.isArray(manifest) ? manifest : null;
+  const timestamp = isoDate(occurredAt, "occurredAt");
+  return Object.freeze({
+    ...record,
+    status: report.outcome === "REJECTED" ? SURVEY_INTAKE_STATUS.rejected : SURVEY_INTAKE_STATUS.accepted,
+    manifestSchemaVersion: typeof manifestRecord?.schemaVersion === "string" ? manifestRecord.schemaVersion : null,
+    manifestSha256: report.manifestSha256,
+    packageId: typeof manifestRecord?.packageId === "string" ? manifestRecord.packageId : null,
+    surveyId: typeof manifestRecord?.surveyId === "string" ? manifestRecord.surveyId : null,
+    sourceSiteId: typeof manifestRecord?.siteId === "string" ? manifestRecord.siteId : null,
+    sourceFloorId: typeof manifestRecord?.floorId === "string" ? manifestRecord.floorId : null,
+    report,
+    rowVersion: record.rowVersion + 1,
+    verifiedBy: operatorId,
+    verifiedAt: timestamp,
+  });
+}
+
 function eventTypeFor(action) {
   if (action === null) return MAP_DRAFT_EVENT_TYPE.created;
   if (action === MAP_DRAFT_ACTION.submitReview) return MAP_DRAFT_EVENT_TYPE.reviewSubmitted;
@@ -738,6 +855,18 @@ function originalFileName(value) {
     || value.length > 255
     || /[\\/\0-\x1f\x7f]/.test(value)) {
     throw new TwinDomainError("UPLOAD_FILE_NAME_INVALID", "originalName must be a safe base file name.");
+  }
+}
+
+function boundedText(value, fieldName, maximumLength) {
+  if (typeof value !== "string"
+    || value.trim() === ""
+    || value.length > maximumLength
+    || /[\0-\x1f\x7f]/.test(value)) {
+    throw new TwinDomainError(
+      "SURVEY_INTAKE_FIELD_INVALID",
+      `${fieldName} must be non-empty text of at most ${maximumLength} characters without control characters.`,
+    );
   }
 }
 

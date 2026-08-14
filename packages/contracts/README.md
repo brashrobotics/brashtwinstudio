@@ -23,8 +23,9 @@ draft-validation reports. `index.js` exports runtime contract and artifact
 constants.
 
 `openapi/twin-api.v1.yaml` defines the catalog, upload, draft artifact provenance,
-validation-job, and release API surface. Validation is job-backed; the API does
-not expose a client-supplied report-hash transition. `DRAFT_ARTIFACT_ROLES` and
-`DRAFT_ARTIFACT_KINDS` are exported from `index.js` as runtime constants.
+embodied survey intake, validation-job, and release API surface. Validation is
+job-backed; the API does not expose a client-supplied report-hash transition.
+`DRAFT_ARTIFACT_ROLES` and `DRAFT_ARTIFACT_KINDS` are exported from `index.js` as
+runtime constants.
 
 Contract tests verify that the schema catalog uses unique, versioned identities.

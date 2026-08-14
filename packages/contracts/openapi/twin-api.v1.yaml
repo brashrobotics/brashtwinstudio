@@ -301,6 +301,61 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /api/v1/map-drafts/{draftId}/survey-intakes:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+    get:
+      operationId: listDraftSurveyIntakes
+      responses:
+        "200":
+          description: Immutable embodied survey intake history attached to this draft.
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createSurveyIntake
+      description: Atomically binds a manifest and completed artifact uploads to an editable draft.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSurveyIntake"
+      responses:
+        "201":
+          description: Open intake and its sealed upload identities were created.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/survey-intakes/{intakeId}:
+    parameters:
+      - $ref: "#/components/parameters/IntakeId"
+    get:
+      operationId: getSurveyIntake
+      responses:
+        "200":
+          description: Sealed survey intake identity and terminal ingest report, when verified.
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/survey-intakes/{intakeId}/verify:
+    parameters:
+      - $ref: "#/components/parameters/IntakeId"
+    post:
+      operationId: verifySurveyIntake
+      description: Reads only the bounded JSON manifest, verifies mapped upload identities, and seals one terminal result.
+      requestBody:
+        $ref: "#/components/requestBodies/OperatorAction"
+      responses:
+        "200":
+          description: Intake is accepted or rejected with an immutable ingest report.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /api/v1/uploads:
     get:
       operationId: listUploadSessions
@@ -420,6 +475,12 @@ components:
         $ref: "#/components/schemas/Identifier"
     JobId:
       name: jobId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Identifier"
+    IntakeId:
+      name: intakeId
       in: path
       required: true
       schema:
@@ -551,6 +612,38 @@ components:
         operatorId:
           type: string
           minLength: 1
+    SurveyArtifactUploadMapping:
+      type: object
+      additionalProperties: false
+      required: [artifactId, uploadId]
+      properties:
+        artifactId:
+          type: string
+          minLength: 1
+          maxLength: 1024
+        uploadId:
+          $ref: "#/components/schemas/Identifier"
+    CreateSurveyIntake:
+      type: object
+      additionalProperties: false
+      required: [manifestUploadId, artifactUploads, operatorId]
+      properties:
+        intakeId:
+          $ref: "#/components/schemas/Identifier"
+        manifestUploadId:
+          $ref: "#/components/schemas/Identifier"
+        artifactUploads:
+          type: array
+          minItems: 1
+          maxItems: 256
+          items:
+            $ref: "#/components/schemas/SurveyArtifactUploadMapping"
+        operatorId:
+          type: string
+          minLength: 1
+    SurveyIntakeStatus:
+      type: string
+      enum: [OPEN, ACCEPTED, REJECTED]
     DraftArtifactRole:
       type: string
       enum:

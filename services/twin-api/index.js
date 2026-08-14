@@ -2,12 +2,14 @@ import { CatalogError } from "@brash-twin/application";
 import { DraftArtifactError } from "@brash-twin/application/draft-artifacts";
 import { UploadError } from "@brash-twin/application/uploads";
 import { ValidationJobError } from "@brash-twin/application/validation-jobs";
+import { SurveyIntakeError } from "@brash-twin/application/survey-intakes";
 import { ArtifactStoreError } from "@brash-twin/artifact-store";
 
 export class TwinApi {
   #catalog;
   #uploads;
   #draftArtifacts;
+  #surveyIntakes;
   #validationJobs;
   #releaseStore;
   #readiness;
@@ -16,6 +18,7 @@ export class TwinApi {
     catalog,
     uploads,
     draftArtifacts,
+    surveyIntakes,
     validationJobs,
     releaseStore,
     readiness = async () => ({ ready: true, mode: "memory" }),
@@ -23,12 +26,14 @@ export class TwinApi {
     if (!catalog) throw new TypeError("Twin catalog service is required.");
     if (!uploads) throw new TypeError("Upload service is required.");
     if (!draftArtifacts) throw new TypeError("Draft artifact service is required.");
+    if (!surveyIntakes) throw new TypeError("Survey intake service is required.");
     if (!validationJobs) throw new TypeError("Validation job service is required.");
     if (!releaseStore) throw new TypeError("Release store is required.");
     if (typeof readiness !== "function") throw new TypeError("Readiness probe must be a function.");
     this.#catalog = catalog;
     this.#uploads = uploads;
     this.#draftArtifacts = draftArtifacts;
+    this.#surveyIntakes = surveyIntakes;
     this.#validationJobs = validationJobs;
     this.#releaseStore = releaseStore;
     this.#readiness = readiness;
@@ -152,6 +157,37 @@ export class TwinApi {
         );
         return response(201, { job });
       }
+    }
+
+    const draftSurveyIntakesMatch = pathname.match(/^\/api\/v1\/map-drafts\/([^/]+)\/survey-intakes$/);
+    if (draftSurveyIntakesMatch) {
+      const draftId = segment(draftSurveyIntakesMatch[1]);
+      if (method === "GET") {
+        return response(200, { intakes: await this.#surveyIntakes.list(draftId) });
+      }
+      if (method === "POST") {
+        const intake = await this.#surveyIntakes.create(draftId, objectBody(body, [
+          "intakeId",
+          "manifestUploadId",
+          "artifactUploads",
+          "operatorId",
+        ]));
+        return response(201, { intake });
+      }
+    }
+
+    const surveyIntakeVerifyMatch = pathname.match(/^\/api\/v1\/survey-intakes\/([^/]+)\/verify$/);
+    if (surveyIntakeVerifyMatch && method === "POST") {
+      const intake = await this.#surveyIntakes.verify(
+        segment(surveyIntakeVerifyMatch[1]),
+        objectBody(body, ["operatorId"]),
+      );
+      return response(200, { intake });
+    }
+
+    const surveyIntakeMatch = pathname.match(/^\/api\/v1\/survey-intakes\/([^/]+)$/);
+    if (surveyIntakeMatch && method === "GET") {
+      return response(200, { intake: await this.#surveyIntakes.get(segment(surveyIntakeMatch[1])) });
     }
 
     const validationJobActionMatch = pathname.match(/^\/api\/v1\/validation-jobs\/([^/]+)\/run$/);
@@ -290,6 +326,9 @@ function errorResponse(error) {
   if (error instanceof ValidationJobError) {
     return response(statusForValidationJobError(error.code), { error: { code: error.code, message: error.message } });
   }
+  if (error instanceof SurveyIntakeError) {
+    return response(statusForSurveyIntakeError(error.code), { error: { code: error.code, message: error.message } });
+  }
   if (error instanceof ArtifactStoreError) {
     const status = error.code === "RELEASE_ID_INVALID" ? 400 : 500;
     return response(status, { error: { code: error.code, message: error.message } });
@@ -344,5 +383,18 @@ function statusForValidationJobError(code) {
     "VALIDATION_SNAPSHOT_CHANGED",
   ].includes(code)) return 409;
   if (code === "VALIDATION_JOB_PERSISTENCE_ERROR") return 500;
+  return 400;
+}
+
+function statusForSurveyIntakeError(code) {
+  if (["SURVEY_INTAKE_NOT_FOUND", "SURVEY_INTAKE_REFERENCE_NOT_FOUND", "SURVEY_INTAKE_UPLOAD_NOT_FOUND"].includes(code)) return 404;
+  if ([
+    "SURVEY_INTAKE_CONFLICT",
+    "SURVEY_INTAKE_CONCURRENCY_CONFLICT",
+    "SURVEY_INTAKE_DRAFT_LOCKED",
+    "SURVEY_INTAKE_IMMUTABLE",
+    "SURVEY_INTAKE_UPLOAD_INCOMPLETE",
+  ].includes(code)) return 409;
+  if (code === "SURVEY_INTAKE_PERSISTENCE_ERROR") return 500;
   return 400;
 }

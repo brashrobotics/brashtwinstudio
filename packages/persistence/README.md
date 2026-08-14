@@ -24,6 +24,10 @@ bindings and input provenance. PostgreSQL writes use one transaction, while
 completed-upload, same-draft input, and append-only guarantees are enforced at
 the database level.
 
+`survey-intakes.js` stores an intake and all completed-upload mappings in one
+transaction. PostgreSQL composite foreign keys, deferred count checks, and
+append-only triggers prevent partial attachment or rewritten acceptance history.
+
 `validation-jobs.js` persists `RELEASE_VALIDATION` processing jobs and immutable
 validation-run metadata. PostgreSQL completes the job and inserts its run record
 in one transaction; composite references seal the report binding and content

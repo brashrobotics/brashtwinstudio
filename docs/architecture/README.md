@@ -9,7 +9,7 @@ Brash Embodied Controller
              Embodied Survey Package v1
                          |
                          v
-        Multipart Object Store + Ingest Validator
+       Multipart Object Store + Durable Survey Intake
                          |
               +----------+----------+
               v                     v
@@ -62,6 +62,22 @@ PENDING_APPROVAL -> APPROVED -> PUBLISHING -> STORE_PUBLISHED -> COMPLETED
 If execution stops after the rename or store marker, a reconciler acquires an
 expired lease, verifies the canonical manifest/artifact identity, and resumes.
 The final database effects occur in one transaction.
+
+## Survey intake atomicity
+
+The manifest and every survey artifact first complete independent
+content-addressed uploads. Intake creation then stores the manifest identity and
+all artifact-to-upload mappings in one database transaction. Composite foreign
+keys admit only completed uploads; a deferred count guard prevents partial
+mapping sets. Verification reads at most the bounded JSON manifest, compares it
+with the sealed upload metadata, and permits exactly one terminal result:
+
+```text
+COMPLETED UPLOADS -> OPEN INTAKE -> ACCEPTED | REJECTED
+```
+
+Both outcomes are audit history. Only an accepted intake may feed later survey
+materialization and CAD-registration jobs.
 
 ## Catalog layers
 

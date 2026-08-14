@@ -34,6 +34,8 @@ Published releases and audit history must never be deleted during migration.
 - `008_publication_state_machine.sql`: Sealed publication requests, append-only
   two-person approval, recovery leases, legal state transitions, and immutable
   completion history.
+- `009_survey_intakes.sql`: Atomic, completed-upload-bound embodied survey
+  evidence and a single immutable acceptance or rejection transition.
 
 PostgreSQL triggers prevent updates and deletes to primary release records,
 release-artifact bindings, and asset revisions linked to a release. Draft artifact
@@ -42,3 +44,5 @@ Validation-run records are append-only and must reference a `VALIDATION_REPORT`
 binding belonging to the same draft and SHA-256 content identity.
 Publication triggers prevent requester self-approval, identity mutation, illegal
 state transitions, approval deletion, and completed-history mutation.
+Survey intake mappings are append-only; an intake can move from `OPEN` to one
+terminal verification result exactly once.

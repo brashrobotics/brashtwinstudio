@@ -28,4 +28,5 @@ upload completion.
 
 `validateEmbodiedSurveyPackage` returns deterministic
 `brash.embodied-survey-ingest-report/v1` evidence with manifest and policy
-SHA-256 identities. A rejected package is never attached to a Twin Draft.
+SHA-256 identities. A rejected intake remains attached only as immutable audit
+evidence and is never promoted as accepted reconstruction input.

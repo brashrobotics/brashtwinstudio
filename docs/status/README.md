@@ -21,7 +21,7 @@ Phase 1 — Manual Mapping Studio MVP foundation.
 - Symlink artifact protection
 - SHA-256 content-addressed local artifact store with deduplication
 - Immutable store preventing reuse of a release identity
-- Eight forward-only PostgreSQL metadata migrations
+- Nine forward-only PostgreSQL metadata migrations
 - Database-level immutability triggers for release records
 - In-memory catalog repository adapter
 - Driver-independent PostgreSQL repository adapter using parameterized SQL
@@ -153,22 +153,30 @@ Phase 1 — Manual Mapping Studio MVP foundation.
 - Synthetic Embodied Controller fixture plus a pinned, metadata-only GrandTour
   ETH-2 selection: approximately 291 MB base and 830 MB with one camera/IMU,
   both disabled from automatic download
+- Atomic survey intake grouping one bounded manifest and up to 256 completed,
+  content-addressed artifact uploads under an editable draft
+- Immutable `OPEN -> ACCEPTED|REJECTED` survey intake transition with target
+  site/floor and manifest SHA-256/byte/media identity verification
+- PostgreSQL composite upload references, deferred mapping-count checks,
+  editable-draft row locking, and append-only intake/mapping triggers
+- Twin API/OpenAPI create, list, inspect, and verify operations for durable
+  embodied survey intake
+- HTTP end-to-end acceptance proving that the API reads only manifest bytes and
+  never loads point-cloud, trajectory, mesh, or image payloads during intake
 
 ## Next development increment
 
-Phase 2 continues with the durable survey-intake use case:
+Phase 2 continues with accepted survey materialization:
 
-1. Survey-intake aggregate and PostgreSQL migration for upload, verification,
-   acceptance, and rejection states.
-2. Server-side resolution of completed upload hashes and byte lengths against
-   the sealed Embodied Survey manifest.
-3. Retry-safe Twin API/OpenAPI operations for intake creation, inspection, and
-   verification.
-4. Atomic attachment of accepted manifest, frame, calibration, trajectory,
-   reconstruction, and quality evidence to an editable Twin Draft.
-5. No-download GrandTour metadata gate plus an explicitly invoked sub-1 GB
-   external integration gate.
-6. Survey trajectory and coverage/replay surfaces over the shared 2D/3D world.
+1. Create a durable materialization job from an immutable accepted-intake
+   snapshot; rejected intakes must be ineligible.
+2. Add bounded adapters for coordinate-frame, calibration, trajectory, and
+   reconstruction metadata without introducing robot-side SLAM dependencies.
+3. Project the source trajectory and reconstruction bounds into a read-only
+   survey layer while preserving the original SLAM frame.
+4. Add coverage and quality-review surfaces to Studio Web before CAD alignment.
+5. Keep GrandTour downloads disabled until free space exceeds the 6 GB safety
+   floor; retain the metadata-only test meanwhile.
 
 ## Deliberately deferred
 
@@ -185,10 +193,10 @@ lifecycle are stable.
 
 ```text
 npm run check
-syntax/json: 209 files passed
-backend tests: 75 total; 73 passed and 2 optional external tests skipped
+syntax/json: 215 files passed
+backend tests: 83 total; 81 passed and 2 optional external tests skipped
 web tests: 30/30 passed with strict TypeScript and production build
-current local assertions: 103/103 passed; PostgreSQL and ConSLAM gates were not rerun because free disk is below the 6 GB safety threshold
+current local assertions: 111/111 passed; PostgreSQL and ConSLAM gates were not rerun because free disk is below the 6 GB safety threshold
 last full external gate: August 13, 2026; PostgreSQL 16 + ConSLAM + IfcOpenShell, 98/98 passed before Increment 13
 fixture: demo-plant@1 valid
 publication: immutable release store verified
@@ -206,5 +214,6 @@ svg import: security rejection, physical scale, transforms, hashes, warning repo
 editor: node/edge/zone/asset commands, undo/redo, numeric correction and desktop/mobile 2D/3D QA verified
 manual twin: control-point alignment, residual policy, diff, validation, two-person approval and immutable read-only preview verified
 embodied survey: strict manifest, clock/frame/quality, hash/size policy and no-download GrandTour selection verified
+survey intake: atomic upload mapping, manifest-only verification, immutable rejection evidence and HTTP lifecycle verified
 dataset: ConSLAM IFC/GT checksum, geometry and trajectory validation verified
 ```

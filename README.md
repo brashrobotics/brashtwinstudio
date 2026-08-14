@@ -132,6 +132,9 @@ The first Phase 0 increment is implemented:
 - Versioned Brash Embodied Controller survey-transfer and deterministic
   manifest-only ingest-report contracts with clock, frame, quality, provenance,
   safe-path, hash, and declared-byte policies.
+- Durable embodied survey intake that atomically binds a bounded manifest and
+  completed artifact uploads to an editable draft, verifies only manifest bytes,
+  and preserves immutable acceptance or rejection evidence.
 - Checksum-protected dataset adapter for ConSLAM IFC and ground-truth data.
 - Real BIM triangulation through IfcOpenShell and TUM trajectory quality checks.
 

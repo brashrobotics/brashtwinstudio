@@ -29,6 +29,9 @@ must not run in it.
 - `POST /api/v1/map-drafts/:draftId/submit-review`
 - `POST /api/v1/map-drafts/:draftId/return-to-draft`
 - `GET|POST /api/v1/map-drafts/:draftId/artifacts`
+- `GET|POST /api/v1/map-drafts/:draftId/survey-intakes`
+- `GET /api/v1/survey-intakes/:intakeId`
+- `POST /api/v1/survey-intakes/:intakeId/verify`
 - `GET|POST /api/v1/map-drafts/:draftId/validation-jobs`
 - `GET /api/v1/validation-jobs/:jobId`
 - `POST /api/v1/validation-jobs/:jobId/run`
@@ -58,6 +61,13 @@ report process health during a database outage.
 Upload endpoints do not accept binary request bodies. The initiate response
 returns object-store data-plane instructions, and completion moves the session to
 `COMPLETED` or `QUARANTINED` after checksum and byte-length verification.
+
+Survey intake creation accepts only completed uploads and atomically seals the
+manifest/artifact mapping. Verification reads at most 1 MiB of JSON manifest
+content; large point clouds, meshes, trajectories, and image archives are
+matched through their stored SHA-256, byte length, and media identity without
+being loaded by the API process. Acceptance and rejection are both immutable,
+auditable terminal results.
 
 The draft-artifact endpoint accepts only `COMPLETED` uploads. Source records
 represent direct evidence; derived records contain same-draft input bindings and

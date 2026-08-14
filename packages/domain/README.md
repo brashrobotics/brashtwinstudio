@@ -26,6 +26,8 @@ types, or rendering engines.
   review, return, and validation transitions.
 - `INITIATED -> COMPLETED|QUARANTINED|CANCELLED|EXPIRED` upload lifecycle with
   content-identity and terminal-state rules.
+- `OPEN -> ACCEPTED|REJECTED` embodied survey intake lifecycle with sealed
+  manifest/upload identities and exactly one verification transition.
 - Source/derived draft artifact roles with spatial-frame requirements, immutable
   input identity, and producer version/config-hash provenance.
 - `PENDING_APPROVAL -> APPROVED -> PUBLISHING -> STORE_PUBLISHED -> COMPLETED`

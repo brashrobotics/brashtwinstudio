@@ -33,6 +33,7 @@ and an optimized 3D scene for a real floor.
 
 - Brash Embodied Controller transfer contract and producer identity.
 - Interruption-tolerant uploads of externally produced survey artifacts.
+- Atomic completed-upload intake with immutable acceptance/rejection evidence.
 - Trajectory, reconstruction, clock/frame, and quality validation.
 - Automatic CAD-to-survey registration suggestions.
 - Survey replay and missing-coverage view.

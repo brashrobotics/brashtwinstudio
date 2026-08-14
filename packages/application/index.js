@@ -153,6 +153,15 @@ export class TwinCatalogService {
     return record;
   }
 
+  async getMapDraftContext(draftId) {
+    const draft = await this.getMapDraft(draftId);
+    const family = await this.#repository.getMapFamily(draft.familyId);
+    if (!family) throw new CatalogError("CATALOG_NOT_FOUND", `Map family ${draft.familyId} was not found.`);
+    const floor = await this.#repository.getFloor(family.floorId);
+    if (!floor) throw new CatalogError("CATALOG_NOT_FOUND", `Floor ${family.floorId} was not found.`);
+    return Object.freeze({ draft, family, floor });
+  }
+
   listMapDrafts(familyId) {
     if (familyId !== undefined) identifier(familyId, "familyId");
     return this.#repository.listMapDrafts(familyId);

@@ -1538,6 +1538,26 @@ PostgreSQL 16 + ConSLAM + IfcOpenShell tam dış kapısıyla ve gerçek
 desktop/390 px tarayıcı QA'sıyla doğrulandı. Production publication yetkisi Twin
 API'de kaldı ve Fleet Control kaynaklarına dokunulmadı.
 
+### Increment 13 — Embodied survey boundary
+
+- Versioned processed-survey manifest and ingest-report contracts
+- Explicit Brash Embodied Controller ownership boundary
+- Manifest-only clock, frame, quality, hash, path, and declared-size validation
+- Synthetic fixture and no-download GrandTour ETH-2 metadata plan
+
+**Status:** Completed on August 14, 2026 without moving sensor drivers, SLAM,
+localization, autonomy, or safety into Twin Studio.
+
+### Increment 14 — Durable survey intake
+
+- Atomic manifest and completed-upload attachment to an editable draft
+- Immutable `OPEN -> ACCEPTED|REJECTED` verification state
+- Server-resolved checksum, byte, media, site, and floor identity checks
+- Twin API/OpenAPI create, list, inspect, and verify operations
+
+**Status:** Completed on August 14, 2026. Verification reads only the bounded
+JSON manifest; heavy survey artifacts stay in the object-store data plane.
+
 ---
 
 ## 30. Karar kapıları
@@ -1602,5 +1622,6 @@ olması bundle/live-overlay demo ölçümünden sonra kararlaştırılır.
 - Kabul ölçütü sessizce gevşetilmez; waiver açık audit kararıdır.
 - Fleet Control entegrasyon kapsamı yalnız ortak contract kararıyla genişletilir.
 
-Bir sonraki aktif çalışma bu belgedeki **Increment 6 — Validation report**
-ile başlamalıdır.
+The next active work starts Phase 2 survey materialization: convert an accepted
+intake into canonical trajectory, frame, reconstruction, and coverage previews
+without running SLAM inside Twin Studio.

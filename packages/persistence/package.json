@@ -9,6 +9,7 @@
     "./outbox": "./outbox.js",
     "./postgres": "./postgres.js",
     "./publications": "./publications.js",
+    "./survey-intakes": "./survey-intakes.js",
     "./uploads": "./uploads.js",
     "./validation-jobs": "./validation-jobs.js"
   },

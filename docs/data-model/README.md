@@ -5,7 +5,7 @@
 ```text
 Site -> Building -> Floor -> CanonicalCoordinateFrame
                          -> SurveySession
-                         -> MapDraft -> DraftArtifactBinding -> ValidationRun -> MapRelease
+                         -> MapDraft -> SurveyIntake -> DraftArtifactBinding -> ValidationRun -> MapRelease
                          -> TwinAsset -> AssetRevision
                          -> SemanticObservation -> ChangeCandidate
 ```
@@ -16,6 +16,8 @@ Site -> Building -> Floor -> CanonicalCoordinateFrame
 - `SemanticObservation`: A candidate object seen by a model or user.
 - `TwinAsset`: A persistent factory asset verified by a human.
 - `MapDraft`: An editable working copy.
+- `SurveyIntake`: An atomic, append-only mapping from one processed-survey
+  manifest to completed artifact uploads, with one accepted or rejected report.
 - `DraftArtifactBinding`: Immutably binds a completed upload's SHA-256 content
   identity, its role in a draft, and its coordinate frame.
 - `ValidationRun`: Seals a draft snapshot to a deterministic validator identity,
@@ -50,6 +52,15 @@ while the draft is in `DRAFT`; review locks the lineage.
 Cycles are rejected by both application write ordering and a PostgreSQL recursive
 guard. The input count is sealed when a binding is created, so a later transaction
 cannot append another input edge to an existing derived record.
+
+## Survey intake evidence
+
+An intake starts in `OPEN` only after its manifest and every declared mapping
+resolve to completed upload identities. The mapping set is written in one
+transaction and cannot be edited. Verification reads only the bounded manifest,
+checks its target site/floor and declared SHA-256, byte length, and media types,
+then seals `ACCEPTED` or `REJECTED`. A rejected intake remains audit evidence and
+cannot feed materialization jobs; a correction uses a new intake identity.
 
 ## Validation evidence
 

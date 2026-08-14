@@ -30,6 +30,8 @@ The producer emits `brash.embodied-survey-package/v1`. Heavy artifacts travel
 directly to object storage through bounded multipart uploads; the API receives
 metadata and completion commands only. Twin Studio accepts a manifest only
 after every referenced upload has reached a checksum-verified terminal state.
+It then creates one atomic survey intake: the manifest and every mapped upload
+are either attached to the draft together or not attached at all.
 
 Required evidence includes exactly one coordinate-frame graph, calibration,
 trajectory, and detailed quality report, plus at least one metric point-cloud,
@@ -41,7 +43,8 @@ approved.
 ## Failure behavior
 
 - Unknown versions, unsafe paths, invalid hashes, oversized declarations, and
-  missing required roles are rejected before attachment to a draft.
+  missing required roles produce an immutable rejected intake; rejected content
+  is retained as audit evidence but cannot become accepted reconstruction input.
 - Unsynchronized clocks, excessive clock offsets, partial captures, and failed
   reconstruction quality are rejected by the default policy.
 - An explicit pilot policy may retain partial or warning packages as reviewable

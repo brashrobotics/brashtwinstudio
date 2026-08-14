@@ -20,6 +20,11 @@ assets.
 state. It resolves derived input identities on the server from the repository,
 preventing clients from inventing hashes or referencing another draft.
 
+`survey-intakes.js` atomically groups a bounded JSON manifest and up to 256
+completed survey artifact uploads under an editable draft. Verification reads
+only the manifest, checks target site/floor plus hash, byte, and media identities,
+and seals an immutable accepted or rejected ingest report.
+
 `validation-jobs.js` creates a sealed validation snapshot while a draft is
 `IN_REVIEW`, runs the deterministic validator, streams its JSON report through
 the multipart object-store boundary, and binds the report with producer/config

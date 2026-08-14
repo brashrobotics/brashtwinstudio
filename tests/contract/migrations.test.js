@@ -16,6 +16,7 @@ test("metadata migrations are ordered, transactional, and forward-only", async (
     "006_draft_artifact_provenance.sql",
     "007_validation_runs.sql",
     "008_publication_state_machine.sql",
+    "009_survey_intakes.sql",
   ]);
 
   for (const file of files) {
@@ -24,6 +25,19 @@ test("metadata migrations are ordered, transactional, and forward-only", async (
     assert.match(sql, /COMMIT;\s*$/);
     assert.doesNotMatch(sql, /\b(?:DROP\s+TABLE|TRUNCATE|DELETE\s+FROM)\b/i);
   }
+});
+
+test("survey intake migration atomically binds completed uploads and seals one terminal result", async () => {
+  const intakeSql = await readFile(`${migrationDirectory}/009_survey_intakes.sql`, "utf8");
+  assert.match(intakeSql, /CREATE TABLE twin_survey_intakes/);
+  assert.match(intakeSql, /CREATE TABLE twin_survey_intake_artifacts/);
+  assert.match(intakeSql, /twin_survey_intakes_manifest_upload_fk/);
+  assert.match(intakeSql, /twin_survey_intake_artifacts_completed_upload_fk/);
+  assert.match(intakeSql, /DEFERRABLE INITIALLY DEFERRED/);
+  assert.match(intakeSql, /FOR UPDATE/);
+  assert.match(intakeSql, /requires an editable DRAFT/);
+  assert.match(intakeSql, /OPEN to terminal verification transition/);
+  assert.match(intakeSql, /CREATE TRIGGER twin_survey_intake_artifacts_immutable/);
 });
 
 test("publication state machine seals two-person approval and recovery history", async () => {

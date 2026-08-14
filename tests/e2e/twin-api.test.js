@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -9,6 +9,7 @@ import { TwinCatalogService } from "@brash-twin/application";
 import { DraftArtifactService } from "@brash-twin/application/draft-artifacts";
 import { UploadService } from "@brash-twin/application/uploads";
 import { ValidationJobService } from "@brash-twin/application/validation-jobs";
+import { SurveyIntakeService } from "@brash-twin/application/survey-intakes";
 import {
   ImmutableReleaseStore,
   LocalMultipartArtifactStore,
@@ -21,10 +22,12 @@ import {
 } from "@brash-twin/persistence/outbox";
 import { InMemoryUploadRepository } from "@brash-twin/persistence/uploads";
 import { InMemoryValidationJobRepository } from "@brash-twin/persistence/validation-jobs";
+import { InMemorySurveyIntakeRepository } from "@brash-twin/persistence/survey-intakes";
 import { TwinApi } from "../../services/twin-api/index.js";
 import { startTwinApiServer } from "../../services/twin-api/server.js";
 
 const bundleFixture = fileURLToPath(new URL("../fixtures/bundles/demo-plant@1", import.meta.url));
+const surveyFixture = fileURLToPath(new URL("../fixtures/surveys/embodied-demo.v1.json", import.meta.url));
 
 test("HTTP API creates spatial hierarchy, validates a draft, and exposes releases", async () => {
   const storeRoot = await mkdtemp(join(tmpdir(), "brash-api-releases-"));
@@ -43,7 +46,17 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
   const validationJobs = memoryValidationJobs(catalog, draftArtifacts, uploadSystem, {
     clock: () => new Date("2026-08-13T14:00:00.000Z"),
   });
-  const api = new TwinApi({ catalog, uploads: uploadSystem.uploads, draftArtifacts, validationJobs, releaseStore });
+  const surveyIntakes = memorySurveyIntakes(catalog, uploadSystem, {
+    clock: () => new Date("2026-08-13T14:00:00.000Z"),
+  });
+  const api = new TwinApi({
+    catalog,
+    uploads: uploadSystem.uploads,
+    draftArtifacts,
+    surveyIntakes,
+    validationJobs,
+    releaseStore,
+  });
   const server = await startTwinApiServer({ api, host: "127.0.0.1", port: 0 });
   const address = server.address();
   const baseUrl = `http://127.0.0.1:${address.port}`;
@@ -195,6 +208,53 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
       operatorId: "engineer-1",
     })).status, 201);
 
+    const surveyPackage = await createSurveyPackageFixture();
+    const surveyArtifactUploads = [];
+    for (const artifact of surveyPackage.manifest.artifacts) {
+      const uploadId = `survey-${artifact.artifactId}`;
+      await uploadThroughApi(
+        baseUrl,
+        uploadSystem.multipartStore,
+        uploadId,
+        surveyPackage.content.get(artifact.artifactId),
+        artifact.mediaType,
+        artifact.path.split("/").at(-1),
+      );
+      surveyArtifactUploads.push({ artifactId: artifact.artifactId, uploadId });
+    }
+    const manifestBytes = Buffer.from(JSON.stringify(surveyPackage.manifest));
+    await uploadThroughApi(
+      baseUrl,
+      uploadSystem.multipartStore,
+      "survey-manifest-1",
+      manifestBytes,
+      "application/json",
+      "manifest.json",
+    );
+    const intakeCreated = await request(baseUrl, "POST", "/api/v1/map-drafts/draft-demo-2/survey-intakes", {
+      intakeId: "survey-intake-1",
+      manifestUploadId: "survey-manifest-1",
+      artifactUploads: surveyArtifactUploads,
+      operatorId: "mapping-operator-1",
+    });
+    assert.equal(intakeCreated.status, 201);
+    assert.equal(intakeCreated.body.intake.status, "OPEN");
+    const intakeVerified = await request(baseUrl, "POST", "/api/v1/survey-intakes/survey-intake-1/verify", {
+      operatorId: "mapping-reviewer-1",
+    });
+    assert.equal(intakeVerified.status, 200);
+    assert.equal(intakeVerified.body.intake.status, "ACCEPTED");
+    assert.equal(intakeVerified.body.intake.report.outcome, "ACCEPTED");
+    assert.deepEqual(
+      (await request(baseUrl, "GET", "/api/v1/map-drafts/draft-demo-2/survey-intakes"))
+        .body.intakes.map((intake) => intake.intakeId),
+      ["survey-intake-1"],
+    );
+    assert.equal(
+      (await request(baseUrl, "GET", "/api/v1/survey-intakes/survey-intake-1")).body.intake.packageId,
+      surveyPackage.manifest.packageId,
+    );
+
     const sourceBinding = await request(baseUrl, "POST", "/api/v1/map-drafts/draft-demo-2/artifacts", {
       bindingId: "source-ifc-1",
       uploadId: "upload-ifc-1",
@@ -266,10 +326,12 @@ test("HTTP boundary rejects malformed JSON without invoking application logic", 
   const catalog = memoryCatalog();
   const uploadSystem = memoryUploads(uploadRoot);
   const draftArtifacts = memoryDraftArtifacts(catalog, uploadSystem.uploads);
+  const surveyIntakes = memorySurveyIntakes(catalog, uploadSystem);
   const api = new TwinApi({
     catalog,
     uploads: uploadSystem.uploads,
     draftArtifacts,
+    surveyIntakes,
     validationJobs: memoryValidationJobs(catalog, draftArtifacts, uploadSystem),
     releaseStore: new ImmutableReleaseStore(storeRoot),
   });
@@ -329,4 +391,45 @@ function memoryValidationJobs(catalog, draftArtifacts, uploadSystem, options = {
     multipartStore: uploadSystem.multipartStore,
     ...options,
   });
+}
+
+function memorySurveyIntakes(catalog, uploadSystem, options = {}) {
+  return new SurveyIntakeService({
+    repository: new InMemorySurveyIntakeRepository(),
+    catalog,
+    uploads: uploadSystem.uploads,
+    multipartStore: uploadSystem.multipartStore,
+    ...options,
+  });
+}
+
+async function uploadThroughApi(baseUrl, multipartStore, uploadId, content, mediaType, originalName) {
+  const expectedSha256 = createHash("sha256").update(content).digest("hex");
+  const initiated = await request(baseUrl, "POST", "/api/v1/uploads", {
+    uploadId,
+    expectedSha256,
+    expectedBytes: content.byteLength,
+    mediaType,
+    originalName,
+    operatorId: "mapping-operator-1",
+  });
+  assert.equal(initiated.status, 201);
+  await multipartStore.putPart(uploadId, 1, content);
+  const completed = await request(baseUrl, "POST", `/api/v1/uploads/${uploadId}/complete`, {
+    operatorId: "mapping-operator-1",
+  });
+  assert.equal(completed.body.session.status, "COMPLETED");
+}
+
+async function createSurveyPackageFixture() {
+  const manifest = JSON.parse(await readFile(surveyFixture, "utf8"));
+  manifest.floorId = "floor-1";
+  const content = new Map();
+  for (const artifact of manifest.artifacts) {
+    const bytes = Buffer.from(`deterministic survey fixture for ${artifact.artifactId}`);
+    artifact.sha256 = createHash("sha256").update(bytes).digest("hex");
+    artifact.bytes = bytes.byteLength;
+    content.set(artifact.artifactId, bytes);
+  }
+  return { manifest, content };
 }

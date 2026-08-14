@@ -14,6 +14,7 @@ These tests cover real infrastructure boundaries together:
 - Observation -> change candidate -> review
 - Reliable event production through transaction/outbox
 - Completed upload -> draft source -> immutable derived-input provenance
+- Completed survey uploads -> atomic intake -> manifest-only acceptance/rejection
 - Job retry, cancellation, and process-restart recovery
 
 Tests must not depend on an external Fleet Control service.
