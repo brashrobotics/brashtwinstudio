@@ -37,6 +37,21 @@ describe("semanticCandidateWorldEntities", () => {
       geometry: { type: "POINT" },
     });
   });
+
+  it("hides independently dismissed change markers", () => {
+    const changeSet = changeSetFixture();
+    changeSet.review = {
+      reportBindingId: "change-review-1", reportUploadId: "change-review-upload-1", reportSha256: "c".repeat(64),
+      report: {
+        schemaVersion: "brash.asset-change-review/v1", reviewId: "review-1", changeSetId: "changes-1", draftId: "draft-1",
+        changeReport: { bindingId: "changes-1", sha256: "e".repeat(64) }, coverageQualificationAcknowledged: false,
+        decisions: [{ changeId: "changes-1-moved-asset-1", decision: "DISMISSED", displayName: null, assetType: null, properties: {}, note: null }],
+        summary: { confirmedCount: 0, dismissedCount: 1, criticalCount: 0 }, reviewerId: "manager-1", note: null,
+        sealedAt: "2026-08-14T22:00:00.000Z",
+      },
+    };
+    expect(assetChangeWorldEntities(changeSet)).toEqual([]);
+  });
 });
 
 function fixture(): AssetCandidateSetRecord {
@@ -79,6 +94,7 @@ function assetSetFixture(): DraftTwinAssetSetRecord {
 
 function changeSetFixture(): AssetChangeSetRecord {
   return {
+    review: null,
     reportBindingId: "changes-1", reportUploadId: "changes-upload-1", reportSha256: "e".repeat(64),
     report: {
       schemaVersion: "brash.asset-change-report/v1", changeSetId: "changes-1", draftId: "draft-1", canonicalFrameId: "plant-floor",

@@ -161,6 +161,12 @@ describe("Twin API client", () => {
       }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ changeSet: { report: { summary: { movedCount: 1 } } } }), {
         status: 201, headers: { "content-type": "application/json" },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ review: { report: { reviewId: "review-1" } } }), {
+        status: 201, headers: { "content-type": "application/json" },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ assetSet: { report: { revision: 2 } } }), {
+        status: 201, headers: { "content-type": "application/json" },
       }));
     const api = createTwinApiClient({ baseUrl: "http://twin.local", fetchImplementation });
 
@@ -170,17 +176,33 @@ describe("Twin API client", () => {
     expect((await api.listDraftAssetChangeSets("draft / 1"))[0]?.report.changeSetId).toBe("changes-1");
     const detectInput = { candidateSetId: "candidates-3", operatorId: "worker-1" };
     expect((await api.detectDraftAssetChanges("draft / 1", detectInput)).report.summary.movedCount).toBe(1);
+    const reviewInput = {
+      reviewerId: "reviewer-1",
+      coverageQualificationAcknowledged: false,
+      decisions: [{ changeId: "change-1", decision: "CONFIRMED" as const }],
+    };
+    expect((await api.reviewDraftAssetChanges("draft / 1", "changes / 1", reviewInput)).report.reviewId).toBe("review-1");
+    const applyInput = { operatorId: "curator-2" };
+    expect((await api.applyDraftAssetChanges("draft / 1", "changes / 1", applyInput)).report.revision).toBe(2);
     expect(fetchImplementation.mock.calls.map(([url]) => url)).toEqual([
       "http://twin.local/api/v1/map-drafts/draft%20%2F%201/twin-assets",
       "http://twin.local/api/v1/map-drafts/draft%20%2F%201/twin-assets",
       "http://twin.local/api/v1/map-drafts/draft%20%2F%201/asset-changes",
       "http://twin.local/api/v1/map-drafts/draft%20%2F%201/asset-changes",
+      "http://twin.local/api/v1/map-drafts/draft%20%2F%201/asset-changes/changes%20%2F%201/review",
+      "http://twin.local/api/v1/map-drafts/draft%20%2F%201/asset-changes/changes%20%2F%201/apply",
     ]);
     expect(fetchImplementation.mock.calls[1]?.[1]).toEqual(expect.objectContaining({
       method: "POST", body: JSON.stringify(promoteInput),
     }));
     expect(fetchImplementation.mock.calls[3]?.[1]).toEqual(expect.objectContaining({
       method: "POST", body: JSON.stringify(detectInput),
+    }));
+    expect(fetchImplementation.mock.calls[4]?.[1]).toEqual(expect.objectContaining({
+      method: "POST", body: JSON.stringify(reviewInput),
+    }));
+    expect(fetchImplementation.mock.calls[5]?.[1]).toEqual(expect.objectContaining({
+      method: "POST", body: JSON.stringify(applyInput),
     }));
   });
 });

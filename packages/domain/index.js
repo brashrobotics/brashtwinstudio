@@ -56,6 +56,7 @@ export const DRAFT_ARTIFACT_ROLE = Object.freeze({
   assetCandidateReview: "ASSET_CANDIDATE_REVIEW",
   twinAssets: "TWIN_ASSETS",
   assetChangeReport: "ASSET_CHANGE_REPORT",
+  assetChangeReview: "ASSET_CHANGE_REVIEW",
   registeredPointCloud: "REGISTERED_POINT_CLOUD",
   reconstructedMesh: "RECONSTRUCTED_MESH",
   occupancy: "OCCUPANCY",

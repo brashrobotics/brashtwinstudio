@@ -128,7 +128,11 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     });
     surveyIntakeRepository = new InMemorySurveyIntakeRepository();
     surveyMaterializationRepository = new InMemorySurveyMaterializationRepository();
-    unitOfWork = new InMemoryTwinUnitOfWork({ catalogRepository: repository, outboxRepository });
+    unitOfWork = new InMemoryTwinUnitOfWork({
+      catalogRepository: repository,
+      outboxRepository,
+      draftArtifactRepository,
+    });
     readiness = async () => Object.freeze({ ready: true, mode: "memory" });
     close = async () => undefined;
   }
@@ -139,6 +143,7 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     repository: draftArtifactRepository,
     catalog,
     uploads,
+    unitOfWork,
   });
   const validationJobs = new ValidationJobService({
     repository: validationJobRepository,

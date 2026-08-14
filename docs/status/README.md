@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last updated: August 14, 2026
+Last updated: August 15, 2026
 
 ## Active phase
 
@@ -10,7 +10,7 @@ Phase 2 — Survey review and semantic evidence.
 
 - Independent Node.js workspace and local package linking
 - Repository syntax and JSON quality checks
-- Twenty-four published versioned JSON Schemas
+- Twenty-eight published versioned JSON Schemas
 - Coordinate-frame graph and 3D transform mathematics
 - `MapDraft -> review -> validated -> immutable release` domain flow
 - Twin Map Bundle semantic and integrity validator
@@ -21,7 +21,7 @@ Phase 2 — Survey review and semantic evidence.
 - Symlink artifact protection
 - SHA-256 content-addressed local artifact store with deduplication
 - Immutable store preventing reuse of a release identity
-- Fifteen forward-only PostgreSQL metadata migrations
+- Seventeen forward-only PostgreSQL metadata migrations
 - Database-level immutability triggers for release records
 - In-memory catalog repository adapter
 - Driver-independent PostgreSQL repository adapter using parameterized SQL
@@ -246,17 +246,27 @@ Phase 2 — Survey review and semantic evidence.
   assets and spatial change markers
 - PostgreSQL migration 016 and managed API roles preventing clients from forging
   asset revisions or change evidence
+- Immutable `brash.asset-change-review/v1` evidence with independent reviewer,
+  all-change confirm/dismiss decisions, appeared-asset metadata, and explicit
+  approximate-missing acknowledgement
+- Draft Twin assets v2 with stable-identity moved/missing/appeared application,
+  predecessor, report, review, and observation provenance
+- Atomic `TWIN_ASSETS` binding plus `TwinAssetChangesApplied.v1` outbox event,
+  including deterministic rollback when notification persistence fails
+- Studio change-review controls, revision application, dismissed-marker hiding,
+  and applied 2D/3D asset geometry
+- PostgreSQL migration 017 and managed API protection for change-review evidence
 
 ## Next development increment
 
-Phase 2 continues with controlled change decisions and notifications:
+Phase 2 continues with production-grade visibility and notification delivery:
 
-1. Seal independent operator confirmation or dismissal for every detected
-   change; approximate missing evidence must remain visibly qualified.
-2. Apply confirmed changes only by creating another `TWIN_ASSETS` revision and
-   emit an outbox event that a future notification adapter can consume.
-3. Replace the observed-envelope missing heuristic with explicit sensor
-   visibility/coverage evidence before production alerts are enabled.
+1. Add an explicit sensor visibility/coverage contract derived from calibrated
+   camera/LiDAR poses instead of relying on the observed-envelope heuristic.
+2. Permit production `MISSING` alerts only when that sealed visibility evidence
+   proves the asset location was observed with sufficient quality.
+3. Add a notification adapter that consumes `TwinAssetChangesApplied.v1` with
+   retry, delivery evidence, and manager routing without coupling it to Fleet Control.
 
 ## Deliberately deferred
 
@@ -273,10 +283,10 @@ lifecycle are stable.
 
 ```text
 npm run check
-syntax/json: 266 files passed
-backend tests: 115 total, 112 passed, 3 conditionally skipped, 0 failed
-web tests: 42/42 passed with strict TypeScript and production build
-latest migration contract: schema version 16; last live PostgreSQL 16 gate passed with schema version 12
+syntax/json: 269 files passed
+backend tests: 119 total, 116 passed, 3 conditionally skipped, 0 failed
+web tests: 43/43 passed with strict TypeScript and production build
+latest migration contract: schema version 17; last live PostgreSQL 16 gate passed with schema version 12
 live GrandTour ETH-2 SHA-256/preview gate: passed against the 290,764,702-byte base selection
 ConSLAM/IfcOpenShell gate: last passed August 13, 2026 and remains opt-in
 fixture: demo-plant@1 valid
@@ -300,6 +310,7 @@ survey materialization: immutable input, leased/retry-safe streaming, content-ad
 survey registration: explicit design-target lineage, report v2 quality policy, immutable independent review, HTTP lifecycle, and fused/source-frame 2D/3D browser QA verified
 survey quality: deterministic coverage/trajectory/frame/reconstruction evidence, immutable independent review, registration gate, and 2D/3D coverage-layer QA verified
 semantic candidates: approved-registration transform, immutable operator decisions, HTTP lifecycle, and 2D/3D Assets-layer tests verified
+twin asset changes: independent review, qualification acknowledgement, stable-identity v2 application, atomic outbox rollback, HTTP lifecycle, and 2D/3D marker behavior verified
 dataset: ConSLAM IFC/GT checksum, geometry and trajectory validation verified
 GrandTour: pinned SHA-256, safe Zarr/PLY bounds, real trajectory/TF/map metrics and bounded preview verified
 GrandTour seed: real 290,764,702-byte selection imported twice idempotently into a live Twin API and materialized for Studio

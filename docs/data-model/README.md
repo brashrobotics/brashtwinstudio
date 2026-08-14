@@ -53,6 +53,21 @@ Cycles are rejected by both application write ordering and a PostgreSQL recursiv
 guard. The input count is sealed when a binding is created, so a later transaction
 cannot append another input edge to an existing derived record.
 
+## Twin asset change evidence
+
+A model observation remains separate from a persistent Twin asset. An approved
+candidate review may create the first `TWIN_ASSETS` revision. Later observations
+produce a change report against one exact asset-set binding and SHA-256 identity.
+The detector cannot review its own report, and every change must be confirmed or
+dismissed before application.
+
+Application never edits the baseline. It creates a v2 asset-set revision whose
+inputs seal the predecessor, change report, independent review, and observation
+report. Moved assets keep their `assetId`; confirmed missing assets are omitted;
+confirmed appeared assets receive reviewed names, types, and properties. The new
+binding and its notification outbox event share one transaction. Published map
+releases and live Fleet Control state are not changed by this workflow.
+
 ## Survey intake evidence
 
 An intake starts in `OPEN` only after its manifest and every declared mapping

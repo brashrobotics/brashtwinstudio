@@ -78,8 +78,11 @@ The operator interface for mapping and digital-twin workflows.
 - Explicit accepted-candidate promotion into predecessor-linked Twin asset
   revisions, rendered as canonical 2D/3D asset geometry.
 - Later-observation comparison controls and moved/missing/appeared summaries;
-  every change remains review-required, and approximate missing-envelope
-  evidence is disclosed in the operator panel.
+  an independent operator confirms or dismisses every change, and approximate
+  missing-envelope evidence requires a visible acknowledgement.
+- Confirmed moves, missing assets, and appeared assets can be applied as the
+  next immutable Twin asset revision. Dismissed markers disappear, and markers
+  for an applied change set yield to the revised 2D/3D asset geometry.
 
 The milestone publication button creates a browser-local acceptance preview. It
 does not replace the production Twin API publication service, durable object

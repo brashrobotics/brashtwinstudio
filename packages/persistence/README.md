@@ -12,7 +12,9 @@ behavior. Draft updates use `rowVersion` for optimistic concurrency.
 `outbox.js` provides in-memory and PostgreSQL transactional-outbox repositories,
 a rollback-capable local unit of work, and a request-scoped PostgreSQL unit of
 work. PostgreSQL claims use `FOR UPDATE SKIP LOCKED` and expiring leases for
-concurrent dispatchers.
+concurrent dispatchers. The unit-of-work context also exposes draft-artifact
+persistence so a reviewed asset revision and its notification event commit or
+roll back together.
 
 `uploads.js` provides in-memory and PostgreSQL upload-session adapters. A
 successful content-addressed artifact insert and the session's `COMPLETED`
@@ -22,7 +24,9 @@ transition share one PostgreSQL transaction; stale completion is rejected throug
 `draft-artifacts.js` provides in-memory and PostgreSQL adapters for source/derived
 bindings and input provenance. PostgreSQL writes use one transaction, while
 completed-upload, same-draft input, and append-only guarantees are enforced at
-the database level.
+the database level. The in-memory adapter exposes snapshots for deterministic
+artifact/outbox rollback tests; the PostgreSQL adapter can join an existing
+request-scoped transaction without opening a nested transaction.
 
 `survey-intakes.js` stores an intake and all completed-upload mappings in one
 transaction. PostgreSQL composite foreign keys, deferred count checks, and

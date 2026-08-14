@@ -195,7 +195,8 @@ export function SpatialWorkspace({
       ...(twinAssetSet
         ? draftTwinAssetWorldEntities(twinAssetSet)
         : semanticCandidateSet ? semanticCandidateWorldEntities(semanticCandidateSet) : []),
-      ...(assetChangeSet ? assetChangeWorldEntities(assetChangeSet) : []),
+      ...(assetChangeSet && twinAssetSet?.report.sourceChangeSet?.changeSetId !== assetChangeSet.report.changeSetId
+        ? assetChangeWorldEntities(assetChangeSet) : []),
       ...evidence,
       ...spatialFeaturesToWorldEntities(editorSnapshot.document.features),
       ...zonePreviewEntities(zoneDraftPoints),

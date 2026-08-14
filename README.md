@@ -164,9 +164,15 @@ The first Phase 0 increment is implemented:
   predecessor-linked `TWIN_ASSETS` draft revisions. Later canonical observations
   produce review-required moved, missing, and appeared reports without mutating
   the asset baseline or a published release.
+- Every detected change now receives an immutable independent confirmation or
+  dismissal. Confirmed changes are applied only as a new asset revision with
+  stable identities, while the asset binding and `TwinAssetChangesApplied.v1`
+  notification outbox event commit atomically. Approximate missing evidence
+  requires explicit reviewer acknowledgement.
 - A compact local demo seed that exercises upload, intake, verification,
   materialization, artifact lineage, registration, semantic review, asset
-  promotion, and change detection without downloading an external dataset.
+  promotion, change review, and confirmed revision application without
+  downloading an external dataset.
 - A bounded GrandTour ETH-2 seed that verifies the pinned real dataset, exports
   all 4,305 DLIO poses to the standard TUM boundary, preserves the original
   17-million-point PLY as source evidence, and opens it as a separate Studio

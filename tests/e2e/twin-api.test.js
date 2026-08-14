@@ -574,6 +574,41 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
       (await request(baseUrl, "GET", "/api/v1/map-drafts/draft-demo-2/asset-changes")).body.changeSets.length,
       1,
     );
+    const changeReview = await request(
+      baseUrl,
+      "POST",
+      "/api/v1/map-drafts/draft-demo-2/asset-changes/change-set-1/review",
+      {
+        reviewId: "change-review-1",
+        reviewerId: "factory-manager-1",
+        coverageQualificationAcknowledged: false,
+        decisions: detectedChanges.body.changeSet.report.changes.map((change) => ({
+          changeId: change.changeId,
+          decision: "CONFIRMED",
+          ...(change.changeType === "APPEARED" ? {
+            displayName: "Packing Safety Barrier",
+            assetType: "safety-barrier",
+            properties: { zone: "packing" },
+          } : {}),
+        })),
+      },
+    );
+    assert.equal(changeReview.status, 201);
+    assert.equal(changeReview.body.review.report.summary.confirmedCount, 2);
+    const appliedChanges = await request(
+      baseUrl,
+      "POST",
+      "/api/v1/map-drafts/draft-demo-2/asset-changes/change-set-1/apply",
+      { assetSetId: "asset-set-2", operatorId: "twin-curator-2" },
+    );
+    assert.equal(appliedChanges.status, 201);
+    assert.equal(appliedChanges.body.assetSet.report.revision, 2);
+    assert.equal(appliedChanges.body.assetSet.report.assets.length, 2);
+    assert.equal(appliedChanges.body.assetSet.report.sourceChangeSet.changeSetId, "change-set-1");
+    assert.equal(
+      (await request(baseUrl, "GET", "/api/v1/map-drafts/draft-demo-2/twin-assets")).body.assetSets.length,
+      2,
+    );
 
     const reportContent = Buffer.from("deterministic IFC import report");
     const reportSha256 = createHash("sha256").update(reportContent).digest("hex");
@@ -630,6 +665,7 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
           "ASSET_CANDIDATE_REVIEW",
           "TWIN_ASSETS",
           "ASSET_CHANGE_REPORT",
+          "ASSET_CHANGE_REVIEW",
         ].includes(artifact.role))
         .map((artifact) => artifact.bindingId),
       [
@@ -637,6 +673,7 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
         "asset-candidate-report-candidate-set-2",
         "asset-candidate-review-candidate-set-1",
         "asset-change-report-change-set-1",
+        "asset-change-review-change-set-1",
         "import-report-1",
         "semantic-observations-1",
         "semantic-observations-2",
@@ -645,8 +682,9 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
         "survey-quality-report-survey-quality-1",
         "survey-registration-acceptance-survey-registration-1",
         "survey-registration-report-survey-registration-1",
-        "twin-assets-asset-set-1",
-      ],
+        promotedAssets.body.assetSet.reportBindingId,
+        appliedChanges.body.assetSet.reportBindingId,
+      ].sort(),
     );
 
     assert.equal((await request(baseUrl, "POST", "/api/v1/map-drafts/draft-demo-2/submit-review", {
@@ -742,10 +780,18 @@ function memoryUploads(rootDirectory, options = {}) {
 }
 
 function memoryDraftArtifacts(catalog, uploads, options = {}) {
+  const repository = new InMemoryDraftArtifactRepository();
+  const outboxRepository = new InMemoryOutboxRepository();
+  const unitOfWork = new InMemoryTwinUnitOfWork({
+    catalogRepository: new InMemoryTwinCatalogRepository(),
+    outboxRepository,
+    draftArtifactRepository: repository,
+  });
   return new DraftArtifactService({
-    repository: new InMemoryDraftArtifactRepository(),
+    repository,
     catalog,
     uploads,
+    unitOfWork,
     ...options,
   });
 }

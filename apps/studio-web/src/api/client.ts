@@ -19,6 +19,8 @@ import type {
   ReviewAssetCandidateSetInput,
   DraftTwinAssetSetRecord,
   AssetChangeSetRecord,
+  AssetChangeReviewRecord,
+  ReviewAssetChangesInput,
   TwinApiErrorBody,
   ValidationJob,
 } from "./types";
@@ -57,6 +59,8 @@ export interface TwinApiClient {
   promoteDraftTwinAssets(draftId: string, input: { candidateSetId: string; operatorId: string }, signal?: AbortSignal): Promise<DraftTwinAssetSetRecord>;
   listDraftAssetChangeSets(draftId: string, signal?: AbortSignal): Promise<AssetChangeSetRecord[]>;
   detectDraftAssetChanges(draftId: string, input: { candidateSetId: string; operatorId: string }, signal?: AbortSignal): Promise<AssetChangeSetRecord>;
+  reviewDraftAssetChanges(draftId: string, changeSetId: string, input: ReviewAssetChangesInput, signal?: AbortSignal): Promise<AssetChangeReviewRecord>;
+  applyDraftAssetChanges(draftId: string, changeSetId: string, input: { operatorId: string }, signal?: AbortSignal): Promise<DraftTwinAssetSetRecord>;
   listReleases(signal?: AbortSignal): Promise<ReleaseManifest[]>;
 }
 
@@ -227,6 +231,20 @@ export function createTwinApiClient({
         { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) },
       )
     ).changeSet,
+    reviewDraftAssetChanges: async (draftId, changeSetId, input, signal) => (
+      await request<{ review: AssetChangeReviewRecord }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/asset-changes/${encodeURIComponent(changeSetId)}/review`,
+        signal,
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) },
+      )
+    ).review,
+    applyDraftAssetChanges: async (draftId, changeSetId, input, signal) => (
+      await request<{ assetSet: DraftTwinAssetSetRecord }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/asset-changes/${encodeURIComponent(changeSetId)}/apply`,
+        signal,
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) },
+      )
+    ).assetSet,
     listReleases: async (signal) => (
       await request<{ releases: ReleaseManifest[] }>("/api/v1/releases", signal)
     ).releases,

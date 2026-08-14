@@ -21,8 +21,10 @@ export const CONTRACT_VERSIONS = Object.freeze({
   semanticObservations: "brash.semantic-observations/v1",
   assetCandidateReport: "brash.asset-candidate-report/v1",
   assetCandidateReview: "brash.asset-candidate-review/v1",
-  draftTwinAssets: "brash.draft-twin-assets/v1",
+  draftTwinAssetsV1: "brash.draft-twin-assets/v1",
+  draftTwinAssets: "brash.draft-twin-assets/v2",
   assetChangeReport: "brash.asset-change-report/v1",
+  assetChangeReview: "brash.asset-change-review/v1",
 });
 
 export const ARTIFACT_ROLES = Object.freeze({
@@ -61,6 +63,7 @@ export const DRAFT_ARTIFACT_ROLES = Object.freeze([
   "ASSET_CANDIDATE_REVIEW",
   "TWIN_ASSETS",
   "ASSET_CHANGE_REPORT",
+  "ASSET_CHANGE_REVIEW",
   "REGISTERED_POINT_CLOUD",
   "RECONSTRUCTED_MESH",
   "OCCUPANCY",

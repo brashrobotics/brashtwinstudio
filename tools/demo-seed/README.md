@@ -6,8 +6,10 @@ materialization, provenance, and survey-to-CAD registration boundaries.
 It also seals independent quality/registration approvals, reviews two synthetic
 semantic candidates, promotes the accepted electrical panel into asset revision
 1, and creates a later observation set with moved/appeared review candidates.
-The Studio opens with both the canonical Twin asset and the immutable change
-report visible in 2D or 3D.
+It then seals an independent manager review, confirms both changes, and applies
+them as asset revision 2. The Studio opens with the moved electrical panel and
+named safety barrier in canonical 2D or 3D geometry, while the immutable report
+and review remain visible.
 
 Start the API and Studio with a dedicated local object-store directory:
 

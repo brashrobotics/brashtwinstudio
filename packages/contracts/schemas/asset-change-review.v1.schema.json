@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/asset-change-review.v1.schema.json",
+  "title": "Brash Asset Change Review v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "reviewId", "changeSetId", "draftId", "changeReport", "coverageQualificationAcknowledged", "decisions", "summary", "reviewerId", "note", "sealedAt"],
+  "properties": {
+    "schemaVersion": { "const": "brash.asset-change-review/v1" },
+    "reviewId": { "$ref": "#/$defs/identifier" },
+    "changeSetId": { "$ref": "#/$defs/identifier" },
+    "draftId": { "$ref": "#/$defs/identifier" },
+    "changeReport": { "$ref": "#/$defs/artifactIdentity" },
+    "coverageQualificationAcknowledged": { "type": "boolean" },
+    "decisions": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["changeId", "decision", "displayName", "assetType", "properties", "note"],
+        "properties": {
+          "changeId": { "$ref": "#/$defs/identifier" },
+          "decision": { "enum": ["CONFIRMED", "DISMISSED"] },
+          "displayName": { "type": ["string", "null"], "minLength": 1, "maxLength": 200 },
+          "assetType": { "type": ["string", "null"], "minLength": 1, "maxLength": 100 },
+          "properties": { "type": "object", "maxProperties": 20, "additionalProperties": { "type": ["string", "number", "boolean"] } },
+          "note": { "type": ["string", "null"], "maxLength": 1000 }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["confirmedCount", "dismissedCount", "criticalCount"],
+      "properties": {
+        "confirmedCount": { "type": "integer", "minimum": 0 },
+        "dismissedCount": { "type": "integer", "minimum": 0 },
+        "criticalCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "reviewerId": { "type": "string", "minLength": 1 },
+    "note": { "type": ["string", "null"], "maxLength": 2000 },
+    "sealedAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "identifier": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "artifactIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bindingId", "sha256"],
+      "properties": {
+        "bindingId": { "$ref": "#/$defs/identifier" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

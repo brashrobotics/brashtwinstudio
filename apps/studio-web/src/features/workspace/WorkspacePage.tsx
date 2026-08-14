@@ -6,6 +6,7 @@ import type {
   AssetCandidateSetRecord,
   AssetChangeSetRecord,
   DraftTwinAssetSetRecord,
+  ReviewAssetChangesInput,
   ReviewAssetCandidateSetInput,
   MapDraft,
   MapDraftStatus,
@@ -128,7 +129,9 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
   const latestAssetSet = useMemo(() => latestTwinAssetSet(twinAssetSets.data ?? []), [twinAssetSets.data]);
   const latestChangeSet = useMemo(() => latestAssetChangeSet(assetChangeSets.data ?? []), [assetChangeSets.data]);
   const promotableCandidateSet = useMemo(() => {
-    const promoted = new Set((latestAssetSet?.report.assets ?? []).map((asset) => asset.source.candidateSetId));
+    const promoted = new Set((twinAssetSets.data ?? []).flatMap(
+      (assetSet) => assetSet.report.assets.map((asset) => asset.source.candidateSetId),
+    ));
     const compared = new Set((assetChangeSets.data ?? []).map((changeSet) => changeSet.report.observations.candidateSetId));
     return [...(semanticCandidateSets.data ?? [])].reverse().find((candidateSet) => (
       candidateSet.review !== null
@@ -136,16 +139,18 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
       && !promoted.has(candidateSet.report.candidateSetId)
       && !compared.has(candidateSet.report.candidateSetId)
     )) ?? null;
-  }, [assetChangeSets.data, latestAssetSet, semanticCandidateSets.data]);
+  }, [assetChangeSets.data, semanticCandidateSets.data, twinAssetSets.data]);
   const changeCandidateSet = useMemo(() => {
     if (!latestAssetSet) return null;
-    const baselineSources = new Set(latestAssetSet.report.assets.map((asset) => asset.source.candidateSetId));
+    const baselineSources = new Set((twinAssetSets.data ?? []).flatMap(
+      (assetSet) => assetSet.report.assets.map((asset) => asset.source.candidateSetId),
+    ));
     const compared = new Set((assetChangeSets.data ?? []).map((changeSet) => changeSet.report.observations.candidateSetId));
     return [...(semanticCandidateSets.data ?? [])].reverse().find((candidateSet) => (
       !baselineSources.has(candidateSet.report.candidateSetId)
       && !compared.has(candidateSet.report.candidateSetId)
     )) ?? null;
-  }, [assetChangeSets.data, latestAssetSet, semanticCandidateSets.data]);
+  }, [assetChangeSets.data, latestAssetSet, semanticCandidateSets.data, twinAssetSets.data]);
   const createQuality = useMutation({
     mutationFn: () => api.createSurveyQualityReview(draftId, {
       materializationJobId: latestMaterialization!.jobId,
@@ -210,6 +215,27 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
       operatorId: identity.subject,
     }),
     onSuccess: async () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["asset-changes", draftId] }),
+      queryClient.invalidateQueries({ queryKey: ["draft-artifacts", draftId] }),
+    ]),
+  });
+  const reviewChanges = useMutation({
+    mutationFn: (input: ReviewAssetChangesInput) => api.reviewDraftAssetChanges(
+      draftId,
+      latestChangeSet!.report.changeSetId,
+      input,
+    ),
+    onSuccess: async () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["asset-changes", draftId] }),
+      queryClient.invalidateQueries({ queryKey: ["draft-artifacts", draftId] }),
+    ]),
+  });
+  const applyChanges = useMutation({
+    mutationFn: () => api.applyDraftAssetChanges(draftId, latestChangeSet!.report.changeSetId, {
+      operatorId: identity.subject,
+    }),
+    onSuccess: async () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["twin-assets", draftId] }),
       queryClient.invalidateQueries({ queryKey: ["asset-changes", draftId] }),
       queryClient.invalidateQueries({ queryKey: ["draft-artifacts", draftId] }),
     ]),
@@ -347,12 +373,14 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
               changeSet={latestChangeSet}
               promotableCandidateSet={promotableCandidateSet}
               changeCandidateSet={changeCandidateSet}
-              busy={promoteAssets.isPending || detectChanges.isPending}
-              error={[promoteAssets.error, detectChanges.error].find(
+              busy={promoteAssets.isPending || detectChanges.isPending || reviewChanges.isPending || applyChanges.isPending}
+              error={[promoteAssets.error, detectChanges.error, reviewChanges.error, applyChanges.error].find(
                 (candidate) => candidate instanceof Error,
               )?.message ?? null}
               onPromote={() => promoteAssets.mutateAsync()}
               onDetectChanges={() => detectChanges.mutateAsync()}
+              onReviewChanges={(input) => reviewChanges.mutateAsync(input)}
+              onApplyChanges={() => applyChanges.mutateAsync()}
             />
             <ValidationPanel job={latestValidation} loading={validationJobs.isPending && draftId !== ""} />
             <section className="panel release-panel">
@@ -425,6 +453,8 @@ function TwinAssetsPanel({
   error,
   onPromote,
   onDetectChanges,
+  onReviewChanges,
+  onApplyChanges,
 }: {
   assetSet: DraftTwinAssetSetRecord | null;
   changeSet: AssetChangeSetRecord | null;
@@ -434,8 +464,67 @@ function TwinAssetsPanel({
   error: string | null;
   onPromote(): Promise<unknown>;
   onDetectChanges(): Promise<unknown>;
+  onReviewChanges(input: ReviewAssetChangesInput): Promise<unknown>;
+  onApplyChanges(): Promise<unknown>;
 }) {
   const { t } = useI18n();
+  const [reviewerId, setReviewerId] = useState("factory-change-reviewer");
+  const [coverageAcknowledged, setCoverageAcknowledged] = useState(false);
+  const [decisionDrafts, setDecisionDrafts] = useState<Record<string, {
+    decision: "CONFIRMED" | "DISMISSED";
+    displayName: string;
+    assetType: string;
+    propertiesJson: string;
+  }>>({});
+  const [formError, setFormError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!changeSet || changeSet.review) return;
+    setDecisionDrafts(Object.fromEntries(changeSet.report.changes.map((change) => [
+      change.changeId,
+      {
+        decision: "CONFIRMED",
+        displayName: change.semanticClass.replaceAll("-", " "),
+        assetType: change.semanticClass,
+        propertiesJson: "{}",
+      },
+    ])));
+    setCoverageAcknowledged(false);
+    setFormError(null);
+  }, [changeSet?.report.changeSetId, changeSet?.review?.report.reviewId]);
+
+  async function submitChangeReview(): Promise<void> {
+    if (!changeSet) return;
+    try {
+      const decisions: ReviewAssetChangesInput["decisions"] = changeSet.report.changes.map((change) => {
+        const draft = decisionDrafts[change.changeId];
+        if (!draft) throw new Error(t("assetChangeReviewIncomplete"));
+        if (draft.decision === "DISMISSED") return { changeId: change.changeId, decision: "DISMISSED" };
+        if (change.changeType !== "APPEARED") return { changeId: change.changeId, decision: "CONFIRMED" };
+        const properties = JSON.parse(draft.propertiesJson) as unknown;
+        if (!properties || typeof properties !== "object" || Array.isArray(properties)) {
+          throw new Error(t("candidatePropertiesInvalid"));
+        }
+        return {
+          changeId: change.changeId,
+          decision: "CONFIRMED",
+          displayName: draft.displayName,
+          assetType: draft.assetType,
+          properties: properties as Record<string, string | number | boolean>,
+        };
+      });
+      setFormError(null);
+      await onReviewChanges({
+        reviewerId,
+        coverageQualificationAcknowledged: coverageAcknowledged,
+        decisions,
+      });
+    } catch (reviewError) {
+      setFormError(reviewError instanceof Error ? reviewError.message : t("assetChangeReviewIncomplete"));
+    }
+  }
+
+  const changeApplied = Boolean(changeSet && assetSet?.report.sourceChangeSet?.changeSetId === changeSet.report.changeSetId);
   return (
     <section className="panel twin-assets-panel">
       <div className="panel-heading compact">
@@ -468,23 +557,77 @@ function TwinAssetsPanel({
       )}
       {changeSet && (
         <div className="asset-change-summary">
-          <p className="job-id">{changeSet.report.changeSetId} · {t("reviewRequired")}</p>
+          <p className="job-id">{changeSet.report.changeSetId} · {
+            changeApplied ? t("changesApplied") : changeSet.review ? t("reviewed") : t("reviewRequired")
+          }</p>
           <dl className="metadata-list">
             <div><dt>{t("movedAssets")}</dt><dd>{changeSet.report.summary.movedCount}</dd></div>
             <div><dt>{t("missingAssets")}</dt><dd>{changeSet.report.summary.missingCount}</dd></div>
             <div><dt>{t("appearedAssets")}</dt><dd>{changeSet.report.summary.appearedCount}</dd></div>
             <div><dt>{t("unchangedAssets")}</dt><dd>{changeSet.report.summary.unchangedCount}</dd></div>
           </dl>
-          <ul className="semantic-review-list">{changeSet.report.changes.map((change) => (
-            <li key={change.changeId}>
-              <strong>{change.semanticClass}</strong>
-              <span>{change.changeType} · {(change.confidence * 100).toFixed(0)}%</span>
-            </li>
-          ))}</ul>
+          {changeSet.review ? (
+            <>
+              <ul className="semantic-review-list">{changeSet.report.changes.map((change) => {
+                const decision = changeSet.review!.report.decisions.find((candidate) => candidate.changeId === change.changeId);
+                return (
+                  <li key={change.changeId}>
+                    <strong>{decision?.displayName ?? change.semanticClass}</strong>
+                    <span>{change.changeType} · {decision?.decision}</span>
+                  </li>
+                );
+              })}</ul>
+              <dl className="metadata-list">
+                <div><dt>{t("confirmedChanges")}</dt><dd>{changeSet.review.report.summary.confirmedCount}</dd></div>
+                <div><dt>{t("dismissedChanges")}</dt><dd>{changeSet.review.report.summary.dismissedCount}</dd></div>
+                <div className="metadata-wide"><dt>{t("reviewerIdentity")}</dt><dd>{changeSet.review.report.reviewerId}</dd></div>
+              </dl>
+              {!changeApplied && changeSet.review.report.summary.confirmedCount > 0 && (
+                <button className="registration-submit" type="button" disabled={busy} onClick={() => void onApplyChanges()}>
+                  {t("applyConfirmedChanges")}
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="semantic-candidate-list">{changeSet.report.changes.map((change) => {
+                const decision = decisionDrafts[change.changeId];
+                if (!decision) return null;
+                return (
+                  <article key={change.changeId}>
+                    <header><strong>{change.semanticClass}</strong><span>{change.changeType} · {(change.confidence * 100).toFixed(0)}%</span></header>
+                    <select value={decision.decision} onChange={(event) => setDecisionDrafts((current) => ({
+                      ...current,
+                      [change.changeId]: { ...decision, decision: event.target.value as "CONFIRMED" | "DISMISSED" },
+                    }))}>
+                      <option value="CONFIRMED">{t("confirmChange")}</option>
+                      <option value="DISMISSED">{t("dismissChange")}</option>
+                    </select>
+                    {change.changeType === "APPEARED" && decision.decision === "CONFIRMED" && <>
+                      <input aria-label={t("assetName")} value={decision.displayName} onChange={(event) => setDecisionDrafts((current) => ({ ...current, [change.changeId]: { ...decision, displayName: event.target.value } }))} />
+                      <input aria-label={t("assetType")} value={decision.assetType} onChange={(event) => setDecisionDrafts((current) => ({ ...current, [change.changeId]: { ...decision, assetType: event.target.value } }))} />
+                      <textarea aria-label={t("assetProperties")} value={decision.propertiesJson} onChange={(event) => setDecisionDrafts((current) => ({ ...current, [change.changeId]: { ...decision, propertiesJson: event.target.value } }))} />
+                    </>}
+                  </article>
+                );
+              })}</div>
+              {changeSet.report.changes.some((change) => change.changeType === "MISSING"
+                && decisionDrafts[change.changeId]?.decision === "CONFIRMED") && (
+                <label className="registration-target-select">
+                  <input type="checkbox" checked={coverageAcknowledged} onChange={(event) => setCoverageAcknowledged(event.target.checked)} />
+                  <span>{t("acknowledgeApproximateCoverage")}</span>
+                </label>
+              )}
+              <div className="registration-review">
+                <label><span>{t("reviewerIdentity")}</span><input value={reviewerId} onChange={(event) => setReviewerId(event.target.value)} /></label>
+                <button type="button" disabled={busy || reviewerId.trim() === ""} onClick={() => void submitChangeReview()}>{t("sealChangeReview")}</button>
+              </div>
+            </>
+          )}
           <p className="muted-copy">{t("assetChangeEnvelopeNotice")}</p>
         </div>
       )}
-      {error && <p className="registration-error" role="alert">{error}</p>}
+      {(formError ?? error) && <p className="registration-error" role="alert">{formError ?? error}</p>}
     </section>
   );
 }

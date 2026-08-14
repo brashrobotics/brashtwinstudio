@@ -20,6 +20,7 @@ const MANAGED_ARTIFACT_ROLES = new Set([
   "ASSET_CANDIDATE_REVIEW",
   "TWIN_ASSETS",
   "ASSET_CHANGE_REPORT",
+  "ASSET_CHANGE_REVIEW",
   "VALIDATION_REPORT",
 ]);
 
@@ -350,6 +351,32 @@ export class TwinApi {
         );
         return response(201, { changeSet });
       }
+    }
+
+    const assetChangeReviewMatch = pathname.match(
+      /^\/api\/v1\/map-drafts\/([^/]+)\/asset-changes\/([^/]+)\/review$/,
+    );
+    if (assetChangeReviewMatch && method === "POST") {
+      const review = await this.#twinAssets.reviewChanges(
+        segment(assetChangeReviewMatch[1]),
+        segment(assetChangeReviewMatch[2]),
+        objectBody(body, [
+          "reviewId", "reviewerId", "coverageQualificationAcknowledged", "decisions", "note",
+        ]),
+      );
+      return response(201, { review });
+    }
+
+    const assetChangeApplyMatch = pathname.match(
+      /^\/api\/v1\/map-drafts\/([^/]+)\/asset-changes\/([^/]+)\/apply$/,
+    );
+    if (assetChangeApplyMatch && method === "POST") {
+      const assetSet = await this.#twinAssets.applyChanges(
+        segment(assetChangeApplyMatch[1]),
+        segment(assetChangeApplyMatch[2]),
+        objectBody(body, ["assetSetId", "operatorId"]),
+      );
+      return response(201, { assetSet });
     }
 
     const surveyIntakeMaterializationsMatch = pathname.match(
@@ -702,7 +729,7 @@ function statusForSemanticCandidateError(code) {
 }
 
 function statusForTwinAssetError(code) {
-  if (code === "TWIN_ASSET_CANDIDATE_NOT_FOUND") return 404;
+  if (["TWIN_ASSET_CANDIDATE_NOT_FOUND", "TWIN_ASSET_CHANGE_NOT_FOUND"].includes(code)) return 404;
   if ([
     "TWIN_ASSET_PROMOTION_CONFLICT",
     "TWIN_ASSET_CHANGE_CONFLICT",
@@ -712,6 +739,12 @@ function statusForTwinAssetError(code) {
     "TWIN_ASSET_BASELINE_REQUIRED",
     "TWIN_ASSET_CHANGE_INPUT_INVALID",
     "TWIN_ASSET_CHANGE_WORKFLOW_REQUIRED",
+    "TWIN_ASSET_CHANGE_REVIEW_CONFLICT",
+    "TWIN_ASSET_CHANGE_REVIEWER_CONFLICT",
+    "TWIN_ASSET_CHANGE_REVIEW_REQUIRED",
+    "TWIN_ASSET_CONFIRMED_CHANGE_REQUIRED",
+    "TWIN_ASSET_CHANGE_APPLY_CONFLICT",
+    "TWIN_ASSET_CHANGE_BASELINE_STALE",
   ].includes(code)) return 409;
   if (code === "TWIN_ASSET_INTEGRITY_FAILED") return 422;
   return 400;

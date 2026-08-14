@@ -55,6 +55,8 @@ describe("Studio Web shell", () => {
       promoteDraftTwinAssets: async () => { throw new Error("Not used by this test."); },
       listDraftAssetChangeSets: async () => [],
       detectDraftAssetChanges: async () => { throw new Error("Not used by this test."); },
+      reviewDraftAssetChanges: async () => { throw new Error("Not used by this test."); },
+      applyDraftAssetChanges: async () => { throw new Error("Not used by this test."); },
       listReleases: async () => [{
         schemaVersion: "brash.twin-map-bundle/v1", bundleId: "bundle-plant-2", mapReleaseId: "plant@2", familyId: "plant", revision: 2, status: "PUBLISHED", createdAt: "2026-08-13T00:00:00.000Z", canonicalFrameId: "plant/floor-1", artifacts: [],
       }],

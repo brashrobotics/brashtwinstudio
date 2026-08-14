@@ -267,6 +267,35 @@ async function ensureSemanticCandidates(materializationOutput) {
       operatorId: "demo-change-worker",
     });
   }
+  const refreshedChangeSets = await request("GET", "/api/v1/map-drafts/demo-draft-1/asset-changes");
+  const demoChangeSet = refreshedChangeSets.changeSets.find(({ report }) => report.changeSetId === "demo-change-set-1");
+  if (!demoChangeSet.review) {
+    await request(
+      "POST",
+      "/api/v1/map-drafts/demo-draft-1/asset-changes/demo-change-set-1/review",
+      {
+        reviewId: "demo-change-review-1",
+        reviewerId: "demo-factory-manager",
+        coverageQualificationAcknowledged: false,
+        decisions: demoChangeSet.report.changes.map((change) => ({
+          changeId: change.changeId,
+          decision: "CONFIRMED",
+          ...(change.changeType === "APPEARED" ? {
+            displayName: "Packing Safety Barrier",
+            assetType: "safety-barrier",
+            properties: { zone: "packing", inspectionRequired: true },
+          } : {}),
+        })),
+      },
+    );
+  }
+  const refreshedAssetSets = await request("GET", "/api/v1/map-drafts/demo-draft-1/twin-assets");
+  if (!refreshedAssetSets.assetSets.some(({ report }) => report.assetSetId === "demo-asset-set-2")) {
+    await request("POST", "/api/v1/map-drafts/demo-draft-1/asset-changes/demo-change-set-1/apply", {
+      assetSetId: "demo-asset-set-2",
+      operatorId: "demo-twin-curator",
+    });
+  }
 }
 
 console.log(JSON.stringify({
@@ -280,6 +309,8 @@ console.log(JSON.stringify({
   assetSetId: "demo-asset-set-1",
   changeCandidateSetId: "demo-candidate-set-2",
   changeSetId: "demo-change-set-1",
+  changeReviewId: "demo-change-review-1",
+  appliedAssetSetId: "demo-asset-set-2",
   studioUrl: "http://127.0.0.1:4390/",
 }, null, 2));
 

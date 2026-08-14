@@ -61,9 +61,19 @@ a new immutable `TWIN_ASSETS` revision and links its predecessor instead of
 editing an existing catalog. The same service compares a later canonical
 candidate report with the latest baseline, emitting review-required `MOVED`,
 `MISSING`, and `APPEARED` evidence. Missing detection is deliberately bounded to
-the observed spatial envelope; it cannot directly alert or update a draft.
+the observed spatial envelope and requires an explicit qualification
+acknowledgement before a reviewer may confirm it. The detector and reviewer must
+be different operators, and every detected change receives exactly one sealed
+confirmation or dismissal.
 Candidate sets already used by change detection are blocked from direct
 promotion so a moved observation cannot silently become a duplicate asset.
+Applying a reviewed report preserves stable identities, translates confirmed
+moves, removes confirmed missing assets, names confirmed appeared assets, and
+writes a predecessor-linked v2 asset set. The new binding and
+`TwinAssetChangesApplied.v1` outbox event share one transaction; an outbox
+failure rolls back the draft binding rather than exposing a revision without its
+notification evidence. Deterministic root/successor binding slots prevent two
+concurrent commands from creating competing revisions from the same baseline.
 
 `validation-jobs.js` creates a sealed validation snapshot while a draft is
 `IN_REVIEW`, runs the deterministic validator, streams its JSON report through

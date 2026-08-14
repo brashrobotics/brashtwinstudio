@@ -577,6 +577,50 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /api/v1/map-drafts/{draftId}/asset-changes/{changeSetId}/review:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+      - $ref: "#/components/parameters/ChangeSetId"
+    post:
+      operationId: reviewDraftAssetChanges
+      description: Seals one independent confirmation or dismissal decision for every detected change.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewDraftAssetChanges"
+      responses:
+        "201":
+          description: Immutable independent change review created.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/map-drafts/{draftId}/asset-changes/{changeSetId}/apply:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+      - $ref: "#/components/parameters/ChangeSetId"
+    post:
+      operationId: applyDraftAssetChanges
+      description: Applies only confirmed decisions as a new immutable asset revision and atomically emits an outbox event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplyDraftAssetChanges"
+      responses:
+        "201":
+          description: Confirmed changes applied as a predecessor-linked Twin asset set.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /api/v1/survey-intakes/{intakeId}/materializations:
     parameters:
       - $ref: "#/components/parameters/IntakeId"
@@ -767,6 +811,12 @@ components:
         $ref: "#/components/schemas/Identifier"
     IntakeId:
       name: intakeId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Identifier"
+    ChangeSetId:
+      name: changeSetId
       in: path
       required: true
       schema:
@@ -1116,6 +1166,58 @@ components:
         operatorId:
           type: string
           minLength: 1
+    ReviewDraftAssetChanges:
+      type: object
+      additionalProperties: false
+      required: [reviewerId, coverageQualificationAcknowledged, decisions]
+      properties:
+        reviewId:
+          $ref: "#/components/schemas/Identifier"
+        reviewerId:
+          type: string
+          minLength: 1
+        coverageQualificationAcknowledged:
+          type: boolean
+        note:
+          type: string
+          maxLength: 2000
+        decisions:
+          type: array
+          maxItems: 5000
+          items:
+            type: object
+            additionalProperties: false
+            required: [changeId, decision]
+            properties:
+              changeId:
+                $ref: "#/components/schemas/Identifier"
+              decision:
+                type: string
+                enum: [CONFIRMED, DISMISSED]
+              displayName:
+                type: string
+                maxLength: 200
+              assetType:
+                type: string
+                maxLength: 100
+              properties:
+                type: object
+                maxProperties: 20
+                additionalProperties:
+                  type: [string, number, boolean]
+              note:
+                type: string
+                maxLength: 1000
+    ApplyDraftAssetChanges:
+      type: object
+      additionalProperties: false
+      required: [operatorId]
+      properties:
+        assetSetId:
+          $ref: "#/components/schemas/Identifier"
+        operatorId:
+          type: string
+          minLength: 1
     DraftArtifactRole:
       type: string
       enum:
@@ -1134,6 +1236,7 @@ components:
         - ASSET_CANDIDATE_REVIEW
         - TWIN_ASSETS
         - ASSET_CHANGE_REPORT
+        - ASSET_CHANGE_REVIEW
         - REGISTERED_POINT_CLOUD
         - RECONSTRUCTED_MESH
         - OCCUPANCY

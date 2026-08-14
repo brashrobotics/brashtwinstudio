@@ -44,14 +44,20 @@ export function draftTwinAssetWorldEntities(assetSet: DraftTwinAssetSetRecord): 
 }
 
 export function assetChangeWorldEntities(changeSet: AssetChangeSetRecord): WorldEntity[] {
-  return changeSet.report.changes.map((change) => {
-    const position = change.toPosition ?? change.fromPosition ?? [0, 0, 0];
-    return {
-      entityId: `asset-change-${change.changeId}`,
-      layerId: "assets",
-      label: `${change.changeType} · ${change.semanticClass} · ${(change.confidence * 100).toFixed(0)}%`,
-      position: { x: position[0], y: position[1], z: position[2] },
-      geometry: { type: "POINT" as const, radius: change.changeType === "MISSING" ? 0.5 : 0.35 },
-    };
-  });
+  const decisions = new Map(
+    (changeSet.review?.report.decisions ?? []).map((decision) => [decision.changeId, decision]),
+  );
+  return changeSet.report.changes
+    .filter((change) => decisions.get(change.changeId)?.decision !== "DISMISSED")
+    .map((change) => {
+      const position = change.toPosition ?? change.fromPosition ?? [0, 0, 0];
+      const decision = decisions.get(change.changeId);
+      return {
+        entityId: `asset-change-${change.changeId}`,
+        layerId: "assets",
+        label: `${change.changeType} · ${decision?.displayName ?? change.semanticClass} · ${(change.confidence * 100).toFixed(0)}%`,
+        position: { x: position[0], y: position[1], z: position[2] },
+        geometry: { type: "POINT" as const, radius: change.changeType === "MISSING" ? 0.5 : 0.35 },
+      };
+    });
 }

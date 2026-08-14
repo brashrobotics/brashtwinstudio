@@ -21,6 +21,7 @@ export class DraftArtifactService {
   #repository;
   #catalog;
   #uploads;
+  #unitOfWork;
   #clock;
   #bindingIdGenerator;
 
@@ -28,6 +29,7 @@ export class DraftArtifactService {
     repository,
     catalog,
     uploads,
+    unitOfWork = null,
     clock = () => new Date(),
     bindingIdGenerator = randomUUID,
   }) {
@@ -52,12 +54,42 @@ export class DraftArtifactService {
     this.#repository = repository;
     this.#catalog = catalog;
     this.#uploads = uploads;
+    if (unitOfWork !== null && typeof unitOfWork.execute !== "function") {
+      throw new DraftArtifactError("DRAFT_ARTIFACT_UNIT_OF_WORK_INVALID", "unitOfWork must expose execute when provided.");
+    }
+    this.#unitOfWork = unitOfWork;
     this.#clock = clock;
     this.#bindingIdGenerator = bindingIdGenerator;
   }
 
   async bind(draftId, input) {
     return this.#bind(draftId, input, MAP_DRAFT_STATUS.draft);
+  }
+
+  async bindWithEvent(draftId, input, event) {
+    if (!this.#unitOfWork) {
+      throw new DraftArtifactError(
+        "DRAFT_ARTIFACT_UNIT_OF_WORK_REQUIRED",
+        "Atomic artifact and outbox persistence requires a unit of work.",
+      );
+    }
+    const record = await this.#bindingRecord(draftId, input, MAP_DRAFT_STATUS.draft, this.#repository);
+    try {
+      return await this.#unitOfWork.execute(async ({ draftArtifactRepository, outboxRepository }) => {
+        if (!draftArtifactRepository || typeof draftArtifactRepository.create !== "function"
+          || !outboxRepository || typeof outboxRepository.append !== "function") {
+          throw new DraftArtifactError(
+            "DRAFT_ARTIFACT_UNIT_OF_WORK_INVALID",
+            "The unit of work must provide draft artifact and outbox repositories.",
+          );
+        }
+        const created = await draftArtifactRepository.create(record);
+        await outboxRepository.append(event);
+        return created;
+      });
+    } catch (error) {
+      throw translatePersistenceError(error);
+    }
   }
 
   async bindValidationReport(draftId, input) {
@@ -69,6 +101,15 @@ export class DraftArtifactService {
   }
 
   async #bind(draftId, input, requiredDraftStatus) {
+    const record = await this.#bindingRecord(draftId, input, requiredDraftStatus, this.#repository);
+    try {
+      return await this.#repository.create(record);
+    } catch (error) {
+      throw translatePersistenceError(error);
+    }
+  }
+
+  async #bindingRecord(draftId, input, requiredDraftStatus, repository) {
     identifier(draftId, "draftId");
     if (!input || typeof input !== "object" || Array.isArray(input)) {
       throw new DraftArtifactError("DRAFT_ARTIFACT_INPUT_REQUIRED", "Draft artifact input is required.");
@@ -91,7 +132,7 @@ export class DraftArtifactService {
     const inputBindingIds = normalizeInputBindingIds(input.inputBindingIds);
     const inputBindings = [];
     for (const bindingId of inputBindingIds) {
-      const binding = await this.#repository.get(bindingId);
+      const binding = await repository.get(bindingId);
       if (!binding || binding.draftId !== draftId) {
         throw new DraftArtifactError(
           "DRAFT_ARTIFACT_INPUT_NOT_FOUND",
@@ -117,11 +158,7 @@ export class DraftArtifactService {
     } catch (error) {
       throw translateDomainError(error);
     }
-    try {
-      return await this.#repository.create(record);
-    } catch (error) {
-      throw translatePersistenceError(error);
-    }
+    return record;
   }
 
   async list(draftId) {
@@ -160,6 +197,7 @@ function translatePersistenceError(error) {
   if (!(error instanceof PersistenceError)) return error;
   const code = ({
     ALREADY_EXISTS: "DRAFT_ARTIFACT_CONFLICT",
+    OUTBOX_EVENT_EXISTS: "DRAFT_ARTIFACT_CONFLICT",
     REFERENCE_NOT_FOUND: "DRAFT_ARTIFACT_REFERENCE_NOT_FOUND",
     PROVENANCE_CONSTRAINT_VIOLATION: "DRAFT_ARTIFACT_PROVENANCE_INVALID",
   })[error.code] ?? "DRAFT_ARTIFACT_PERSISTENCE_ERROR";

@@ -21,13 +21,15 @@ coordinate frames, navigation topology, twin assets, scene manifest, Fleet live
 overlay, embodied survey transfer/ingest evidence, and deterministic
 draft-validation reports, semantic observations, canonical asset candidates,
 immutable candidate review, draft Twin asset revisions, and review-required
-asset-change reports. `index.js` exports runtime contract and artifact constants.
+asset-change reports. Draft Twin assets v2 adds change-application provenance
+while retaining the v1 promotion contract, and asset-change review v1 seals
+independent operator decisions. `index.js` exports runtime contract and artifact constants.
 Draft validation v2 adds content-verified registration decision
 evidence while retaining the legacy v1 schema for readers of existing reports.
 
 `openapi/twin-api.v1.yaml` defines the catalog, upload, draft artifact provenance,
 embodied survey intake, quality/registration review, semantic candidate review,
-asset promotion/change detection, validation-job, and release API surface. Validation is
+asset promotion/change detection/review/application, validation-job, and release API surface. Validation is
 job-backed; the API does not expose a client-supplied report-hash transition.
 `DRAFT_ARTIFACT_ROLES` and `DRAFT_ARTIFACT_KINDS` are exported from `index.js` as
 runtime constants.

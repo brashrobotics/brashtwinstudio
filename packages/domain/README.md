@@ -30,6 +30,8 @@ types, or rendering engines.
   manifest/upload identities and exactly one verification transition.
 - Source/derived draft artifact roles with spatial-frame requirements, immutable
   input identity, and producer version/config-hash provenance.
+- System-managed asset candidate, Twin asset revision, change report, and
+  independent change-review roles; each correction is append-only evidence.
 - `PENDING_APPROVAL -> APPROVED -> PUBLISHING -> STORE_PUBLISHED -> COMPLETED`
   publication state with a mandatory requester/approver separation.
 - Sealed bundle/draft/validation identities and a versioned

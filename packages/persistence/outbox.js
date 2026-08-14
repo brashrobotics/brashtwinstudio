@@ -3,6 +3,9 @@ import {
   PersistenceError,
   PostgresTwinCatalogRepository,
 } from "./index.js";
+import {
+  PostgresDraftArtifactRepository,
+} from "./draft-artifacts.js";
 
 export class InMemoryOutboxRepository {
   #events = new Map();
@@ -204,13 +207,18 @@ export class PostgresOutboxRepository {
 export class InMemoryTwinUnitOfWork {
   #catalogRepository;
   #outboxRepository;
+  #draftArtifactRepository;
   #tail = Promise.resolve();
 
-  constructor({ catalogRepository, outboxRepository }) {
+  constructor({ catalogRepository, outboxRepository, draftArtifactRepository = null }) {
     requireSnapshotRepository(catalogRepository, "catalogRepository");
     requireSnapshotRepository(outboxRepository, "outboxRepository");
     this.#catalogRepository = catalogRepository;
     this.#outboxRepository = outboxRepository;
+    if (draftArtifactRepository !== null) {
+      requireSnapshotRepository(draftArtifactRepository, "draftArtifactRepository");
+    }
+    this.#draftArtifactRepository = draftArtifactRepository;
   }
 
   async execute(operation) {
@@ -221,14 +229,19 @@ export class InMemoryTwinUnitOfWork {
     await previous;
     const catalogSnapshot = this.#catalogRepository.snapshotForUnitOfWork();
     const outboxSnapshot = this.#outboxRepository.snapshotForUnitOfWork();
+    const draftArtifactSnapshot = this.#draftArtifactRepository?.snapshotForUnitOfWork() ?? null;
     try {
       return await operation(Object.freeze({
         catalogRepository: this.#catalogRepository,
         outboxRepository: this.#outboxRepository,
+        draftArtifactRepository: this.#draftArtifactRepository,
       }));
     } catch (error) {
       this.#catalogRepository.restoreUnitOfWorkSnapshot(catalogSnapshot);
       this.#outboxRepository.restoreUnitOfWorkSnapshot(outboxSnapshot);
+      if (draftArtifactSnapshot !== null) {
+        this.#draftArtifactRepository.restoreUnitOfWorkSnapshot(draftArtifactSnapshot);
+      }
       throw error;
     } finally {
       release();
@@ -251,6 +264,7 @@ export class PostgresTwinUnitOfWork {
     return this.#database.transaction((transaction) => operation(Object.freeze({
       catalogRepository: new PostgresTwinCatalogRepository(transaction),
       outboxRepository: new PostgresOutboxRepository(transaction),
+      draftArtifactRepository: new PostgresDraftArtifactRepository(transaction),
     })));
   }
 }

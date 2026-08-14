@@ -54,6 +54,8 @@ Published releases and audit history must never be deleted during migration.
 - `016_twin_asset_promotion_changes.sql`: Spatial, derived `TWIN_ASSETS` revision
   and `ASSET_CHANGE_REPORT` roles protected by the append-only draft provenance
   graph.
+- `017_asset_change_review.sql`: Immutable derived `ASSET_CHANGE_REVIEW`
+  evidence, reserved for the independent change-review workflow.
 
 PostgreSQL triggers prevent updates and deletes to primary release records,
 release-artifact bindings, and asset revisions linked to a release. Draft artifact

@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/draft-twin-assets.v2.schema.json",
+  "title": "Brash Draft Twin Assets v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "assetSetId", "draftId", "revision", "canonicalFrameId", "predecessor", "sourceCandidateSet", "sourceChangeSet", "assets", "promotedBy", "promotedAt"],
+  "properties": {
+    "schemaVersion": { "const": "brash.draft-twin-assets/v2" },
+    "assetSetId": { "$ref": "#/$defs/identifier" },
+    "draftId": { "$ref": "#/$defs/identifier" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "canonicalFrameId": { "type": "string", "minLength": 1 },
+    "predecessor": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/predecessor" }] },
+    "sourceCandidateSet": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/candidateSource" }] },
+    "sourceChangeSet": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/changeSource" }] },
+    "assets": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": { "$ref": "#/$defs/asset" }
+    },
+    "promotedBy": { "type": "string", "minLength": 1 },
+    "promotedAt": { "type": "string", "format": "date-time" }
+  },
+  "oneOf": [
+    { "properties": { "sourceCandidateSet": { "$ref": "#/$defs/candidateSource" }, "sourceChangeSet": { "type": "null" } } },
+    { "properties": { "sourceCandidateSet": { "type": "null" }, "sourceChangeSet": { "$ref": "#/$defs/changeSource" } } }
+  ],
+  "$defs": {
+    "identifier": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "artifactIdentity": { "type": "object", "additionalProperties": false, "required": ["bindingId", "sha256"], "properties": { "bindingId": { "$ref": "#/$defs/identifier" }, "sha256": { "$ref": "#/$defs/sha256" } } },
+    "predecessor": {
+      "type": "object", "additionalProperties": false,
+      "required": ["assetSetId", "revision", "bindingId", "sha256"],
+      "properties": {
+        "assetSetId": { "$ref": "#/$defs/identifier" }, "revision": { "type": "integer", "minimum": 1 },
+        "bindingId": { "$ref": "#/$defs/identifier" }, "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "candidateSource": {
+      "type": "object", "additionalProperties": false,
+      "required": ["candidateSetId", "report", "review"],
+      "properties": {
+        "candidateSetId": { "$ref": "#/$defs/identifier" },
+        "report": { "$ref": "#/$defs/artifactIdentity" }, "review": { "$ref": "#/$defs/artifactIdentity" }
+      }
+    },
+    "changeSource": {
+      "type": "object", "additionalProperties": false,
+      "required": ["changeSetId", "report", "review", "observations"],
+      "properties": {
+        "changeSetId": { "$ref": "#/$defs/identifier" },
+        "report": { "$ref": "#/$defs/artifactIdentity" }, "review": { "$ref": "#/$defs/artifactIdentity" },
+        "observations": { "$ref": "#/$defs/artifactIdentity" }
+      }
+    },
+    "asset": {
+      "type": "object", "additionalProperties": false,
+      "required": ["assetId", "displayName", "semanticClass", "mobilityClass", "frameId", "pose", "footprint", "bounds3d", "properties", "topologyBindings", "changePolicy", "source"],
+      "properties": {
+        "assetId": { "$ref": "#/$defs/identifier" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "semanticClass": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "mobilityClass": { "enum": ["STATIC", "SEMI_STATIC", "MOBILE"] },
+        "frameId": { "type": "string", "minLength": 1 },
+        "pose": { "type": "object", "additionalProperties": false, "required": ["position", "orientation"], "properties": { "position": { "$ref": "#/$defs/vector3" }, "orientation": { "$ref": "#/$defs/quaternion" } } },
+        "footprint": { "type": "array", "minItems": 3, "maxItems": 64, "items": { "$ref": "#/$defs/point2" } },
+        "bounds3d": { "type": "object", "additionalProperties": false, "required": ["minimum", "maximum"], "properties": { "minimum": { "$ref": "#/$defs/vector3" }, "maximum": { "$ref": "#/$defs/vector3" } } },
+        "properties": { "type": "object", "maxProperties": 20, "additionalProperties": { "type": ["string", "number", "boolean"] } },
+        "topologyBindings": { "type": "array", "maxItems": 100, "items": { "type": "object", "additionalProperties": false, "required": ["kind", "targetId"], "properties": { "kind": { "enum": ["NODE", "EDGE", "ZONE"] }, "targetId": { "type": "string", "minLength": 1 } } } },
+        "changePolicy": { "type": "object", "additionalProperties": false, "required": ["positionToleranceMeters", "minimumConfidence", "requiredConfirmations"], "properties": { "positionToleranceMeters": { "type": "number", "minimum": 0 }, "minimumConfidence": { "type": "number", "minimum": 0, "maximum": 1 }, "requiredConfirmations": { "type": "integer", "minimum": 1 } } },
+        "source": { "type": "object", "additionalProperties": false, "required": ["candidateSetId", "candidateId", "sourceObservationId", "suggestedClass"], "properties": { "candidateSetId": { "$ref": "#/$defs/identifier" }, "candidateId": { "$ref": "#/$defs/identifier" }, "sourceObservationId": { "$ref": "#/$defs/identifier" }, "suggestedClass": { "type": "string", "minLength": 1 } } }
+      }
+    },
+    "point2": { "type": "object", "additionalProperties": false, "required": ["x", "y"], "properties": { "x": { "type": "number" }, "y": { "type": "number" } } },
+    "vector3": { "type": "object", "additionalProperties": false, "required": ["x", "y", "z"], "properties": { "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" } } },
+    "quaternion": { "type": "object", "additionalProperties": false, "required": ["x", "y", "z", "w"], "properties": { "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" }, "w": { "type": "number" } } }
+  }
+}

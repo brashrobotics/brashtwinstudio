@@ -26,7 +26,10 @@ and 2D/3D accepted/rejected rendering behavior.
 The Twin asset gate covers explicit reviewed-candidate promotion,
 predecessor-linked immutable revisions, canonical asset geometry, duplicate
 promotion rejection, later-scan nearest-class comparison, bounded missing
-coverage, moved/missing/appeared output, HTTP routes, and 2D/3D rendering.
+coverage, moved/missing/appeared output, independent all-change decisions,
+missing-evidence acknowledgement, stable-identity application, atomic
+asset-binding/outbox rollback, deterministic single-successor revision slots,
+HTTP routes, and reviewed/applied 2D/3D rendering.
 
 The validation quality gate covers deterministic reports, UI-ready issue
 locations, sealed input snapshots, multipart report storage, HTTP job execution,

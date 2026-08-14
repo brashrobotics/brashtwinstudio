@@ -1684,6 +1684,29 @@ demo cover review-to-asset promotion and later-observation comparison. Change
 confirmation, notifications, Fleet Control, and robot-side SLAM remain outside
 this increment.
 
+### Increment 22 — Controlled change decisions and revision application
+
+- Seal one independent `CONFIRMED` or `DISMISSED` decision for every detected
+  change and prevent the detector from reviewing its own report
+- Require explicit acknowledgement before approximate `OBSERVED_ENVELOPE`
+  missing evidence can be confirmed
+- Apply confirmations only as a predecessor-linked draft Twin asset v2
+  revision, retaining stable identities for moved assets and operator metadata
+  for appeared assets
+- Remove only confirmed missing assets, keep dismissed changes out of the
+  revision, and leave every prior revision immutable
+- Commit the new `TWIN_ASSETS` binding and `TwinAssetChangesApplied.v1` outbox
+  event atomically so notification evidence cannot diverge from revision state
+- Expose review/application controls and reviewed/applied geometry behavior in
+  Studio without changing Fleet Control or robot-side SLAM
+
+**Status:** Completed on August 15, 2026. Asset-change review v1, draft Twin
+assets v2, OpenAPI, PostgreSQL migration 017, atomic persistence, deterministic
+application/API/viewer tests, and the idempotent synthetic demo cover the full
+detection-to-reviewed-revision chain. Production missing alerts remain disabled
+until explicit calibrated sensor visibility evidence replaces the bounded
+observed-envelope heuristic.
+
 ---
 
 ## 30. Karar kapıları

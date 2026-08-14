@@ -1,0 +1,38 @@
+BEGIN;
+
+ALTER TABLE twin_draft_artifacts
+  DROP CONSTRAINT twin_draft_artifacts_role_check,
+  DROP CONSTRAINT twin_draft_artifacts_kind_role_check,
+  DROP CONSTRAINT twin_draft_artifacts_inputs_check;
+
+ALTER TABLE twin_draft_artifacts
+  ADD CONSTRAINT twin_draft_artifacts_role_check CHECK (role IN (
+    'BIM_SOURCE', 'FLOORPLAN_SOURCE', 'POINT_CLOUD_SOURCE',
+    'TRAJECTORY_SOURCE', 'CAMERA_SOURCE', 'CALIBRATION_SOURCE',
+    'SURVEY_SOURCE', 'SURVEY_PREVIEW', 'SURVEY_QUALITY_REPORT',
+    'SURVEY_QUALITY_ACCEPTANCE', 'SEMANTIC_OBSERVATIONS',
+    'ASSET_CANDIDATE_REPORT', 'ASSET_CANDIDATE_REVIEW', 'TWIN_ASSETS',
+    'ASSET_CHANGE_REPORT', 'ASSET_CHANGE_REVIEW', 'REGISTERED_POINT_CLOUD',
+    'RECONSTRUCTED_MESH', 'OCCUPANCY', 'ELEVATION', 'SCENE_TILESET',
+    'IMPORT_REPORT', 'REGISTRATION_REPORT', 'REGISTRATION_ACCEPTANCE',
+    'VALIDATION_REPORT'
+  )),
+  ADD CONSTRAINT twin_draft_artifacts_kind_role_check CHECK (
+    (role IN (
+      'BIM_SOURCE', 'FLOORPLAN_SOURCE', 'POINT_CLOUD_SOURCE',
+      'TRAJECTORY_SOURCE', 'CAMERA_SOURCE', 'CALIBRATION_SOURCE',
+      'SURVEY_SOURCE'
+    ) AND artifact_kind = 'SOURCE')
+    OR
+    (role NOT IN (
+      'BIM_SOURCE', 'FLOORPLAN_SOURCE', 'POINT_CLOUD_SOURCE',
+      'TRAJECTORY_SOURCE', 'CAMERA_SOURCE', 'CALIBRATION_SOURCE',
+      'SURVEY_SOURCE'
+    ) AND artifact_kind = 'DERIVED')
+  ),
+  ADD CONSTRAINT twin_draft_artifacts_inputs_check CHECK (
+    (artifact_kind = 'SOURCE' AND input_count = 0)
+    OR (artifact_kind = 'DERIVED' AND input_count > 0)
+  );
+
+COMMIT;

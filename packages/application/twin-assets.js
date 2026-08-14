@@ -1,9 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
 
-const ASSET_SET_VERSION = "brash.draft-twin-assets/v1";
-const ASSET_SET_MEDIA_TYPE = "application/vnd.brash.draft-twin-assets+json";
+const LEGACY_ASSET_SET_VERSION = "brash.draft-twin-assets/v1";
+const ASSET_SET_VERSION = "brash.draft-twin-assets/v2";
+const ASSET_SET_MEDIA_TYPE = "application/vnd.brash.draft-twin-assets.v2+json";
 const CHANGE_REPORT_VERSION = "brash.asset-change-report/v1";
 const CHANGE_REPORT_MEDIA_TYPE = "application/vnd.brash.asset-change-report+json";
+const CHANGE_REVIEW_VERSION = "brash.asset-change-review/v1";
+const CHANGE_REVIEW_MEDIA_TYPE = "application/vnd.brash.asset-change-review+json";
 const MAXIMUM_JSON_BYTES = 8 * 1024 * 1024;
 const MAXIMUM_ASSETS = 5_000;
 const POSITION_TOLERANCE_METERS = 0.5;
@@ -29,6 +32,8 @@ export class TwinAssetService {
   #clock;
   #assetSetIdGenerator;
   #changeSetIdGenerator;
+  #reviewIdGenerator;
+  #eventIdGenerator;
 
   constructor({
     catalog,
@@ -39,6 +44,8 @@ export class TwinAssetService {
     clock = () => new Date(),
     assetSetIdGenerator = () => `asset-set-${randomUUID()}`,
     changeSetIdGenerator = () => `asset-changes-${randomUUID()}`,
+    reviewIdGenerator = () => `asset-change-review-${randomUUID()}`,
+    eventIdGenerator = () => `event-${randomUUID()}`,
   }) {
     if (!catalog || typeof catalog.getMapDraftContext !== "function") invalidConfiguration("Catalog lookup is required.");
     if (!semanticCandidates || typeof semanticCandidates.list !== "function") invalidConfiguration("Semantic candidate lookup is required.");
@@ -51,7 +58,8 @@ export class TwinAssetService {
     if (!multipartStore || typeof multipartStore.get !== "function" || typeof multipartStore.putPart !== "function") {
       invalidConfiguration("Object-store read and write operations are required.");
     }
-    if (typeof clock !== "function" || typeof assetSetIdGenerator !== "function" || typeof changeSetIdGenerator !== "function") {
+    if (typeof clock !== "function" || typeof assetSetIdGenerator !== "function" || typeof changeSetIdGenerator !== "function"
+      || typeof reviewIdGenerator !== "function" || typeof eventIdGenerator !== "function") {
       invalidConfiguration("Clock and ID generators must be functions.");
     }
     this.#catalog = catalog;
@@ -62,6 +70,8 @@ export class TwinAssetService {
     this.#clock = clock;
     this.#assetSetIdGenerator = assetSetIdGenerator;
     this.#changeSetIdGenerator = changeSetIdGenerator;
+    this.#reviewIdGenerator = reviewIdGenerator;
+    this.#eventIdGenerator = eventIdGenerator;
   }
 
   async promote(draftId, input = {}) {
@@ -126,6 +136,7 @@ export class TwinAssetService {
         report: Object.freeze({ bindingId: candidateSet.reportBindingId, sha256: candidateSet.reportSha256 }),
         review: Object.freeze({ bindingId: candidateSet.review.reportBindingId, sha256: candidateSet.review.reportSha256 }),
       }),
+      sourceChangeSet: null,
       assets: Object.freeze(assets),
       promotedBy: input.operatorId,
       promotedAt: now(this.#clock),
@@ -144,7 +155,7 @@ export class TwinAssetService {
     let binding;
     try {
       binding = await this.#draftArtifacts.bind(draftId, {
-        bindingId: `twin-assets-${assetSetId}`,
+        bindingId: assetRevisionBindingId(draftId, predecessor),
         uploadId: stored.uploadId,
         role: "TWIN_ASSETS",
         coordinateFrameId: report.canonicalFrameId,
@@ -175,8 +186,8 @@ export class TwinAssetService {
     const bindings = await this.#draftArtifacts.list(draftId);
     const records = [];
     for (const binding of bindings.filter((candidate) => candidate.role === "TWIN_ASSETS"
-      && candidate.producer?.name === "brash-twin-asset-promoter")) {
-      const report = await this.#readJson(binding, ASSET_SET_VERSION);
+      && new Set(["brash-twin-asset-promoter", "brash-twin-asset-change-applier"]).has(candidate.producer?.name))) {
+      const report = await this.#readJson(binding, [LEGACY_ASSET_SET_VERSION, ASSET_SET_VERSION]);
       validateAssetSet(report, binding, context.draft);
       records.push(artifactRecord(binding, report));
     }
@@ -191,7 +202,8 @@ export class TwinAssetService {
     requiredText(input.operatorId, "operatorId");
     if (input.changeSetId !== undefined) identifier(input.changeSetId, "changeSetId");
     const context = await this.#requireEditableDraft(draftId);
-    const baseline = (await this.list(draftId)).at(-1);
+    const assetHistory = await this.list(draftId);
+    const baseline = assetHistory.at(-1);
     if (!baseline) throw new TwinAssetError("TWIN_ASSET_BASELINE_REQUIRED", "Change detection requires a promoted Twin asset baseline.");
     const candidateSet = (await this.#semanticCandidates.list(draftId)).find(
       (candidate) => candidate.report.candidateSetId === input.candidateSetId,
@@ -201,8 +213,15 @@ export class TwinAssetService {
       || candidateSet.report.canonicalFrameId !== context.draft.canonicalFrameId) {
       throw new TwinAssetError("TWIN_ASSET_FRAME_MISMATCH", "Change observations and baseline assets must share the draft canonical frame.");
     }
-    if (baseline.report.assets.some((asset) => asset.source.candidateSetId === input.candidateSetId)) {
-      throw new TwinAssetError("TWIN_ASSET_CHANGE_INPUT_INVALID", "A candidate set used to create the baseline cannot also test that baseline.");
+    if (assetHistory.some((record) => record.report.assets.some(
+      (asset) => asset.source.candidateSetId === input.candidateSetId,
+    ))) {
+      throw new TwinAssetError("TWIN_ASSET_CHANGE_INPUT_INVALID", "A candidate set already represented in Twin asset history cannot test a later baseline.");
+    }
+    if ((await this.listChanges(draftId)).some(
+      (record) => record.report.observations.candidateSetId === input.candidateSetId,
+    )) {
+      throw new TwinAssetError("TWIN_ASSET_CHANGE_CONFLICT", `Candidate set ${input.candidateSetId} was already compared.`);
     }
     const changeSetId = input.changeSetId ?? this.#changeSetIdGenerator();
     identifier(changeSetId, "changeSetId");
@@ -272,14 +291,229 @@ export class TwinAssetService {
     identifier(draftId, "draftId");
     const context = await this.#catalog.getMapDraftContext(draftId);
     const bindings = await this.#draftArtifacts.list(draftId);
+    const reviews = new Map();
+    for (const binding of bindings.filter((candidate) => candidate.role === "ASSET_CHANGE_REVIEW"
+      && candidate.producer?.name === "brash-twin-asset-change-review")) {
+      const report = await this.#readJson(binding, CHANGE_REVIEW_VERSION);
+      validateChangeReview(report, binding, context.draft);
+      if (reviews.has(report.changeSetId)) integrityFailure(binding.bindingId);
+      reviews.set(report.changeSetId, artifactRecord(binding, report));
+    }
     const records = [];
     for (const binding of bindings.filter((candidate) => candidate.role === "ASSET_CHANGE_REPORT"
       && candidate.producer?.name === "brash-twin-asset-change-detector")) {
       const report = await this.#readJson(binding, CHANGE_REPORT_VERSION);
       validateChangeReport(report, binding, context.draft);
-      records.push(artifactRecord(binding, report));
+      const review = reviews.get(report.changeSetId) ?? null;
+      if (review && (review.report.changeReport.bindingId !== binding.bindingId
+        || review.report.changeReport.sha256 !== binding.artifactSha256)) integrityFailure(review.reportBindingId);
+      records.push(Object.freeze({ ...artifactRecord(binding, report), review }));
     }
     return records.sort((left, right) => left.report.createdAt.localeCompare(right.report.createdAt));
+  }
+
+  async reviewChanges(draftId, changeSetId, input = {}) {
+    identifier(draftId, "draftId");
+    identifier(changeSetId, "changeSetId");
+    requiredText(input.reviewerId, "reviewerId");
+    if (input.reviewId !== undefined) identifier(input.reviewId, "reviewId");
+    await this.#requireEditableDraft(draftId);
+    const changeSet = (await this.listChanges(draftId)).find((record) => record.report.changeSetId === changeSetId);
+    if (!changeSet) throw new TwinAssetError("TWIN_ASSET_CHANGE_NOT_FOUND", `Change set ${changeSetId} was not found.`);
+    if (changeSet.review) {
+      throw new TwinAssetError("TWIN_ASSET_CHANGE_REVIEW_CONFLICT", `Change set ${changeSetId} already has an immutable review.`);
+    }
+    if (changeSet.report.createdBy === input.reviewerId) {
+      throw new TwinAssetError(
+        "TWIN_ASSET_CHANGE_REVIEWER_CONFLICT",
+        "The operator who created a change report cannot independently review it.",
+      );
+    }
+    const decisions = normalizeChangeDecisions(changeSet.report, input.decisions);
+    const confirmedMissing = decisions.some((decision) => decision.decision === "CONFIRMED"
+      && changeSet.report.changes.find((change) => change.changeId === decision.changeId)?.changeType === "MISSING");
+    const coverageQualificationAcknowledged = input.coverageQualificationAcknowledged === true;
+    if (confirmedMissing && !coverageQualificationAcknowledged) {
+      throw new TwinAssetError(
+        "TWIN_ASSET_CHANGE_COVERAGE_ACKNOWLEDGEMENT_REQUIRED",
+        "Confirming a missing asset requires acknowledgement that OBSERVED_ENVELOPE coverage is approximate evidence.",
+      );
+    }
+    const reviewId = input.reviewId ?? this.#reviewIdGenerator();
+    identifier(reviewId, "reviewId");
+    const byChangeId = new Map(changeSet.report.changes.map((change) => [change.changeId, change]));
+    const report = Object.freeze({
+      schemaVersion: CHANGE_REVIEW_VERSION,
+      reviewId,
+      changeSetId,
+      draftId,
+      changeReport: Object.freeze({ bindingId: changeSet.reportBindingId, sha256: changeSet.reportSha256 }),
+      coverageQualificationAcknowledged,
+      decisions: Object.freeze(decisions),
+      summary: Object.freeze({
+        confirmedCount: decisions.filter((decision) => decision.decision === "CONFIRMED").length,
+        dismissedCount: decisions.filter((decision) => decision.decision === "DISMISSED").length,
+        criticalCount: decisions.filter((decision) => decision.decision === "CONFIRMED"
+          && isCriticalChange(byChangeId.get(decision.changeId))).length,
+      }),
+      reviewerId: input.reviewerId,
+      note: optionalText(input.note, "note", 2_000),
+      sealedAt: now(this.#clock),
+    });
+    const stored = await storeJson({
+      uploads: this.#uploads,
+      multipartStore: this.#multipartStore,
+      uploadId: `asset-change-review-${changeSetId}`,
+      report,
+      mediaType: CHANGE_REVIEW_MEDIA_TYPE,
+      operatorId: input.reviewerId,
+      conflictCode: "TWIN_ASSET_CHANGE_REVIEW_CONFLICT",
+    });
+    let binding;
+    try {
+      binding = await this.#draftArtifacts.bind(draftId, {
+        bindingId: `asset-change-review-${changeSetId}`,
+        uploadId: stored.uploadId,
+        role: "ASSET_CHANGE_REVIEW",
+        coordinateFrameId: null,
+        inputBindingIds: [changeSet.reportBindingId],
+        producer: {
+          name: "brash-twin-asset-change-review",
+          version: "1.0.0",
+          parametersSha256: sha256(canonicalJson({ schemaVersion: CHANGE_REVIEW_VERSION })),
+        },
+        operatorId: input.reviewerId,
+      });
+    } catch (error) {
+      if (error?.code === "DRAFT_ARTIFACT_CONFLICT") {
+        throw new TwinAssetError("TWIN_ASSET_CHANGE_REVIEW_CONFLICT", `Change review ${reviewId} already exists.`, { cause: error });
+      }
+      throw error;
+    }
+    return artifactRecord(binding, report);
+  }
+
+  async applyChanges(draftId, changeSetId, input = {}) {
+    identifier(draftId, "draftId");
+    identifier(changeSetId, "changeSetId");
+    requiredText(input.operatorId, "operatorId");
+    if (input.assetSetId !== undefined) identifier(input.assetSetId, "assetSetId");
+    const context = await this.#requireEditableDraft(draftId);
+    if (typeof this.#draftArtifacts.bindWithEvent !== "function") {
+      invalidConfiguration("Atomic artifact and outbox persistence is required to apply reviewed changes.");
+    }
+    const changeSet = (await this.listChanges(draftId)).find((record) => record.report.changeSetId === changeSetId);
+    if (!changeSet) throw new TwinAssetError("TWIN_ASSET_CHANGE_NOT_FOUND", `Change set ${changeSetId} was not found.`);
+    if (!changeSet.review) {
+      throw new TwinAssetError("TWIN_ASSET_CHANGE_REVIEW_REQUIRED", "Detected changes require an immutable independent review before application.");
+    }
+    const confirmed = changeSet.review.report.decisions.filter((decision) => decision.decision === "CONFIRMED");
+    if (confirmed.length === 0) {
+      throw new TwinAssetError("TWIN_ASSET_CONFIRMED_CHANGE_REQUIRED", "At least one confirmed change is required to create an asset revision.");
+    }
+    const existing = await this.list(draftId);
+    if (existing.some((record) => record.report.sourceChangeSet?.changeSetId === changeSetId)) {
+      throw new TwinAssetError("TWIN_ASSET_CHANGE_APPLY_CONFLICT", `Change set ${changeSetId} was already applied.`);
+    }
+    const baseline = existing.at(-1);
+    if (!baseline || baseline.reportBindingId !== changeSet.report.baseline.bindingId
+      || baseline.reportSha256 !== changeSet.report.baseline.sha256) {
+      throw new TwinAssetError(
+        "TWIN_ASSET_CHANGE_BASELINE_STALE",
+        "The Twin asset baseline changed after detection; run change detection again against the latest revision.",
+      );
+    }
+    const candidateSet = (await this.#semanticCandidates.list(draftId)).find(
+      (record) => record.report.candidateSetId === changeSet.report.observations.candidateSetId,
+    );
+    if (!candidateSet || candidateSet.reportBindingId !== changeSet.report.observations.bindingId
+      || candidateSet.reportSha256 !== changeSet.report.observations.sha256) {
+      integrityFailure(changeSet.reportBindingId);
+    }
+    const assets = applyConfirmedChanges({
+      baseline: baseline.report.assets,
+      changes: changeSet.report.changes,
+      decisions: changeSet.review.report.decisions,
+      candidates: candidateSet.report.candidates,
+      candidateSetId: candidateSet.report.candidateSetId,
+      frameId: context.draft.canonicalFrameId,
+    });
+    if (assets.length > MAXIMUM_ASSETS || new Set(assets.map((asset) => asset.assetId)).size !== assets.length) {
+      throw new TwinAssetError("TWIN_ASSET_LIMIT_EXCEEDED", `A draft asset set may contain at most ${MAXIMUM_ASSETS} unique assets.`);
+    }
+    const assetSetId = input.assetSetId ?? this.#assetSetIdGenerator();
+    identifier(assetSetId, "assetSetId");
+    const promotedAt = now(this.#clock);
+    const report = Object.freeze({
+      schemaVersion: ASSET_SET_VERSION,
+      assetSetId,
+      draftId,
+      revision: baseline.report.revision + 1,
+      canonicalFrameId: context.draft.canonicalFrameId,
+      predecessor: Object.freeze({
+        assetSetId: baseline.report.assetSetId,
+        revision: baseline.report.revision,
+        bindingId: baseline.reportBindingId,
+        sha256: baseline.reportSha256,
+      }),
+      sourceCandidateSet: null,
+      sourceChangeSet: Object.freeze({
+        changeSetId,
+        report: Object.freeze({ bindingId: changeSet.reportBindingId, sha256: changeSet.reportSha256 }),
+        review: Object.freeze({ bindingId: changeSet.review.reportBindingId, sha256: changeSet.review.reportSha256 }),
+        observations: Object.freeze({ bindingId: candidateSet.reportBindingId, sha256: candidateSet.reportSha256 }),
+      }),
+      assets: Object.freeze(assets),
+      promotedBy: input.operatorId,
+      promotedAt,
+    });
+    const stored = await storeJson({
+      uploads: this.#uploads,
+      multipartStore: this.#multipartStore,
+      uploadId: `twin-assets-${assetSetId}`,
+      report,
+      mediaType: ASSET_SET_MEDIA_TYPE,
+      operatorId: input.operatorId,
+      conflictCode: "TWIN_ASSET_CHANGE_APPLY_CONFLICT",
+    });
+    const event = changeAppliedEvent({
+      eventId: this.#eventIdGenerator(),
+      draftId,
+      report,
+      changeReport: changeSet.report,
+      review: changeSet.review.report,
+      occurredAt: promotedAt,
+    });
+    let binding;
+    try {
+      binding = await this.#draftArtifacts.bindWithEvent(draftId, {
+        bindingId: assetRevisionBindingId(draftId, baseline),
+        uploadId: stored.uploadId,
+        role: "TWIN_ASSETS",
+        coordinateFrameId: report.canonicalFrameId,
+        inputBindingIds: [
+          baseline.reportBindingId,
+          changeSet.reportBindingId,
+          changeSet.review.reportBindingId,
+          candidateSet.reportBindingId,
+        ],
+        producer: {
+          name: "brash-twin-asset-change-applier",
+          version: "1.0.0",
+          parametersSha256: sha256(canonicalJson({
+            changeReportSha256: changeSet.reportSha256,
+            changeReviewSha256: changeSet.review.reportSha256,
+          })),
+        },
+        operatorId: input.operatorId,
+      }, event);
+    } catch (error) {
+      if (new Set(["DRAFT_ARTIFACT_CONFLICT", "DRAFT_ARTIFACT_PERSISTENCE_ERROR"]).has(error?.code)) {
+        throw new TwinAssetError("TWIN_ASSET_CHANGE_APPLY_CONFLICT", `Asset set ${assetSetId} could not be atomically applied.`, { cause: error });
+      }
+      throw error;
+    }
+    return artifactRecord(binding, report);
   }
 
   async #requireEditableDraft(draftId) {
@@ -299,7 +533,8 @@ export class TwinAssetService {
     try { report = JSON.parse(content.toString("utf8")); } catch {
       throw new TwinAssetError("TWIN_ASSET_JSON_INVALID", `Stored artifact ${binding.bindingId} is not valid JSON.`);
     }
-    if (report?.schemaVersion !== schemaVersion) {
+    const supported = Array.isArray(schemaVersion) ? schemaVersion : [schemaVersion];
+    if (!supported.includes(report?.schemaVersion)) {
       throw new TwinAssetError("TWIN_ASSET_SCHEMA_INVALID", `Stored artifact ${binding.bindingId} has an unsupported schema.`);
     }
     return report;
@@ -346,6 +581,174 @@ function promoteCandidate(candidateSetId, candidate, decision, frameId) {
       suggestedClass: candidate.suggestedClass,
     }),
   });
+}
+
+function applyConfirmedChanges({ baseline, changes, decisions, candidates, candidateSetId, frameId }) {
+  const assets = new Map(baseline.map((asset) => [asset.assetId, asset]));
+  const byChangeId = new Map(changes.map((change) => [change.changeId, change]));
+  const byCandidateId = new Map(candidates.map((candidate) => [candidate.candidateId, candidate]));
+  for (const decision of decisions.filter((candidate) => candidate.decision === "CONFIRMED")) {
+    const change = byChangeId.get(decision.changeId);
+    if (!change) workflowIntegrityFailure(`Reviewed change ${decision.changeId} is missing from its sealed report.`);
+    if (change.changeType === "MISSING") {
+      if (!change.assetId || !assets.delete(change.assetId)) workflowIntegrityFailure(`Missing asset ${change.assetId} is not in the baseline.`);
+      continue;
+    }
+    const candidate = byCandidateId.get(change.candidateId);
+    if (!candidate) workflowIntegrityFailure(`Candidate ${change.candidateId} is unavailable for ${change.changeType}.`);
+    if (change.changeType === "MOVED") {
+      const asset = assets.get(change.assetId);
+      if (!asset) workflowIntegrityFailure(`Moved asset ${change.assetId} is not in the baseline.`);
+      assets.set(asset.assetId, relocateAsset(asset, candidateSetId, candidate));
+      continue;
+    }
+    const appeared = promoteCandidate(candidateSetId, candidate, {
+      displayName: decision.displayName,
+      assetType: decision.assetType,
+      properties: decision.properties,
+    }, frameId);
+    if (assets.has(appeared.assetId)) workflowIntegrityFailure(`Appeared asset ${appeared.assetId} already exists.`);
+    assets.set(appeared.assetId, appeared);
+  }
+  return [...assets.values()].sort((left, right) => left.assetId.localeCompare(right.assetId));
+}
+
+function relocateAsset(asset, candidateSetId, candidate) {
+  const previous = assetPosition(asset);
+  const next = candidate.canonicalPosition;
+  const delta = next.map((coordinate, axis) => coordinate - previous[axis]);
+  const translatePoint = (point) => Object.freeze({ x: round(point.x + delta[0]), y: round(point.y + delta[1]) });
+  const translateVector = (point) => Object.freeze({
+    x: round(point.x + delta[0]),
+    y: round(point.y + delta[1]),
+    z: round(point.z + delta[2]),
+  });
+  return Object.freeze({
+    ...asset,
+    pose: Object.freeze({
+      position: Object.freeze({ x: next[0], y: next[1], z: next[2] }),
+      orientation: asset.pose.orientation,
+    }),
+    footprint: Object.freeze(asset.footprint.map(translatePoint)),
+    bounds3d: Object.freeze({
+      minimum: translateVector(asset.bounds3d.minimum),
+      maximum: translateVector(asset.bounds3d.maximum),
+    }),
+    source: Object.freeze({
+      candidateSetId,
+      candidateId: candidate.candidateId,
+      sourceObservationId: candidate.sourceObservationId,
+      suggestedClass: candidate.suggestedClass,
+    }),
+  });
+}
+
+function normalizeChangeDecisions(changeReport, value) {
+  if (!Array.isArray(value) || value.length !== changeReport.changes.length) {
+    throw new TwinAssetError(
+      "TWIN_ASSET_CHANGE_DECISIONS_INVALID",
+      "Every detected change must have exactly one CONFIRMED or DISMISSED decision.",
+    );
+  }
+  const byId = new Map(changeReport.changes.map((change) => [change.changeId, change]));
+  const seen = new Set();
+  const decisions = value.map((input, index) => {
+    if (!input || typeof input !== "object" || Array.isArray(input)) {
+      throw new TwinAssetError("TWIN_ASSET_CHANGE_DECISIONS_INVALID", `decisions[${index}] must be an object.`);
+    }
+    identifier(input.changeId, `decisions[${index}].changeId`);
+    if (seen.has(input.changeId) || !byId.has(input.changeId)) {
+      throw new TwinAssetError("TWIN_ASSET_CHANGE_DECISIONS_INVALID", `Decision ${input.changeId} is duplicated or unknown.`);
+    }
+    seen.add(input.changeId);
+    if (!new Set(["CONFIRMED", "DISMISSED"]).has(input.decision)) {
+      throw new TwinAssetError("TWIN_ASSET_CHANGE_DECISIONS_INVALID", `Decision ${input.changeId} must be CONFIRMED or DISMISSED.`);
+    }
+    const change = byId.get(input.changeId);
+    let displayName = null;
+    let assetType = null;
+    let properties = Object.freeze({});
+    if (input.decision === "CONFIRMED" && change.changeType === "APPEARED") {
+      requiredText(input.displayName, `decisions[${index}].displayName`);
+      requiredText(input.assetType, `decisions[${index}].assetType`);
+      if (input.displayName.trim().length > 200 || input.assetType.trim().length > 100) {
+        throw new TwinAssetError("TWIN_ASSET_CHANGE_DECISIONS_INVALID", "Appeared asset names or types exceed their bounded length.");
+      }
+      displayName = input.displayName.trim();
+      assetType = input.assetType.trim();
+      properties = normalizeProperties(input.properties, `decisions[${index}].properties`);
+    }
+    return Object.freeze({
+      changeId: input.changeId,
+      decision: input.decision,
+      displayName,
+      assetType,
+      properties,
+      note: optionalText(input.note, `decisions[${index}].note`, 1_000),
+    });
+  });
+  if (seen.size !== byId.size) {
+    throw new TwinAssetError("TWIN_ASSET_CHANGE_DECISIONS_INVALID", "Every detected change must be reviewed exactly once.");
+  }
+  return decisions.sort((left, right) => left.changeId.localeCompare(right.changeId));
+}
+
+function normalizeProperties(value, field) {
+  if (value === undefined) return Object.freeze({});
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length > 20) {
+    throw new TwinAssetError("TWIN_ASSET_CHANGE_DECISIONS_INVALID", `${field} must contain at most 20 scalar properties.`);
+  }
+  const normalized = {};
+  for (const [key, property] of Object.entries(value)) {
+    if (key.trim() === "" || !new Set(["string", "number", "boolean"]).has(typeof property)
+      || (typeof property === "number" && !Number.isFinite(property))) {
+      throw new TwinAssetError("TWIN_ASSET_CHANGE_DECISIONS_INVALID", `${field}.${key} must be a finite scalar value.`);
+    }
+    normalized[key] = property;
+  }
+  return Object.freeze(normalized);
+}
+
+function changeAppliedEvent({ eventId, draftId, report, changeReport, review, occurredAt }) {
+  requiredText(eventId, "eventId");
+  const byChangeId = new Map(changeReport.changes.map((change) => [change.changeId, change]));
+  const confirmedChanges = review.decisions
+    .filter((decision) => decision.decision === "CONFIRMED")
+    .map((decision) => {
+      const change = byChangeId.get(decision.changeId);
+      if (!change) workflowIntegrityFailure(`Reviewed change ${decision.changeId} is unavailable for event creation.`);
+      const severity = isCriticalChange(change) ? "CRITICAL" : "WARNING";
+      return Object.freeze({
+        changeId: change.changeId,
+        changeType: change.changeType,
+        assetId: change.assetId ?? `asset-${sha256(change.candidateId).slice(0, 20)}`,
+        semanticClass: decision.assetType ?? change.semanticClass,
+        confidence: change.confidence,
+        severity,
+      });
+    });
+  return Object.freeze({
+    eventId,
+    aggregateType: "MAP_DRAFT",
+    aggregateId: draftId,
+    eventType: "TwinAssetChangesApplied.v1",
+    schemaVersion: 1,
+    payload: Object.freeze({
+      schemaVersion: "brash.twin-asset-changes-applied-event/v1",
+      draftId,
+      assetSetId: report.assetSetId,
+      assetRevision: report.revision,
+      changeSetId: changeReport.changeSetId,
+      reviewId: review.reviewId,
+      notificationRequired: confirmedChanges.some((change) => change.severity === "CRITICAL"),
+      confirmedChanges: Object.freeze(confirmedChanges),
+    }),
+    occurredAt,
+  });
+}
+
+function isCriticalChange(change) {
+  return change?.changeType === "MOVED" || change?.changeType === "MISSING";
 }
 
 function compareAssets(assets, candidates, changeSetId) {
@@ -429,11 +832,23 @@ function validateAssetSet(report, binding, draft) {
     || binding.coordinateFrameId !== report.canonicalFrameId || !Number.isInteger(report.revision)
     || report.revision < 1 || !Array.isArray(report.assets) || report.assets.length > MAXIMUM_ASSETS) integrityFailure(binding.bindingId);
   const inputs = new Map(binding.inputBindings.map((input) => [input.bindingId, input.artifactSha256]));
-  const expectedCount = report.predecessor ? 3 : 2;
-  if (binding.inputBindings.length !== expectedCount
-    || inputs.get(report.sourceCandidateSet?.report?.bindingId) !== report.sourceCandidateSet?.report?.sha256
-    || inputs.get(report.sourceCandidateSet?.review?.bindingId) !== report.sourceCandidateSet?.review?.sha256
-    || (report.predecessor && inputs.get(report.predecessor.bindingId) !== report.predecessor.sha256)) integrityFailure(binding.bindingId);
+  if (report.schemaVersion === LEGACY_ASSET_SET_VERSION || report.sourceCandidateSet) {
+    const expectedCount = report.predecessor ? 3 : 2;
+    if (binding.inputBindings.length !== expectedCount
+      || inputs.get(report.sourceCandidateSet?.report?.bindingId) !== report.sourceCandidateSet?.report?.sha256
+      || inputs.get(report.sourceCandidateSet?.review?.bindingId) !== report.sourceCandidateSet?.review?.sha256
+      || (report.predecessor && inputs.get(report.predecessor.bindingId) !== report.predecessor.sha256)
+      || (report.schemaVersion === ASSET_SET_VERSION && report.sourceChangeSet !== null)) integrityFailure(binding.bindingId);
+  } else if (report.schemaVersion === ASSET_SET_VERSION && report.sourceChangeSet) {
+    if (!report.predecessor || binding.inputBindings.length !== 4
+      || inputs.get(report.predecessor.bindingId) !== report.predecessor.sha256
+      || inputs.get(report.sourceChangeSet.report?.bindingId) !== report.sourceChangeSet.report?.sha256
+      || inputs.get(report.sourceChangeSet.review?.bindingId) !== report.sourceChangeSet.review?.sha256
+      || inputs.get(report.sourceChangeSet.observations?.bindingId) !== report.sourceChangeSet.observations?.sha256
+      || report.sourceCandidateSet !== null) integrityFailure(binding.bindingId);
+  } else {
+    integrityFailure(binding.bindingId);
+  }
   const ids = new Set();
   for (const asset of report.assets) {
     identifier(asset?.assetId, "assetId");
@@ -461,6 +876,15 @@ function validateChangeReport(report, binding, draft) {
     || inputs.get(report.baseline?.bindingId) !== report.baseline?.sha256
     || inputs.get(report.observations?.bindingId) !== report.observations?.sha256
     || !Array.isArray(report.changes)) integrityFailure(binding.bindingId);
+}
+
+function validateChangeReview(report, binding, draft) {
+  const inputs = new Map(binding.inputBindings.map((input) => [input.bindingId, input.artifactSha256]));
+  if (report.draftId !== draft.draftId || binding.inputBindings.length !== 1
+    || inputs.get(report.changeReport?.bindingId) !== report.changeReport?.sha256
+    || !Array.isArray(report.decisions)
+    || report.summary?.confirmedCount + report.summary?.dismissedCount !== report.decisions.length
+    || report.summary?.criticalCount > report.summary?.confirmedCount) integrityFailure(binding.bindingId);
 }
 
 async function storeJson({ uploads, multipartStore, uploadId, report, mediaType, operatorId, conflictCode }) {
@@ -497,6 +921,13 @@ function assetPosition(asset) {
   return [asset.pose.position.x, asset.pose.position.y, asset.pose.position.z];
 }
 
+function assetRevisionBindingId(draftId, predecessor) {
+  const slot = predecessor === null
+    ? `root-${draftId}`
+    : `successor-${predecessor.reportBindingId}`;
+  return `twin-assets-${sha256(slot).slice(0, 20)}`;
+}
+
 function insideEnvelope(position, minimum, maximum) {
   return position.every((coordinate, axis) => coordinate >= minimum[axis] && coordinate <= maximum[axis]);
 }
@@ -521,12 +952,24 @@ function requiredText(value, field) {
   }
 }
 
+function optionalText(value, field, maximumLength) {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value !== "string" || value.trim().length > maximumLength) {
+    throw new TwinAssetError("TWIN_ASSET_INPUT_INVALID", `${field} must be at most ${maximumLength} characters.`);
+  }
+  return value.trim();
+}
+
 function invalidConfiguration(message) {
   throw new TwinAssetError("TWIN_ASSET_CONFIGURATION_INVALID", message);
 }
 
 function integrityFailure(bindingId) {
   throw new TwinAssetError("TWIN_ASSET_INTEGRITY_FAILED", `Stored artifact ${bindingId} does not match its sealed provenance.`);
+}
+
+function workflowIntegrityFailure(message) {
+  throw new TwinAssetError("TWIN_ASSET_INTEGRITY_FAILED", message);
 }
 
 function now(clock) {

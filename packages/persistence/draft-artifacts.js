@@ -41,16 +41,27 @@ export class InMemoryDraftArtifactRepository {
         || left.bindingId.localeCompare(right.bindingId))
       .map(clone);
   }
+
+  snapshotForUnitOfWork() {
+    return new Map([...this.#bindings.entries()].map(([key, value]) => [key, clone(value)]));
+  }
+
+  restoreUnitOfWorkSnapshot(snapshot) {
+    if (!(snapshot instanceof Map)) {
+      throw new PersistenceError("SNAPSHOT_INVALID", "The draft artifact unit-of-work snapshot must be a map.");
+    }
+    this.#bindings = new Map([...snapshot.entries()].map(([key, value]) => [key, clone(value)]));
+  }
 }
 
 export class PostgresDraftArtifactRepository {
   #database;
 
   constructor(database) {
-    if (!database || typeof database.query !== "function" || typeof database.transaction !== "function") {
+    if (!database || typeof database.query !== "function") {
       throw new PersistenceError(
-        "DATABASE_TRANSACTION_REQUIRED",
-        "Draft artifact persistence requires database query and transaction ports.",
+        "DATABASE_REQUIRED",
+        "Draft artifact persistence requires a database query port.",
       );
     }
     this.#database = database;
@@ -58,8 +69,8 @@ export class PostgresDraftArtifactRepository {
 
   async create(record) {
     try {
-      return await this.#database.transaction(async (transaction) => {
-        await transaction.query(
+      const createIn = async (database) => {
+        await database.query(
           `INSERT INTO twin_draft_artifacts
            (binding_id, draft_id, upload_id, artifact_sha256, role, artifact_kind,
             input_count, coordinate_frame_id, producer_name, producer_version,
@@ -68,7 +79,7 @@ export class PostgresDraftArtifactRepository {
           bindingParameters(record),
         );
         for (const input of record.inputBindings) {
-          await transaction.query(
+          await database.query(
             `INSERT INTO twin_draft_artifact_inputs
              (draft_id, binding_id, input_binding_id, input_artifact_sha256)
              VALUES ($1, $2, $3, $4)`,
@@ -76,7 +87,10 @@ export class PostgresDraftArtifactRepository {
           );
         }
         return clone(record);
-      });
+      };
+      return typeof this.#database.transaction === "function"
+        ? await this.#database.transaction(createIn)
+        : await createIn(this.#database);
     } catch (error) {
       throw translateDatabaseError(error, record.bindingId);
     }

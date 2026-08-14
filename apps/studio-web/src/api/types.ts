@@ -441,16 +441,22 @@ export interface DraftTwinAsset {
 }
 
 export interface DraftTwinAssetSetReport {
-  schemaVersion: "brash.draft-twin-assets/v1";
+  schemaVersion: "brash.draft-twin-assets/v1" | "brash.draft-twin-assets/v2";
   assetSetId: string;
   draftId: string;
   revision: number;
   canonicalFrameId: string;
   predecessor: null | { assetSetId: string; revision: number; bindingId: string; sha256: string };
-  sourceCandidateSet: {
+  sourceCandidateSet: null | {
     candidateSetId: string;
     report: { bindingId: string; sha256: string };
     review: { bindingId: string; sha256: string };
+  };
+  sourceChangeSet?: null | {
+    changeSetId: string;
+    report: { bindingId: string; sha256: string };
+    review: { bindingId: string; sha256: string };
+    observations: { bindingId: string; sha256: string };
   };
   assets: DraftTwinAsset[];
   promotedBy: string;
@@ -510,6 +516,51 @@ export interface AssetChangeSetRecord {
   reportUploadId: string;
   reportSha256: string;
   report: AssetChangeSetReport;
+  review: AssetChangeReviewRecord | null;
+}
+
+export interface AssetChangeReviewDecision {
+  changeId: string;
+  decision: "CONFIRMED" | "DISMISSED";
+  displayName: string | null;
+  assetType: string | null;
+  properties: Record<string, string | number | boolean>;
+  note: string | null;
+}
+
+export interface AssetChangeReviewReport {
+  schemaVersion: "brash.asset-change-review/v1";
+  reviewId: string;
+  changeSetId: string;
+  draftId: string;
+  changeReport: { bindingId: string; sha256: string };
+  coverageQualificationAcknowledged: boolean;
+  decisions: AssetChangeReviewDecision[];
+  summary: { confirmedCount: number; dismissedCount: number; criticalCount: number };
+  reviewerId: string;
+  note: string | null;
+  sealedAt: string;
+}
+
+export interface AssetChangeReviewRecord {
+  reportBindingId: string;
+  reportUploadId: string;
+  reportSha256: string;
+  report: AssetChangeReviewReport;
+}
+
+export interface ReviewAssetChangesInput {
+  reviewerId: string;
+  coverageQualificationAcknowledged: boolean;
+  note?: string;
+  decisions: Array<{
+    changeId: string;
+    decision: "CONFIRMED" | "DISMISSED";
+    displayName?: string;
+    assetType?: string;
+    properties?: Record<string, string | number | boolean>;
+    note?: string;
+  }>;
 }
 
 export interface ReleaseManifest {
