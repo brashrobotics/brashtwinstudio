@@ -8,6 +8,14 @@ const objectStorePath = resolve(process.env.TWIN_OBJECT_STORE_PATH ?? ".local/ob
 const store = new LocalMultipartArtifactStore(objectStorePath);
 const operatorId = "demo-operator";
 
+class ApiRequestError extends Error {
+  constructor(method, path, code, detail) {
+    super(`${method} ${path} failed: ${code} ${detail}`.trim());
+    this.name = "ApiRequestError";
+    this.code = code;
+  }
+}
+
 await createCatalog();
 const sources = sourceArtifacts();
 const artifactUploads = [];
@@ -18,32 +26,47 @@ for (const source of sources) {
 }
 const manifest = surveyManifest(sources);
 await upload("demo-survey-manifest", Buffer.from(JSON.stringify(manifest)), "application/json", "manifest.json");
-await request("POST", "/api/v1/map-drafts/demo-draft-1/survey-intakes", {
-  intakeId: "demo-intake-1",
-  manifestUploadId: "demo-survey-manifest",
-  artifactUploads,
-  operatorId,
-});
+const existingIntake = await getIfPresent(
+  "/api/v1/survey-intakes/demo-intake-1",
+  "SURVEY_INTAKE_NOT_FOUND",
+);
+if (!existingIntake) {
+  await request("POST", "/api/v1/map-drafts/demo-draft-1/survey-intakes", {
+    intakeId: "demo-intake-1",
+    manifestUploadId: "demo-survey-manifest",
+    artifactUploads,
+    operatorId,
+  });
+}
 await request("POST", "/api/v1/survey-intakes/demo-intake-1/verify", { operatorId });
-await request("POST", "/api/v1/survey-intakes/demo-intake-1/materializations", {
-  jobId: "demo-materialization-1",
-  operatorId,
-});
+const existingMaterialization = await getIfPresent(
+  "/api/v1/survey-materializations/demo-materialization-1",
+  "SURVEY_MATERIALIZATION_NOT_FOUND",
+);
+if (!existingMaterialization) {
+  await request("POST", "/api/v1/survey-intakes/demo-intake-1/materializations", {
+    jobId: "demo-materialization-1",
+    operatorId,
+  });
+}
 const materialization = await request("POST", "/api/v1/survey-materializations/demo-materialization-1/run", {
   workerId: "demo-materializer",
   operatorId,
 });
-await request("POST", "/api/v1/map-drafts/demo-draft-1/survey-registrations", {
-  registrationId: "demo-registration-1",
-  materializationJobId: "demo-materialization-1",
-  allowScale: false,
-  operatorId,
-  controlPoints: [
-    { controlPointId: "cp-1", source: { x: -4, y: -3 }, target: { x: -9, y: -6 } },
-    { controlPointId: "cp-2", source: { x: 4, y: -3 }, target: { x: -1, y: -6 } },
-    { controlPointId: "cp-3", source: { x: 4, y: 3 }, target: { x: -1, y: 0 } },
-  ],
-});
+const registrationList = await request("GET", "/api/v1/map-drafts/demo-draft-1/survey-registrations");
+if (!registrationList.registrations.some(({ report }) => report.registrationId === "demo-registration-1")) {
+  await request("POST", "/api/v1/map-drafts/demo-draft-1/survey-registrations", {
+    registrationId: "demo-registration-1",
+    materializationJobId: "demo-materialization-1",
+    allowScale: false,
+    operatorId,
+    controlPoints: [
+      { controlPointId: "cp-1", source: { x: -4, y: -3 }, target: { x: -9, y: -6 } },
+      { controlPointId: "cp-2", source: { x: 4, y: -3 }, target: { x: -1, y: -6 } },
+      { controlPointId: "cp-3", source: { x: 4, y: 3 }, target: { x: -1, y: 0 } },
+    ],
+  });
+}
 
 console.log(JSON.stringify({
   siteId: "demo-site",
@@ -55,30 +78,30 @@ console.log(JSON.stringify({
 }, null, 2));
 
 async function createCatalog() {
-  await request("POST", "/api/v1/sites", {
+  await createOrReuse("/api/v1/sites", {
     siteId: "demo-site",
     displayName: "Brash Demo Factory",
     timezone: "Europe/Istanbul",
     operatorId,
   });
-  await request("POST", "/api/v1/sites/demo-site/buildings", {
+  await createOrReuse("/api/v1/sites/demo-site/buildings", {
     buildingId: "main-building",
     displayName: "Main Building",
     operatorId,
   });
-  await request("POST", "/api/v1/sites/demo-site/buildings/main-building/floors", {
+  await createOrReuse("/api/v1/sites/demo-site/buildings/main-building/floors", {
     floorId: "production-floor",
     displayName: "Production Floor",
     elevationMeters: 0,
     operatorId,
   });
-  await request("POST", "/api/v1/map-families", {
+  await createOrReuse("/api/v1/map-families", {
     familyId: "demo-factory-map",
     floorId: "production-floor",
     displayName: "Factory Twin",
     operatorId,
   });
-  await request("POST", "/api/v1/map-drafts", {
+  await createOrReuse("/api/v1/map-drafts", {
     draftId: "demo-draft-1",
     familyId: "demo-factory-map",
     revision: 1,
@@ -89,6 +112,17 @@ async function createCatalog() {
 
 async function upload(uploadId, content, mediaType, originalName) {
   const expectedSha256 = sha256(content);
+  const existing = await getIfPresent(`/api/v1/uploads/${uploadId}`, "UPLOAD_NOT_FOUND");
+  if (existing) {
+    const { session } = existing;
+    if (session.status !== "COMPLETED"
+      || session.expectedSha256 !== expectedSha256
+      || session.expectedBytes !== content.byteLength
+      || session.mediaType !== mediaType) {
+      throw new Error(`Existing demo upload ${uploadId} does not match the deterministic seed.`);
+    }
+    return;
+  }
   const initiated = await request("POST", "/api/v1/uploads", {
     uploadId,
     expectedSha256,
@@ -112,8 +146,33 @@ async function request(method, path, body) {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const payload = await response.json();
-  if (!response.ok) throw new Error(`${method} ${path} failed: ${payload.error?.code ?? response.status} ${payload.error?.message ?? ""}`);
+  if (!response.ok) {
+    throw new ApiRequestError(
+      method,
+      path,
+      payload.error?.code ?? String(response.status),
+      payload.error?.message ?? "",
+    );
+  }
   return payload;
+}
+
+async function createOrReuse(path, body) {
+  try {
+    return await request("POST", path, body);
+  } catch (error) {
+    if (!(error instanceof ApiRequestError) || error.code !== "CATALOG_CONFLICT") throw error;
+    return null;
+  }
+}
+
+async function getIfPresent(path, notFoundCode) {
+  try {
+    return await request("GET", path);
+  } catch (error) {
+    if (!(error instanceof ApiRequestError) || error.code !== notFoundCode) throw error;
+    return null;
+  }
 }
 
 function sourceArtifacts() {

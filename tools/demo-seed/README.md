@@ -18,7 +18,9 @@ TWIN_OBJECT_STORE_PATH=.local/demo-object-store npm run demo:seed
 ```
 
 Then open <http://127.0.0.1:4390/>. The seed is intentionally small and uses
-only synthetic data; it does not download any external dataset.
+only synthetic data; it does not download any external dataset. The command is
+idempotent: running it again validates and reuses the existing deterministic
+demo resources instead of creating duplicates.
 
 Configuration:
 
