@@ -11,12 +11,14 @@ export function surveyPreviewWorldEntities(
   registration: SurveyRegistrationReport | null = null,
 ): WorldEntity[] {
   const trajectoryPoints = preview.trajectory.preview.poses.map((pose) => vector(pose.position, registration));
-  const pointCloud = preview.reconstruction.preview.points.map((point) => vector(point, registration));
-  const bounds = preview.reconstruction.bounds;
+  const projection = preview.reconstruction.planProjection;
+  const pointCloud = (projection?.samples ?? preview.reconstruction.preview.points)
+    .map((point) => vector(point, registration));
+  const bounds = projection ? projectionBounds(projection) : preview.reconstruction.bounds;
   const boundsMidpoint = transformPosition(midpoint(bounds), registration);
   const boundsExtent = extent(bounds);
   const scale = registration?.transform.scale ?? 1;
-  return [
+  const entities: WorldEntity[] = [
     {
       entityId: "survey-point-cloud-preview",
       layerId: "survey",
@@ -44,6 +46,24 @@ export function surveyPreviewWorldEntities(
       },
     },
   ];
+  if (projection) {
+    entities.push({
+      entityId: "survey-operational-plan",
+      layerId: "coverage",
+      label: `${projection.projectedPointCount.toLocaleString()} points · ${projection.resolutionMetres.toFixed(2)} m plan projection`,
+      position: { x: 0, y: 0, z: 0 },
+      geometry: {
+        type: "POINT_CLOUD",
+        points: projection.samples.map((point) => transformPosition({
+          x: point[0],
+          y: point[1],
+          z: projection.heightRangeMetres.minimum + 0.02,
+        }, registration)),
+        size: Math.min(1.25, projection.resolutionMetres * 0.82),
+      },
+    });
+  }
+  return entities;
 }
 
 export function surveyCoverageWorldEntities(
@@ -120,4 +140,19 @@ function extent(bounds: SurveyBounds): { x: number; y: number; z: number } {
 function previewPointSize(bounds: SurveyBounds): number {
   const size = extent(bounds);
   return Math.min(0.25, Math.max(0.03, Math.hypot(size.x, size.y, size.z) / 500));
+}
+
+function projectionBounds(projection: NonNullable<SurveyMaterializationPreview["reconstruction"]["planProjection"]>): SurveyBounds {
+  return {
+    minimum: [
+      projection.bounds.minimum[0],
+      projection.bounds.minimum[1],
+      projection.heightRangeMetres.minimum,
+    ],
+    maximum: [
+      projection.bounds.maximum[0],
+      projection.bounds.maximum[1],
+      projection.heightRangeMetres.maximum,
+    ],
+  };
 }

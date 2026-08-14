@@ -89,7 +89,7 @@ export interface SurveyMaterializationJob {
   manifestSha256: string;
   snapshotSha256: string;
   output: null | {
-    schemaVersion: "brash.survey-materialization-preview/v1";
+    schemaVersion: "brash.survey-materialization-preview/v1" | "brash.survey-materialization-preview/v2";
     mediaType: "application/vnd.brash.survey-materialization-preview+json";
     previewUploadId: string;
     previewBindingId: string;
@@ -115,7 +115,7 @@ export interface SurveyMaterializationJob {
 }
 
 export interface SurveyMaterializationPreview {
-  schemaVersion: "brash.survey-materialization-preview/v1";
+  schemaVersion: "brash.survey-materialization-preview/v1" | "brash.survey-materialization-preview/v2";
   source: {
     kind: "ACCEPTED_INTAKE" | "EXTERNAL_DATASET";
     sourceId: string;
@@ -152,6 +152,17 @@ export interface SurveyMaterializationPreview {
       method: "STRIDE";
       sourceStride: number;
       points: Array<[number, number, number, number]>;
+    };
+    planProjection?: {
+      method: "TRAJECTORY_ENVELOPE_XY";
+      resolutionMetres: number;
+      columns: number;
+      rows: number;
+      bounds: { minimum: [number, number]; maximum: [number, number] };
+      heightRangeMetres: { minimum: number; maximum: number };
+      sourcePointCount: number;
+      projectedPointCount: number;
+      samples: Array<[number, number, number, number, number]>;
     };
   };
   qualityWarnings: Array<{ code: string; message: string }>;

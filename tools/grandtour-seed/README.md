@@ -36,8 +36,10 @@ Open <http://127.0.0.1:4390/> and select:
 - Map: `GrandTour Mission 2 Survey`
 - Draft: `r1 · DRAFT`
 
-The Studio receives a bounded preview of the 17-million-point reconstruction;
-the immutable source artifact remains the original checksum-pinned PLY. No CAD
+The Studio receives preview v2 for the 17-million-point reconstruction. Its 2D
+plan and focused 3D sample are derived from the complete verified PLY inside a
+padded trajectory envelope; the immutable source artifact and its raw bounds
+remain the original checksum-pinned PLY. No CAD
 or floorplan is claimed by this seed, so the source frame is shown without a
 survey-to-CAD registration.
 

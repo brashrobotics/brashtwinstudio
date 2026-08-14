@@ -1,0 +1,341 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/survey-materialization-preview.v2.schema.json",
+  "title": "Brash Survey Materialization Preview v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "source",
+    "coordinateSystem",
+    "trajectory",
+    "coordinateFrames",
+    "calibration",
+    "reconstruction",
+    "qualityWarnings",
+    "generatedBy"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "brash.survey-materialization-preview/v2" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "sourceId", "revision"],
+      "properties": {
+        "kind": { "enum": ["ACCEPTED_INTAKE", "EXTERNAL_DATASET"] },
+        "sourceId": { "$ref": "#/$defs/text" },
+        "revision": { "$ref": "#/$defs/text" }
+      }
+    },
+    "coordinateSystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rootFrameId", "lengthUnit", "handedness", "upAxis"],
+      "properties": {
+        "rootFrameId": { "$ref": "#/$defs/text" },
+        "lengthUnit": { "const": "METRE" },
+        "handedness": { "const": "RIGHT_HANDED" },
+        "upAxis": { "const": "Z" }
+      }
+    },
+    "trajectory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "frameId",
+        "sampleCount",
+        "timestamp",
+        "sampling",
+        "positionBounds",
+        "pathLengthMetres",
+        "maximumStepMetres",
+        "quaternionNorm",
+        "preview"
+      ],
+      "properties": {
+        "format": { "$ref": "#/$defs/text" },
+        "frameId": { "$ref": "#/$defs/text" },
+        "sampleCount": { "type": "integer", "minimum": 2 },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "sampling": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["medianRateHz"],
+          "properties": { "medianRateHz": { "type": "number", "exclusiveMinimum": 0 } }
+        },
+        "positionBounds": { "$ref": "#/$defs/bounds3" },
+        "pathLengthMetres": { "type": "number", "minimum": 0 },
+        "maximumStepMetres": { "type": "number", "minimum": 0 },
+        "quaternionNorm": { "$ref": "#/$defs/minMax" },
+        "preview": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "sourceStride", "poses"],
+          "properties": {
+            "method": { "const": "STRIDE" },
+            "sourceStride": { "type": "integer", "minimum": 1 },
+            "poses": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 4096,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["timestamp", "position"],
+                "properties": {
+                  "timestamp": { "type": "number" },
+                  "position": { "$ref": "#/$defs/vector3" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "coordinateFrames": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "frameId",
+        "sampleCount",
+        "timestamp",
+        "translationBounds",
+        "quaternionNorm",
+        "staticTransform"
+      ],
+      "properties": {
+        "format": { "$ref": "#/$defs/text" },
+        "frameId": { "$ref": "#/$defs/text" },
+        "sampleCount": { "type": "integer", "minimum": 1 },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "translationBounds": { "$ref": "#/$defs/bounds3" },
+        "quaternionNorm": { "$ref": "#/$defs/minMax" },
+        "staticTransform": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["base_frame_id", "child_frame_id", "translation", "rotation"],
+          "properties": {
+            "base_frame_id": { "$ref": "#/$defs/text" },
+            "child_frame_id": { "$ref": "#/$defs/text" },
+            "translation": { "$ref": "#/$defs/objectVector3" },
+            "rotation": { "$ref": "#/$defs/quaternion" }
+          }
+        }
+      }
+    },
+    "calibration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "calibrationId", "sensorCount", "modalities"],
+      "properties": {
+        "format": { "const": "BRASH_SURVEY_CALIBRATION_V1" },
+        "calibrationId": { "$ref": "#/$defs/text" },
+        "sensorCount": { "type": "integer", "minimum": 1, "maximum": 256 },
+        "modalities": {
+          "type": "object",
+          "propertyNames": { "enum": ["LIDAR", "CAMERA", "IMU", "ODOMETRY"] },
+          "additionalProperties": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "reconstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "format",
+        "frameId",
+        "vertexCount",
+        "attributes",
+        "bounds",
+        "intensity",
+        "preview",
+        "planProjection"
+      ],
+      "properties": {
+        "format": { "const": "PLY_BINARY_LITTLE_ENDIAN" },
+        "frameId": { "$ref": "#/$defs/text" },
+        "vertexCount": { "type": "integer", "minimum": 1 },
+        "attributes": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/text" }
+        },
+        "bounds": { "$ref": "#/$defs/bounds3" },
+        "intensity": { "$ref": "#/$defs/minMax" },
+        "preview": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "sourceStride", "points"],
+          "properties": {
+            "method": { "const": "STRIDE" },
+            "sourceStride": { "type": "integer", "minimum": 1 },
+            "points": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4096,
+              "items": { "$ref": "#/$defs/xyzi" }
+            }
+          }
+        },
+        "planProjection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "method",
+            "resolutionMetres",
+            "columns",
+            "rows",
+            "bounds",
+            "heightRangeMetres",
+            "sourcePointCount",
+            "projectedPointCount",
+            "samples"
+          ],
+          "properties": {
+            "method": { "const": "TRAJECTORY_ENVELOPE_XY" },
+            "resolutionMetres": { "type": "number", "exclusiveMinimum": 0 },
+            "columns": { "type": "integer", "minimum": 1, "maximum": 4096 },
+            "rows": { "type": "integer", "minimum": 1, "maximum": 4096 },
+            "bounds": { "$ref": "#/$defs/bounds2" },
+            "heightRangeMetres": { "$ref": "#/$defs/minMax" },
+            "sourcePointCount": { "type": "integer", "minimum": 1 },
+            "projectedPointCount": { "type": "integer", "minimum": 0 },
+            "samples": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4096,
+              "items": { "$ref": "#/$defs/planSample" }
+            }
+          }
+        }
+      }
+    },
+    "qualityWarnings": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": {
+          "code": { "$ref": "#/$defs/text" },
+          "message": { "$ref": "#/$defs/text" }
+        }
+      }
+    },
+    "generatedBy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "$ref": "#/$defs/text" },
+        "version": { "$ref": "#/$defs/text" }
+      }
+    }
+  },
+  "$defs": {
+    "text": { "type": "string", "minLength": 1, "maxLength": 1024 },
+    "vector2": {
+      "type": "array",
+      "prefixItems": [{ "type": "number" }, { "type": "number" }],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "vector3": {
+      "type": "array",
+      "prefixItems": [{ "type": "number" }, { "type": "number" }, { "type": "number" }],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "xyzi": {
+      "type": "array",
+      "prefixItems": [
+        { "type": "number" },
+        { "type": "number" },
+        { "type": "number" },
+        { "type": "number" }
+      ],
+      "items": false,
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "planSample": {
+      "type": "array",
+      "prefixItems": [
+        { "type": "number" },
+        { "type": "number" },
+        { "type": "number" },
+        { "type": "number" },
+        { "type": "integer", "minimum": 1 }
+      ],
+      "items": false,
+      "minItems": 5,
+      "maxItems": 5
+    },
+    "objectVector3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" }
+      }
+    },
+    "quaternion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["w", "x", "y", "z"],
+      "properties": {
+        "w": { "type": "number" },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" }
+      }
+    },
+    "bounds2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum", "maximum"],
+      "properties": {
+        "minimum": { "$ref": "#/$defs/vector2" },
+        "maximum": { "$ref": "#/$defs/vector2" }
+      }
+    },
+    "bounds3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum", "maximum"],
+      "properties": {
+        "minimum": { "$ref": "#/$defs/vector3" },
+        "maximum": { "$ref": "#/$defs/vector3" }
+      }
+    },
+    "timestamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startEpochSeconds", "endEpochSeconds", "durationSeconds", "nonIncreasingCount"],
+      "properties": {
+        "startEpochSeconds": { "type": "number" },
+        "endEpochSeconds": { "type": "number" },
+        "durationSeconds": { "type": "number", "minimum": 0 },
+        "nonIncreasingCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "minMax": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum", "maximum"],
+      "properties": {
+        "minimum": { "type": "number" },
+        "maximum": { "type": "number" }
+      }
+    }
+  }
+}

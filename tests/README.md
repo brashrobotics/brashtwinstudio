@@ -17,6 +17,9 @@ chain, and PostgreSQL append-only triggers.
 The survey-quality gate covers deterministic metric and occupancy-grid output,
 preview/report/acceptance provenance, requester/reviewer separation, failed
 quality rejection, and the registration dependency on approved evidence.
+Materialization tests also bound the v2 operational-plan grid to 4,096 cells,
+verify source/projected point counts, and prove that Studio fits focused plan
+bounds while retaining legacy v1 previews.
 
 The semantic-candidate gate covers bounded model observations, producer and
 input identities, approved-registration dependency, deterministic canonical

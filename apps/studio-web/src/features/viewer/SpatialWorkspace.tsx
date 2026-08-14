@@ -164,6 +164,7 @@ export function SpatialWorkspace({
   useEffect(() => {
     if (surveySourceView && surveyPreview) {
       store.setLayerVisibility("survey", true);
+      if (surveyPreview.reconstruction.planProjection) store.setLayerVisibility("coverage", true);
       store.setEntities([
         ...surveyPreviewWorldEntities(surveyPreview),
         ...(surveyQuality ? surveyCoverageWorldEntities(surveyQuality) : []),

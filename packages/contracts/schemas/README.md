@@ -27,6 +27,10 @@ The schemas in this directory define Twin Studio file and integration boundaries
 - `survey-materialization-preview.v1.schema.json`: Bounded trajectory,
   coordinate-frame, reconstruction-bounds, and downsampled point preview while
   retaining the original processed-survey frame.
+- `survey-materialization-preview.v2.schema.json`: Backward-readable survey
+  preview plus a bounded, trajectory-envelope XY plan projection derived from
+  the verified full point cloud. Raw reconstruction bounds remain intact while
+  focused plan samples exclude distant outliers from operator navigation.
 - `survey-quality-report.v1.schema.json`: Deterministic coverage, trajectory,
   frame, reconstruction-density, warning, and bounded occupancy-grid evidence.
 - `survey-quality-acceptance.v1.schema.json`: Immutable independent operator

@@ -15,6 +15,8 @@ This project is responsible for:
   produced by Brash Embodied Controller.
 - Aligning CAD/BIM and SLAM results in a shared coordinate system.
 - Producing a 2D plan, 3D scene, and navigation topology from one source of truth.
+- Deriving a bounded operator-facing plan from real survey points without
+  discarding raw reconstruction bounds or coordinate provenance.
 - Presenting semantic object candidates for operator review.
 - Allowing operators to assign names, types, properties, and operational links
   to assets.

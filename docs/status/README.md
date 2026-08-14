@@ -10,7 +10,7 @@ Phase 2 — Survey review and semantic evidence.
 
 - Independent Node.js workspace and local package linking
 - Repository syntax and JSON quality checks
-- Twenty-eight published versioned JSON Schemas
+- Twenty-nine published versioned JSON Schemas
 - Coordinate-frame graph and 3D transform mathematics
 - `MapDraft -> review -> validated -> immutable release` domain flow
 - Twin Map Bundle semantic and integrity validator
@@ -172,6 +172,9 @@ Phase 2 — Survey review and semantic evidence.
   and executes the production-format intake and materialization boundaries
 - Bounded `brash.survey-materialization-preview/v1` trajectory, frame,
   reconstruction-bounds, and deterministic 4,096-point preview contract
+- Backward-readable `brash.survey-materialization-preview/v2` with raw PLY
+  evidence retained alongside a trajectory-envelope operational plan capped at
+  4,096 spatial cells
 - Development-only safe Zarr-v2 Blosc/LZ4 and binary PLY inspector with decoded
   chunk, archive-member, metadata, vertex-count, and preview-size limits
 - Durable accepted-intake materialization snapshot with raw/canonical manifest,
@@ -192,6 +195,12 @@ Phase 2 — Survey review and semantic evidence.
 - Studio survey status, sampled point-cloud and trajectory rendering, 2D/3D
   fit-to-bounds navigation, and an explicit read-only original-source-frame mode
   that does not falsely overlay unregistered survey data on CAD
+- GrandTour ETH-2 operational plan verified from the complete 17,388,758-point
+  PLY: 11,281,293 in-envelope points, 3,374 balanced samples, 0.70 m adaptive
+  resolution, 22.4 x 80.5 m focused bounds, and the 210.6 m ANYmal route
+- Studio plan-aware camera fitting, occupancy layer, registration defaults, and
+  survey scale/resolution metrics prevent distant PLY outliers from shrinking
+  the real building-scale view
 - `SURVEY_SOURCE` bindings for every accepted materialization input and one
   `SURVEY_PREVIEW` derived binding with immutable same-draft input edges
 - Draft artifact provenance input capacity aligned to the 256-file survey
@@ -283,9 +292,9 @@ lifecycle are stable.
 
 ```text
 npm run check
-syntax/json: 269 files passed
-backend tests: 119 total, 116 passed, 3 conditionally skipped, 0 failed
-web tests: 43/43 passed with strict TypeScript and production build
+syntax/json: 270 files passed
+backend tests: 120 total, 117 passed, 3 conditionally skipped, 0 failed
+web tests: 44/44 passed with strict TypeScript and production build
 latest migration contract: schema version 17; last live PostgreSQL 16 gate passed with schema version 12
 live GrandTour ETH-2 SHA-256/preview gate: passed against the 290,764,702-byte base selection
 ConSLAM/IfcOpenShell gate: last passed August 13, 2026 and remains opt-in
@@ -306,12 +315,12 @@ editor: node/edge/zone/asset commands, undo/redo, numeric correction and desktop
 manual twin: control-point alignment, residual policy, diff, validation, two-person approval and immutable read-only preview verified
 embodied survey: strict manifest, clock/frame/quality, hash/size policy and no-download GrandTour selection verified
 survey intake: atomic upload mapping, manifest-only verification, immutable rejection evidence and HTTP lifecycle verified
-survey materialization: immutable input, leased/retry-safe streaming, content-addressed preview, PostgreSQL provenance, HTTP lifecycle and source-frame 2D/3D browser QA verified
+survey materialization: immutable input, leased/retry-safe streaming, content-addressed preview v2, focused operational plan, PostgreSQL provenance, HTTP lifecycle and source-frame 2D/3D browser QA verified
 survey registration: explicit design-target lineage, report v2 quality policy, immutable independent review, HTTP lifecycle, and fused/source-frame 2D/3D browser QA verified
 survey quality: deterministic coverage/trajectory/frame/reconstruction evidence, immutable independent review, registration gate, and 2D/3D coverage-layer QA verified
 semantic candidates: approved-registration transform, immutable operator decisions, HTTP lifecycle, and 2D/3D Assets-layer tests verified
 twin asset changes: independent review, qualification acknowledgement, stable-identity v2 application, atomic outbox rollback, HTTP lifecycle, and 2D/3D marker behavior verified
 dataset: ConSLAM IFC/GT checksum, geometry and trajectory validation verified
-GrandTour: pinned SHA-256, safe Zarr/PLY bounds, real trajectory/TF/map metrics and bounded preview verified
-GrandTour seed: real 290,764,702-byte selection imported twice idempotently into a live Twin API and materialized for Studio
+GrandTour: pinned SHA-256, safe Zarr/PLY bounds, real trajectory/TF/map metrics, raw outlier disclosure, and focused plan preview verified
+GrandTour seed: real 290,764,702-byte selection imported into a live Twin API and materialized as a 22.4 x 80.5 m Studio showcase
 ```

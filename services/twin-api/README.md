@@ -110,7 +110,9 @@ validation-policy hash, joins the server-owned upload mappings, and persists an
 immutable input snapshot. Execution claims a 15-minute lease, streams standard
 coordinate-frame JSON, calibration JSON, TUM trajectory, and binary XYZI PLY
 from the object store, then stores a bounded preview through the same verified
-multipart upload path. The HTTP run operation is a local-pilot worker boundary;
+multipart upload path. Preview v2 includes a capped operational-plan projection
+computed while streaming the PLY, without replacing its raw evidence bounds.
+The HTTP run operation is a local-pilot worker boundary;
 it can move behind an orchestrated worker without changing the snapshot or
 preview contracts.
 

@@ -131,7 +131,7 @@ test("leased materialization streams standard inputs into an integrity-checked p
   });
   assert.equal(completed.status, "SUCCEEDED");
   assert.equal(completed.attemptCount, 1);
-  assert.equal(completed.output.schemaVersion, "brash.survey-materialization-preview/v1");
+  assert.equal(completed.output.schemaVersion, "brash.survey-materialization-preview/v2");
   assert.equal(completed.output.summary.trajectoryPoseCount, 5);
   assert.equal(completed.output.summary.pointCloudVertexCount, 6);
   assert.match(completed.output.previewSha256, /^[a-f0-9]{64}$/);
@@ -144,6 +144,7 @@ test("leased materialization streams standard inputs into an integrity-checked p
   assert.equal(preview.coordinateSystem.rootFrameId, "slam-map");
   assert.equal(preview.trajectory.preview.poses.length, 5);
   assert.equal(preview.reconstruction.preview.points.length, 6);
+  assert.equal(preview.reconstruction.planProjection.projectedPointCount, 3);
   assert.equal((await service.run(completed.jobId, {
     workerId: "materializer-2",
     operatorId: "operator-1",

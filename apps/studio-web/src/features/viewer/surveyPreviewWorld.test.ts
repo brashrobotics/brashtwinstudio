@@ -33,6 +33,41 @@ describe("survey preview world adapter", () => {
     }));
   });
 
+  it("focuses a large raw reconstruction on its trajectory-envelope plan projection", () => {
+    const source = preview();
+    source.schemaVersion = "brash.survey-materialization-preview/v2";
+    source.reconstruction.planProjection = {
+      method: "TRAJECTORY_ENVELOPE_XY",
+      resolutionMetres: 0.5,
+      columns: 12,
+      rows: 40,
+      bounds: { minimum: [-4, -20], maximum: [2, 0] },
+      heightRangeMetres: { minimum: -0.5, maximum: 3 },
+      sourcePointCount: 17_000_000,
+      projectedPointCount: 12_000_000,
+      samples: [[-3.75, -19.75, 1.2, 20, 800], [1.75, -0.25, 2.1, 50, 600]],
+    };
+    const entities = surveyPreviewWorldEntities(source);
+    expect(entities.map((entity) => entity.entityId)).toEqual([
+      "survey-point-cloud-preview",
+      "survey-trajectory-preview",
+      "survey-reconstruction-bounds",
+      "survey-operational-plan",
+    ]);
+    expect(entities[0]?.geometry).toEqual(expect.objectContaining({
+      type: "POINT_CLOUD",
+      points: [{ x: -3.75, y: -19.75, z: 1.2 }, { x: 1.75, y: -0.25, z: 2.1 }],
+    }));
+    expect(entities[2]).toEqual(expect.objectContaining({
+      position: { x: -1, y: -10, z: 1.25 },
+      geometry: { type: "BOX", size: { x: 6, y: 20, z: 3.5 }, style: "WIREFRAME" },
+    }));
+    expect(entities[3]).toEqual(expect.objectContaining({
+      layerId: "coverage",
+      geometry: expect.objectContaining({ type: "POINT_CLOUD", size: 0.41 }),
+    }));
+  });
+
   it("renders bounded occupancy evidence in source and registered frames", () => {
     const source = surveyCoverageWorldEntities(quality());
     const registered = surveyCoverageWorldEntities(quality(), registration());

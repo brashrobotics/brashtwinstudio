@@ -1707,6 +1707,26 @@ detection-to-reviewed-revision chain. Production missing alerts remain disabled
 until explicit calibrated sensor visibility evidence replaces the bounded
 observed-envelope heuristic.
 
+### Increment 23 — Real-scale GrandTour operational plan
+
+- Retain the immutable raw reconstruction bounds and stride sample while
+  deriving a separate operator-focused XY plan from the complete verified PLY
+- Bound the plan to a padded trajectory envelope, adaptive metric resolution,
+  and at most 4,096 spatial cells so browser payload and GPU work remain explicit
+- Use spatially balanced cell representatives for both the 2D occupancy layer
+  and 3D survey sample instead of letting distant raw outliers drive camera fit
+- Base quality density/coverage and default registration control points on the
+  disclosed focused plan while preserving full source point counts
+- Expose route length, plan extent, resolution, focused point count, and source
+  frame in Studio and verify synchronized 2D/3D rendering on GrandTour ETH-2
+- Keep GrandTour conversion in development tooling and leave production SLAM,
+  sensor drivers, autonomy, and safety in Brash Embodied Controller
+
+**Status:** Completed on August 15, 2026. Materialization preview v2, bounded
+streaming plan projection, backward-readable v1 UI types, deterministic adapter
+and viewer tests, and a live 17,388,758-point ETH-2 import produce a 22.4 x 80.5 m
+operator view with 0.70 m resolution and the complete 210.6 m ANYmal route.
+
 ---
 
 ## 30. Karar kapıları
@@ -1771,6 +1791,6 @@ olması bundle/live-overlay demo ölçümünden sonra kararlaştırılır.
 - Kabul ölçütü sessizce gevşetilmez; waiver açık audit kararıdır.
 - Fleet Control entegrasyon kapsamı yalnız ortak contract kararıyla genişletilir.
 
-The next active work connects approved registration evidence to publication
-eligibility and then begins semantic asset-candidate extraction from registered
-survey evidence.
+The next active work adds calibrated sensor visibility evidence for production
+missing-asset decisions, then connects applied critical changes to a durable
+manager-notification adapter without coupling Twin Studio to Fleet Control.

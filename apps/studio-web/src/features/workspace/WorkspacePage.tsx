@@ -332,6 +332,7 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
             <DraftPanel draft={selectedDraft} />
             <SurveyPanel
               job={latestMaterialization}
+              preview={surveyPreview.data ?? null}
               loading={surveyMaterializations.isPending && draftId !== ""}
               previewReady={surveyPreview.isSuccess}
             />
@@ -846,12 +847,16 @@ function SurveyQualityPanel({ materialization, quality, busy, error, onCreate, o
   );
 }
 
-function SurveyPanel({ job, loading, previewReady }: {
+function SurveyPanel({ job, preview, loading, previewReady }: {
   job: SurveyMaterializationJob | null;
+  preview: SurveyMaterializationPreview | null;
   loading: boolean;
   previewReady: boolean;
 }) {
   const { t } = useI18n();
+  const projection = preview?.reconstruction.planProjection;
+  const planWidth = projection ? projection.bounds.maximum[0] - projection.bounds.minimum[0] : null;
+  const planHeight = projection ? projection.bounds.maximum[1] - projection.bounds.minimum[1] : null;
   return (
     <section className="panel survey-panel">
       <div className="panel-heading compact">
@@ -863,6 +868,11 @@ function SurveyPanel({ job, loading, previewReady }: {
           <dl className="metadata-list">
             <div><dt>{t("trajectoryPoses")}</dt><dd>{job.output?.summary.trajectoryPoseCount ?? "–"}</dd></div>
             <div><dt>{t("surveyPoints")}</dt><dd>{job.output?.summary.pointCloudVertexCount ?? "–"}</dd></div>
+            {preview && <div><dt>{t("pathLength")}</dt><dd>{preview.trajectory.pathLengthMetres.toFixed(1)} m</dd></div>}
+            {projection && <div><dt>{t("planResolution")}</dt><dd>{projection.resolutionMetres.toFixed(2)} m</dd></div>}
+            {projection && planWidth !== null && planHeight !== null && (
+              <div className="metadata-wide"><dt>{t("operationalPlan")}</dt><dd>{planWidth.toFixed(1)} × {planHeight.toFixed(1)} m · {projection.samples.length.toLocaleString()} cells</dd></div>
+            )}
             <div className="metadata-wide"><dt>{t("sourceFrame")}</dt><dd>{job.output?.sourceFrameId ?? "–"}</dd></div>
           </dl>
           <p className="job-id">{job.jobId} · {previewReady ? t("previewReady") : t("previewPending")}</p>
@@ -983,8 +993,9 @@ function RegistrationNumber({ value, onChange }: { value: number; onChange(value
 }
 
 function defaultSurveyControlPoints(preview: SurveyMaterializationPreview): SurveyRegistrationControlPoint[] {
-  const [minimumX, minimumY] = preview.reconstruction.bounds.minimum;
-  const [maximumX, maximumY] = preview.reconstruction.bounds.maximum;
+  const bounds = preview.reconstruction.planProjection?.bounds ?? preview.reconstruction.bounds;
+  const [minimumX, minimumY] = bounds.minimum;
+  const [maximumX, maximumY] = bounds.maximum;
   return [
     { x: minimumX, y: minimumY },
     { x: maximumX, y: minimumY },

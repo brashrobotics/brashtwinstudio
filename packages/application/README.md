@@ -31,7 +31,9 @@ identity, joins server-owned upload mappings to declared artifacts, and seals a
 deterministic snapshot hash. Point clouds, images, meshes, and trajectories are
 not loaded while the job is created. Execution claims an expiring worker lease,
 streams the four standardized survey inputs under byte/record budgets, and
-publishes a deterministic content-addressed preview. Failed attempts use bounded
+publishes a deterministic content-addressed preview. Preview v2 derives an
+adaptive operational-plan projection from the full verified point stream and
+trajectory envelope while retaining raw reconstruction bounds. Failed attempts use bounded
 exponential retry; a successful preview is re-read only after checksum, byte,
 schema, and lineage verification.
 
@@ -43,7 +45,7 @@ immutable artifact, enforces requester/reviewer separation, and never permits
 approval of a failed quality result.
 
 `survey-quality-reviews.js` derives bounded coverage-grid, trajectory, frame,
-reconstruction-density, and preview-warning metrics from one integrity-checked
+focused reconstruction-density, and preview-warning metrics from one integrity-checked
 materialization preview. The report and independent operator decision are
 content-addressed artifacts. A failed report cannot be approved, and
 registration requires the approved acceptance binding as an immutable input.

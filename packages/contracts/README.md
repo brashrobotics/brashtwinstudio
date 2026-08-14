@@ -23,7 +23,9 @@ draft-validation reports, semantic observations, canonical asset candidates,
 immutable candidate review, draft Twin asset revisions, and review-required
 asset-change reports. Draft Twin assets v2 adds change-application provenance
 while retaining the v1 promotion contract, and asset-change review v1 seals
-independent operator decisions. `index.js` exports runtime contract and artifact constants.
+independent operator decisions. Survey materialization preview v2 adds a
+bounded operational-plan projection without removing the immutable v1 reader
+contract. `index.js` exports runtime contract and artifact constants.
 Draft validation v2 adds content-verified registration decision
 evidence while retaining the legacy v1 schema for readers of existing reports.
 

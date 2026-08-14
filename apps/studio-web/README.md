@@ -60,6 +60,12 @@ The operator interface for mapping and digital-twin workflows.
   source frame, full trajectory pose count, and full reconstruction point count.
 - Bounded trajectory and sampled point-cloud rendering in both 2D and 3D, with
   automatic fit-to-bounds navigation.
+- Survey preview v2 uses the trajectory-envelope operational plan for camera
+  fit, 2D occupancy, registration defaults, and spatially balanced 3D samples;
+  distant raw PLY outliers remain visible as provenance metrics but no longer
+  collapse a real building-scale survey into a tiny viewport.
+- Survey status exposes route length, plan extent, adaptive resolution, source
+  point count, and focused cell count for large real-data demonstrations.
 - A dedicated read-only source-frame mode. Unregistered SLAM coordinates are
   never overlaid on the canonical CAD frame; the operator deliberately returns
   to the draft world until a registration transform exists.

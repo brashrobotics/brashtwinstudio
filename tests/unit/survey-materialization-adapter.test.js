@@ -13,7 +13,7 @@ test("standardized survey streams produce a bounded deterministic preview", asyn
   const preview = await createSurveyMaterializationPreview(fixture.snapshot, {
     openArtifactStream: fixture.openArtifactStream,
   });
-  assert.equal(preview.schemaVersion, "brash.survey-materialization-preview/v1");
+  assert.equal(preview.schemaVersion, "brash.survey-materialization-preview/v2");
   assert.equal(preview.coordinateSystem.rootFrameId, "slam-map");
   assert.equal(preview.coordinateFrames.sampleCount, 3);
   assert.equal(preview.calibration.sensorCount, 2);
@@ -30,6 +30,11 @@ test("standardized survey streams produce a bounded deterministic preview", asyn
     maximum: [3, 2, 2],
   });
   assert.equal(preview.reconstruction.preview.points.length, 6);
+  assert.equal(preview.reconstruction.planProjection.method, "TRAJECTORY_ENVELOPE_XY");
+  assert.equal(preview.reconstruction.planProjection.sourcePointCount, 6);
+  assert.equal(preview.reconstruction.planProjection.projectedPointCount, 3);
+  assert.ok(preview.reconstruction.planProjection.samples.length <= 4_096);
+  assert.ok(preview.reconstruction.planProjection.columns * preview.reconstruction.planProjection.rows <= 4_096);
   assert.equal(preview.qualityWarnings.length, 0);
   assert.equal(Object.isFrozen(preview.reconstruction.preview.points), true);
   assert.ok(serializeSurveyMaterializationPreview(preview).byteLength < 4 * 1024 * 1024);
@@ -75,6 +80,23 @@ test("trajectory record and PLY vertex limits fail before unbounded processing",
     }),
     (error) => error instanceof SurveyMaterializationAdapterError
       && error.code === "SURVEY_POINT_CLOUD_LIMIT_EXCEEDED",
+  );
+});
+
+test("materialization rejects a point cloud with no evidence near the trajectory", async () => {
+  const fixture = surveyFixture();
+  const pointCloud = fixture.snapshot.artifacts.find((artifact) => artifact.role === "POINT_CLOUD_MAP");
+  fixture.content.delete(pointCloud.sha256);
+  const farPly = binaryPly([[100, 100, 100, 1], [101, 101, 101, 2]]);
+  pointCloud.sha256 = createHash("sha256").update(farPly).digest("hex");
+  pointCloud.bytes = farPly.byteLength;
+  fixture.content.set(pointCloud.sha256, farPly);
+  await assert.rejects(
+    () => createSurveyMaterializationPreview(fixture.snapshot, {
+      openArtifactStream: fixture.openArtifactStream,
+    }),
+    (error) => error instanceof SurveyMaterializationAdapterError
+      && error.code === "SURVEY_PLAN_PROJECTION_EMPTY",
   );
 });
 

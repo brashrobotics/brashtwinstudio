@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { Readable } from "node:stream";
 import { createInterface } from "node:readline";
 
-export const SURVEY_MATERIALIZATION_PREVIEW_VERSION = "brash.survey-materialization-preview/v1";
+export const SURVEY_MATERIALIZATION_PREVIEW_VERSION = "brash.survey-materialization-preview/v2";
 
 const DEFAULT_LIMITS = Object.freeze({
   maximumJsonBytes: 1024 * 1024,
@@ -62,7 +62,12 @@ export async function createSurveyMaterializationPreview(snapshot, {
     snapshot.quality?.trajectoryPoseCount,
     limits,
   );
-  const reconstruction = await inspectBinaryPly(pointCloudArtifact, openArtifactStream, limits);
+  const reconstruction = await inspectBinaryPly(
+    pointCloudArtifact,
+    openArtifactStream,
+    limits,
+    trajectory.positionBounds,
+  );
   for (const artifact of [trajectoryArtifact, pointCloudArtifact]) {
     if (artifact.frameId !== frames.frameId) {
       throw failure(
@@ -307,7 +312,7 @@ async function inspectTumTrajectory(artifact, openArtifactStream, expectedPoseCo
   };
 }
 
-async function inspectBinaryPly(artifact, openArtifactStream, limits) {
+async function inspectBinaryPly(artifact, openArtifactStream, limits, trajectoryBounds) {
   if (artifact.bytes > limits.maximumPointCloudBytes) {
     throw failure("SURVEY_POINT_CLOUD_LIMIT_EXCEEDED", "Point-cloud artifact exceeds the worker byte limit.");
   }
@@ -321,6 +326,7 @@ async function inspectBinaryPly(artifact, openArtifactStream, limits) {
   let recordBytes = Buffer.alloc(0);
   let observedVertices = 0;
   const preview = [];
+  const planProjection = createPlanProjectionAccumulator(trajectoryBounds);
   for await (const chunk of verifiedChunks(artifact, openArtifactStream, limits.maximumPointCloudBytes)) {
     let data = chunk;
     if (headerBytes === null) {
@@ -359,6 +365,7 @@ async function inspectBinaryPly(artifact, openArtifactStream, limits) {
       if (observedVertices % previewStride === 0 && preview.length < limits.maximumPreviewSamples) {
         preview.push([...point.map(round), round(intensity)]);
       }
+      includePlanPoint(planProjection, point, intensity);
       observedVertices += 1;
     }
     recordBytes = recordBytes.subarray(completeBytes);
@@ -373,6 +380,96 @@ async function inspectBinaryPly(artifact, openArtifactStream, limits) {
     bounds: finalizedBounds(pointBounds),
     intensity: { minimum: round(intensityMinimum), maximum: round(intensityMaximum) },
     preview: { method: "STRIDE", sourceStride: previewStride, points: preview },
+    planProjection: finalizePlanProjection(planProjection, vertexCount),
+  };
+}
+
+function createPlanProjectionAccumulator(trajectoryBounds) {
+  const trajectoryWidth = trajectoryBounds.maximum[0] - trajectoryBounds.minimum[0];
+  const trajectoryHeight = trajectoryBounds.maximum[1] - trajectoryBounds.minimum[1];
+  const paddingMetres = Math.min(4, Math.max(0.5, Math.max(trajectoryWidth, trajectoryHeight) * 0.075));
+  const minimumX = trajectoryBounds.minimum[0] - paddingMetres;
+  const minimumY = trajectoryBounds.minimum[1] - paddingMetres;
+  const requestedMaximumX = trajectoryBounds.maximum[0] + paddingMetres;
+  const requestedMaximumY = trajectoryBounds.maximum[1] + paddingMetres;
+  const width = Math.max(0.25, requestedMaximumX - minimumX);
+  const height = Math.max(0.25, requestedMaximumY - minimumY);
+  let resolutionMetres = Math.max(0.25, Math.sqrt((width * height) / 4_096));
+  resolutionMetres = Math.ceil(resolutionMetres * 20) / 20;
+  let columns = Math.max(1, Math.ceil(width / resolutionMetres));
+  let rows = Math.max(1, Math.ceil(height / resolutionMetres));
+  while (columns * rows > 4_096) {
+    resolutionMetres = round(resolutionMetres + 0.05);
+    columns = Math.max(1, Math.ceil(width / resolutionMetres));
+    rows = Math.max(1, Math.ceil(height / resolutionMetres));
+  }
+  return {
+    resolutionMetres,
+    columns,
+    rows,
+    minimumX,
+    minimumY,
+    maximumX: minimumX + columns * resolutionMetres,
+    maximumY: minimumY + rows * resolutionMetres,
+    minimumZ: trajectoryBounds.minimum[2] - 0.75,
+    maximumZ: trajectoryBounds.maximum[2] + 2.5,
+    counts: new Uint32Array(columns * rows),
+    representatives: new Array(columns * rows),
+    projectedPointCount: 0,
+  };
+}
+
+function includePlanPoint(plan, point, intensity) {
+  const [x, y, z] = point;
+  if (x < plan.minimumX || x >= plan.maximumX
+    || y < plan.minimumY || y >= plan.maximumY
+    || z < plan.minimumZ || z > plan.maximumZ) return;
+  const column = Math.min(plan.columns - 1, Math.floor((x - plan.minimumX) / plan.resolutionMetres));
+  const row = Math.min(plan.rows - 1, Math.floor((y - plan.minimumY) / plan.resolutionMetres));
+  const index = row * plan.columns + column;
+  plan.counts[index] += 1;
+  plan.projectedPointCount += 1;
+  plan.representatives[index] ??= [x, y, z, intensity];
+}
+
+function finalizePlanProjection(plan, sourcePointCount) {
+  const samples = [];
+  for (let index = 0; index < plan.counts.length; index += 1) {
+    const pointCount = plan.counts[index];
+    if (pointCount === 0) continue;
+    const row = Math.floor(index / plan.columns);
+    const column = index % plan.columns;
+    const representative = plan.representatives[index];
+    samples.push([
+      round(plan.minimumX + (column + 0.5) * plan.resolutionMetres),
+      round(plan.minimumY + (row + 0.5) * plan.resolutionMetres),
+      round(representative[2]),
+      round(representative[3]),
+      pointCount,
+    ]);
+  }
+  if (samples.length === 0) {
+    throw failure(
+      "SURVEY_PLAN_PROJECTION_EMPTY",
+      "Point cloud contains no verified points inside the bounded trajectory envelope.",
+    );
+  }
+  return {
+    method: "TRAJECTORY_ENVELOPE_XY",
+    resolutionMetres: round(plan.resolutionMetres),
+    columns: plan.columns,
+    rows: plan.rows,
+    bounds: {
+      minimum: [round(plan.minimumX), round(plan.minimumY)],
+      maximum: [round(plan.maximumX), round(plan.maximumY)],
+    },
+    heightRangeMetres: {
+      minimum: round(plan.minimumZ),
+      maximum: round(plan.maximumZ),
+    },
+    sourcePointCount,
+    projectedPointCount: plan.projectedPointCount,
+    samples,
   };
 }
 

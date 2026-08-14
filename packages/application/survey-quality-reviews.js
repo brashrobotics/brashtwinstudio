@@ -280,11 +280,18 @@ export class SurveyQualityReviewService {
 }
 
 function measurePreview(preview, declaredCoverageRatio) {
-  const bounds = preview.reconstruction.bounds;
+  const projection = preview.reconstruction.planProjection;
+  const bounds = projection
+    ? {
+      minimum: [projection.bounds.minimum[0], projection.bounds.minimum[1], projection.heightRangeMetres.minimum],
+      maximum: [projection.bounds.maximum[0], projection.bounds.maximum[1], projection.heightRangeMetres.maximum],
+    }
+    : preview.reconstruction.bounds;
   const width = Math.max(0, bounds.maximum[0] - bounds.minimum[0]);
   const height = Math.max(0, bounds.maximum[1] - bounds.minimum[1]);
   const footprint = round(width * height);
-  const coverageGrid = buildCoverageGrid(preview);
+  const coverageGrid = buildCoverageGrid(preview, bounds);
+  const densityPointCount = projection?.projectedPointCount ?? preview.reconstruction.vertexCount;
   const metrics = Object.freeze({
     declaredCoverageRatio: Number.isFinite(declaredCoverageRatio) ? round(declaredCoverageRatio) : null,
     sampledOccupancyRatio: round(coverageGrid.cells.length / (coverageGrid.columns * coverageGrid.rows)),
@@ -295,7 +302,7 @@ function measurePreview(preview, declaredCoverageRatio) {
     trajectoryNonIncreasingTimestampCount: preview.trajectory.timestamp.nonIncreasingCount,
     reconstructionVertexCount: preview.reconstruction.vertexCount,
     reconstructionFootprintSquareMetres: footprint,
-    pointDensityPerSquareMetre: footprint > 0 ? round(preview.reconstruction.vertexCount / footprint) : 0,
+    pointDensityPerSquareMetre: footprint > 0 ? round(densityPointCount / footprint) : 0,
     previewWarningCount: preview.qualityWarnings.length,
     frameConsistent: preview.trajectory.frameId === preview.coordinateSystem.rootFrameId
       && preview.reconstruction.frameId === preview.coordinateSystem.rootFrameId,
@@ -303,15 +310,16 @@ function measurePreview(preview, declaredCoverageRatio) {
   return { metrics, coverageGrid };
 }
 
-function buildCoverageGrid(preview) {
+function buildCoverageGrid(preview, bounds) {
   const columns = 12;
   const rows = 12;
-  const minimum = preview.reconstruction.bounds.minimum;
-  const maximum = preview.reconstruction.bounds.maximum;
+  const minimum = bounds.minimum;
+  const maximum = bounds.maximum;
   const width = Math.max(1e-9, maximum[0] - minimum[0]);
   const height = Math.max(1e-9, maximum[1] - minimum[1]);
   const counts = new Map();
-  for (const point of preview.reconstruction.preview.points) {
+  const points = preview.reconstruction.planProjection?.samples ?? preview.reconstruction.preview.points;
+  for (const point of points) {
     const column = Math.min(columns - 1, Math.max(0, Math.floor(((point[0] - minimum[0]) / width) * columns)));
     const row = Math.min(rows - 1, Math.max(0, Math.floor(((point[1] - minimum[1]) / height) * rows)));
     const key = `${row}:${column}`;

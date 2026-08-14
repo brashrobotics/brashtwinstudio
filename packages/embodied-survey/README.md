@@ -38,7 +38,11 @@ boundary. It accepts Brash survey-frame/calibration JSON, strictly increasing
 TUM trajectory text, and binary little-endian XYZI PLY. Every stream is rehashed
 and byte-counted against the accepted snapshot while parsing under explicit
 JSON, pose, point, and preview limits. The result is a bounded
-`brash.survey-materialization-preview/v1` document.
+`brash.survey-materialization-preview/v2` document. V2 preserves the raw PLY
+bounds and stride sample, then builds an adaptive XY plan from verified points
+inside a padded trajectory envelope. The grid is capped at 4,096 cells and
+retains source/projected point counts so the operator-focused view never
+pretends that excluded outliers disappeared from the evidence.
 
 GrandTour Zarr is intentionally absent from this runtime adapter. Dataset-specific
 conversion remains development tooling; Brash Embodied Controller owns production
