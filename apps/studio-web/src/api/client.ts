@@ -7,6 +7,8 @@ import type {
   Site,
   SurveyMaterializationJob,
   SurveyMaterializationPreview,
+  SurveyRegistrationRecord,
+  CreateSurveyRegistrationInput,
   TwinApiErrorBody,
   ValidationJob,
 } from "./types";
@@ -31,6 +33,8 @@ export interface TwinApiClient {
   listValidationJobs(draftId: string, signal?: AbortSignal): Promise<ValidationJob[]>;
   listSurveyMaterializations(draftId: string, signal?: AbortSignal): Promise<SurveyMaterializationJob[]>;
   getSurveyMaterializationPreview(jobId: string, signal?: AbortSignal): Promise<SurveyMaterializationPreview>;
+  listSurveyRegistrations(draftId: string, signal?: AbortSignal): Promise<SurveyRegistrationRecord[]>;
+  createSurveyRegistration(draftId: string, input: CreateSurveyRegistrationInput, signal?: AbortSignal): Promise<SurveyRegistrationRecord>;
   listReleases(signal?: AbortSignal): Promise<ReleaseManifest[]>;
 }
 
@@ -43,11 +47,12 @@ export function createTwinApiClient({
 } = {}): TwinApiClient {
   const normalizedBaseUrl = baseUrl.replace(/\/$/, "");
 
-  async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
+  async function request<T>(path: string, signal?: AbortSignal, init: RequestInit = {}): Promise<T> {
     let response: Response;
     try {
       response = await fetchImplementation(`${normalizedBaseUrl}${path}`, {
-        headers: { accept: "application/json" },
+        ...init,
+        headers: { accept: "application/json", ...init.headers },
         signal,
       });
     } catch (error) {
@@ -100,6 +105,23 @@ export function createTwinApiClient({
         signal,
       )
     ).preview,
+    listSurveyRegistrations: async (draftId, signal) => (
+      await request<{ registrations: SurveyRegistrationRecord[] }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/survey-registrations`,
+        signal,
+      )
+    ).registrations,
+    createSurveyRegistration: async (draftId, input, signal) => (
+      await request<{ registration: SurveyRegistrationRecord }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/survey-registrations`,
+        signal,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input),
+        },
+      )
+    ).registration,
     listReleases: async (signal) => (
       await request<{ releases: ReleaseManifest[] }>("/api/v1/releases", signal)
     ).releases,

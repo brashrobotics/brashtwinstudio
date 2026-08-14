@@ -1595,6 +1595,24 @@ snapshots remain immutable, and successful output references the exact completed
 upload and SHA-256 identity. Fleet Control and robot-side SLAM sources were not
 changed.
 
+### Increment 17 — Survey lineage and operator registration
+
+- Bind every accepted materialization source as an immutable draft artifact
+- Bind the bounded preview as a derived source-frame artifact with complete
+  input lineage
+- Store a versioned survey registration report with transform, residuals,
+  metrics, solver identity, and configuration hash
+- Expose registration create/list operations through Twin API and OpenAPI
+- Add operator-editable control points and fused canonical 2D/3D survey views
+- Preserve a separate read-only source-frame inspection mode
+- Provide a compact no-download demo seed for reproducible local acceptance
+
+**Status:** Completed on August 14, 2026. PostgreSQL migration 012, the real
+PostgreSQL 16 repository gate, backend/web tests, HTTP end-to-end flow, and
+in-app browser acceptance passed. The registration target is the draft canonical
+frame; explicit CAD/BIM target-artifact binding and review approval remain the
+next provenance gate. Fleet Control and robot-side SLAM sources were not changed.
+
 ---
 
 ## 30. Karar kapıları
@@ -1659,7 +1677,6 @@ olması bundle/live-overlay demo ölçümünden sonra kararlaştırılır.
 - Kabul ölçütü sessizce gevşetilmez; waiver açık audit kararıdır.
 - Fleet Control entegrasyon kapsamı yalnız ortak contract kararıyla genişletilir.
 
-The next active work binds the successful preview as a derived draft artifact,
-adds a versioned survey-to-CAD registration job/report, and exposes control-point
-residuals and review evidence before any source-frame survey layer can be fused
-with the canonical draft world.
+The next active work requires explicit CAD/BIM target evidence where applicable,
+adds survey quality and registration-approval gates, and then begins semantic
+asset-candidate extraction from registered survey evidence.

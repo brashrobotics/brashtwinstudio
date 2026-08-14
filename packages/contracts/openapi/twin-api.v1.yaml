@@ -364,6 +364,29 @@ paths:
       responses:
         "200":
           description: Append-only survey materialization jobs attached to the draft.
+  /api/v1/map-drafts/{draftId}/survey-registrations:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+    get:
+      operationId: listDraftSurveyRegistrations
+      responses:
+        "200":
+          description: Immutable survey-to-CAD registration reports attached to the draft.
+    post:
+      operationId: createSurveyRegistration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSurveyRegistration"
+      responses:
+        "201":
+          description: Registration solved and its report bound to the source preview.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
         "404":
           $ref: "#/components/responses/NotFound"
   /api/v1/survey-intakes/{intakeId}/materializations:
@@ -742,6 +765,47 @@ components:
     SurveyMaterializationStatus:
       type: string
       enum: [PENDING, RUNNING, SUCCEEDED, FAILED]
+    RegistrationPoint2D:
+      type: object
+      additionalProperties: false
+      required: [x, y]
+      properties:
+        x:
+          type: number
+        y:
+          type: number
+    SurveyRegistrationControlPoint:
+      type: object
+      additionalProperties: false
+      required: [controlPointId, source, target]
+      properties:
+        controlPointId:
+          $ref: "#/components/schemas/Identifier"
+        source:
+          $ref: "#/components/schemas/RegistrationPoint2D"
+        target:
+          $ref: "#/components/schemas/RegistrationPoint2D"
+    CreateSurveyRegistration:
+      type: object
+      additionalProperties: false
+      required: [materializationJobId, controlPoints, operatorId]
+      properties:
+        registrationId:
+          $ref: "#/components/schemas/Identifier"
+        materializationJobId:
+          $ref: "#/components/schemas/Identifier"
+        controlPoints:
+          type: array
+          minItems: 2
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/SurveyRegistrationControlPoint"
+        allowScale:
+          type: boolean
+          default: false
+        operatorId:
+          type: string
+          minLength: 1
     DraftArtifactRole:
       type: string
       enum:
@@ -751,6 +815,8 @@ components:
         - TRAJECTORY_SOURCE
         - CAMERA_SOURCE
         - CALIBRATION_SOURCE
+        - SURVEY_SOURCE
+        - SURVEY_PREVIEW
         - REGISTERED_POINT_CLOUD
         - RECONSTRUCTED_MESH
         - OCCUPANCY
@@ -788,7 +854,7 @@ components:
           minLength: 1
         inputBindingIds:
           type: array
-          maxItems: 100
+          maxItems: 256
           uniqueItems: true
           items:
             $ref: "#/components/schemas/Identifier"

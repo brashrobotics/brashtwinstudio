@@ -25,6 +25,7 @@
     "tools/map-bundle-cli",
     "tools/dataset-cli",
     "tools/database-cli",
+    "tools/demo-seed",
     "services/twin-api"
   ],
   "scripts": {
@@ -44,6 +45,7 @@
     "dataset:inspect": "node tools/dataset-cli/cli.js inspect",
     "dataset:selection-verify": "node tools/dataset-cli/cli.js selection-verify",
     "dataset:grandtour-inspect": "node tools/dataset-cli/cli.js grandtour-inspect",
+    "demo:seed": "node tools/demo-seed/cli.js",
     "validate:fixture": "node tools/map-bundle-cli/cli.js validate tests/fixtures/bundles/demo-plant@1",
     "dev:api": "node services/twin-api/server.js",
     "check:web": "npm run typecheck:web && npm run test:web && npm run build:web",

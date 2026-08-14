@@ -28,6 +28,7 @@ export class SurveyMaterializationService {
   #surveyIntakes;
   #catalog;
   #uploads;
+  #draftArtifacts;
   #multipartStore;
   #clock;
   #jobIdGenerator;
@@ -42,6 +43,7 @@ export class SurveyMaterializationService {
     surveyIntakes,
     catalog,
     uploads,
+    draftArtifacts,
     multipartStore,
     clock = () => new Date(),
     jobIdGenerator = () => `materialization-${randomUUID()}`,
@@ -84,6 +86,14 @@ export class SurveyMaterializationService {
         "Upload lifecycle operations are required for preview artifacts.",
       );
     }
+    if (!draftArtifacts
+      || typeof draftArtifacts.bind !== "function"
+      || typeof draftArtifacts.list !== "function") {
+      throw new SurveyMaterializationError(
+        "SURVEY_MATERIALIZATION_ARTIFACTS_INVALID",
+        "Draft artifact provenance operations are required.",
+      );
+    }
     if (!multipartStore
       || typeof multipartStore.get !== "function"
       || typeof multipartStore.openReadStream !== "function"
@@ -120,6 +130,7 @@ export class SurveyMaterializationService {
     this.#surveyIntakes = surveyIntakes;
     this.#catalog = catalog;
     this.#uploads = uploads;
+    this.#draftArtifacts = draftArtifacts;
     this.#multipartStore = multipartStore;
     this.#clock = clock;
     this.#jobIdGenerator = jobIdGenerator;
@@ -287,9 +298,28 @@ export class SurveyMaterializationService {
           "Completed preview upload no longer matches the generated content identity.",
         );
       }
+      const sourceBindings = await this.#ensureSourceBindings(running, operatorId);
+      const previewBinding = await this.#ensureBinding(running.draftId, {
+        bindingId: previewBindingId(jobId),
+        uploadId: outputUploadId,
+        artifactSha256: outputArtifactSha256,
+        role: "SURVEY_PREVIEW",
+        coordinateFrameId: preview.coordinateSystem.rootFrameId,
+        inputBindingIds: sourceBindings.map((binding) => binding.bindingId),
+        producer: {
+          name: "brash-survey-materializer",
+          version: "1.0.0",
+          parametersSha256: running.snapshotSha256,
+        },
+        operatorId,
+      });
+      const boundOutput = Object.freeze({
+        ...output,
+        previewBindingId: previewBinding.bindingId,
+      });
       return await this.#repository.complete(jobId, {
         workerId,
-        output,
+        output: boundOutput,
         outputUploadId,
         outputArtifactSha256,
         completedAt: this.#now(),
@@ -380,6 +410,40 @@ export class SurveyMaterializationService {
     return this.#uploads.complete(uploadId, { operatorId });
   }
 
+  async #ensureSourceBindings(job, operatorId) {
+    const bindings = [];
+    for (const artifact of job.snapshot.artifacts) {
+      bindings.push(await this.#ensureBinding(job.draftId, {
+        bindingId: sourceBindingId(job.draftId, artifact.sha256),
+        uploadId: artifact.uploadId,
+        artifactSha256: artifact.sha256,
+        role: "SURVEY_SOURCE",
+        coordinateFrameId: artifact.frameId,
+        operatorId,
+      }));
+    }
+    return bindings;
+  }
+
+  async #ensureBinding(draftId, input) {
+    const existing = (await this.#draftArtifacts.list(draftId)).find(
+      (binding) => binding.role === input.role
+        && binding.artifactSha256 === input.artifactSha256,
+    );
+    if (existing) return existing;
+    try {
+      return await this.#draftArtifacts.bind(draftId, input);
+    } catch (error) {
+      if (error?.code !== "DRAFT_ARTIFACT_CONFLICT") throw error;
+      const raced = (await this.#draftArtifacts.list(draftId)).find(
+        (binding) => binding.role === input.role
+          && binding.artifactSha256 === input.artifactSha256,
+      );
+      if (raced) return raced;
+      throw error;
+    }
+  }
+
   #now() {
     const value = new Date(this.#clock());
     if (!Number.isFinite(value.getTime())) {
@@ -390,6 +454,14 @@ export class SurveyMaterializationService {
     }
     return value.toISOString();
   }
+}
+
+function sourceBindingId(draftId, sha256) {
+  return `${draftId}-survey-source-${sha256.slice(0, 20)}`;
+}
+
+function previewBindingId(jobId) {
+  return `survey-preview-${jobId}`;
 }
 
 function buildSnapshot(intake, manifest) {

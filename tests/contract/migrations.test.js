@@ -19,6 +19,7 @@ test("metadata migrations are ordered, transactional, and forward-only", async (
     "009_survey_intakes.sql",
     "010_survey_materialization_jobs.sql",
     "011_survey_materialization_lifecycle.sql",
+    "012_survey_artifact_lineage.sql",
   ]);
 
   for (const file of files) {
@@ -27,6 +28,15 @@ test("metadata migrations are ordered, transactional, and forward-only", async (
     assert.match(sql, /COMMIT;\s*$/);
     assert.doesNotMatch(sql, /\b(?:DROP\s+TABLE|TRUNCATE|DELETE\s+FROM)\b/i);
   }
+});
+
+test("survey lineage adds bounded source and preview provenance roles", async () => {
+  const sql = await readFile(`${migrationDirectory}/012_survey_artifact_lineage.sql`, "utf8");
+  assert.match(sql, /'SURVEY_SOURCE'/);
+  assert.match(sql, /'SURVEY_PREVIEW'/);
+  assert.match(sql, /input_count <= 256/);
+  assert.match(sql, /twin_draft_artifacts_kind_role_check/);
+  assert.match(sql, /twin_draft_artifacts_spatial_frame_check/);
 });
 
 test("survey materialization lifecycle leases workers and preserves sealed inputs", async () => {

@@ -19,7 +19,7 @@ import {
 } from "@brash-twin/manual-twin";
 import { useEffect, useRef, useState, useSyncExternalStore, type ChangeEvent } from "react";
 import { useI18n } from "../../i18n/i18n";
-import type { SurveyMaterializationPreview } from "../../api/types";
+import type { SurveyMaterializationPreview, SurveyRegistrationReport } from "../../api/types";
 import { diagnosticEntities, diagnosticLayers } from "./diagnosticWorld";
 import { diagnosticEditorFeatures } from "./editorSeed";
 import { EditorToolbar, FeatureInspector } from "./EditorControls";
@@ -32,11 +32,13 @@ export function SpatialWorkspace({
   familyId,
   revision,
   surveyPreview,
+  surveyRegistration,
 }: {
   canonicalFrameId: string;
   familyId: string;
   revision: number;
   surveyPreview: SurveyMaterializationPreview | null;
+  surveyRegistration: SurveyRegistrationReport | null;
 }) {
   const { t } = useI18n();
   const [editorStore] = useState<SpatialEditorStore>(() => createSpatialEditorStore(diagnosticEditorFeatures));
@@ -139,9 +141,9 @@ export function SpatialWorkspace({
   const coordinate = snapshot.pointerWorld;
 
   useEffect(() => {
-    setSurveySourceView(surveyPreview !== null);
+    setSurveySourceView(surveyPreview !== null && surveyRegistration === null);
     if (surveyPreview) setReleaseView(false);
-  }, [surveyPreview?.source.revision]);
+  }, [surveyPreview?.source.revision, surveyRegistration?.registrationId]);
 
   useEffect(() => {
     const frameId = surveySourceView && surveyPreview
@@ -164,11 +166,16 @@ export function SpatialWorkspace({
       return;
     }
     const diagnosticCad = diagnosticEntities.filter((entity) => entity.layerId === "cad");
-    const evidence = diagnosticEntities.filter((entity) => entity.layerId !== "cad");
+    const evidence = diagnosticEntities.filter((entity) => entity.layerId !== "cad"
+      && !(surveyRegistration && entity.layerId === "survey"));
     const sourceCad = importReport?.entities ?? diagnosticCad;
     const alignedCad = registration ? transformWorldEntities2D(sourceCad, registration) : structuredClone(sourceCad);
+    const registeredSurvey = surveyPreview && surveyRegistration
+      ? surveyPreviewWorldEntities(surveyPreview, surveyRegistration)
+      : [];
     store.setEntities([
       ...alignedCad,
+      ...registeredSurvey,
       ...evidence,
       ...spatialFeaturesToWorldEntities(editorSnapshot.document.features),
       ...zonePreviewEntities(zoneDraftPoints),
@@ -186,6 +193,7 @@ export function SpatialWorkspace({
     releaseView,
     store,
     surveyPreview,
+    surveyRegistration,
     surveySourceView,
     zoneDraftPoints,
   ]);
@@ -381,6 +389,11 @@ export function SpatialWorkspace({
           <div className="survey-source-banner">
             <span>{t("unalignedSurveySource")}</span>
             <strong>{surveyPreview.coordinateSystem.rootFrameId}</strong>
+          </div>
+        ) : surveyRegistration && surveyPreview ? (
+          <div className="registered-survey-banner">
+            <span>{t("registeredSurveyOverlay")}</span>
+            <strong>{surveyRegistration.metrics.rmseMetres.toFixed(3)} m RMSE</strong>
           </div>
         ) : releaseView ? (
           <div className="release-view-banner"><span>{t("releaseView")}</span><strong>{release?.mapReleaseId}</strong></div>

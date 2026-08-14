@@ -14,6 +14,7 @@ export const CONTRACT_VERSIONS = Object.freeze({
   surveyMaterializationPreview: "brash.survey-materialization-preview/v1",
   surveyCoordinateFrames: "brash.survey-coordinate-frames/v1",
   surveyCalibration: "brash.survey-calibration/v1",
+  surveyRegistrationReport: "brash.survey-registration-report/v1",
 });
 
 export const ARTIFACT_ROLES = Object.freeze({
@@ -43,6 +44,8 @@ export const DRAFT_ARTIFACT_ROLES = Object.freeze([
   "TRAJECTORY_SOURCE",
   "CAMERA_SOURCE",
   "CALIBRATION_SOURCE",
+  "SURVEY_SOURCE",
+  "SURVEY_PREVIEW",
   "REGISTERED_POINT_CLOUD",
   "RECONSTRUCTED_MESH",
   "OCCUPANCY",

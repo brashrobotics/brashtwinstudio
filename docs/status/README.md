@@ -189,19 +189,34 @@ Phase 1 — Manual Mapping Studio MVP foundation.
 - Studio survey status, sampled point-cloud and trajectory rendering, 2D/3D
   fit-to-bounds navigation, and an explicit read-only original-source-frame mode
   that does not falsely overlay unregistered survey data on CAD
+- `SURVEY_SOURCE` bindings for every accepted materialization input and one
+  `SURVEY_PREVIEW` derived binding with immutable same-draft input edges
+- Draft artifact provenance input capacity aligned to the 256-file survey
+  intake contract and enforced by PostgreSQL migration 012
+- Versioned `brash.survey-registration-report/v1` with source preview identity,
+  canonical target frame, sorted control points, transform, per-point residuals,
+  RMSE, maximum/mean error, scale deviation, solver version, and configuration
+  SHA-256
+- Twin API/OpenAPI registration create/list operations storing each report as a
+  completed, content-addressed `REGISTRATION_REPORT` derived from the sealed
+  preview binding
+- Operator-editable source/target control points with locked-scale rigid solve
+  by default, repeatable registration versions, and a fused canonical 2D/3D
+  survey overlay that preserves the separate source-frame inspection mode
+- Compact `npm run demo:seed` workflow covering upload through registered fused
+  view without external downloads
 
 ## Next development increment
 
-Phase 2 continues with survey-to-CAD registration and review:
+Phase 2 continues with survey quality and target-evidence review:
 
-1. Store the bounded preview as a derived draft artifact linked to every source
-   artifact in the immutable job snapshot.
-2. Add a versioned survey-to-CAD registration job and immutable transform report
-   before allowing survey and canonical draft layers to appear together.
-3. Add coverage, timing, frame-quality, and reconstruction-review surfaces
+1. Require an imported CAD/BIM or floorplan binding as explicit target evidence
+   when registration is performed against a design source.
+2. Add coverage, timing, frame-quality, and reconstruction-review surfaces
    before CAD alignment and semantic asset review.
-4. Introduce the first operator-assisted registration workflow, retaining source
-   coordinates and all control-point/residual evidence.
+3. Add registration acceptance thresholds and reviewer approval before a
+   transform may contribute to a publishable map release.
+4. Begin semantic asset-candidate extraction from registered survey evidence.
 
 ## Deliberately deferred
 
@@ -218,10 +233,10 @@ lifecycle are stable.
 
 ```text
 npm run check
-syntax/json: 231 files passed
-backend tests: 98 total; 95 passed and 3 optional external tests skipped
-web tests: 33/33 passed with strict TypeScript and production build
-live PostgreSQL 16 migration/repository gate: passed with schema version 11
+syntax/json: 238 files passed
+backend tests: 101 total; 98 passed and 3 optional external tests skipped
+web tests: 35/35 passed with strict TypeScript and production build
+live PostgreSQL 16 migration/repository gate: passed with schema version 12
 live GrandTour ETH-2 SHA-256/preview gate: passed against the 290,764,702-byte base selection
 ConSLAM/IfcOpenShell gate: last passed August 13, 2026 and remains opt-in
 fixture: demo-plant@1 valid
@@ -242,6 +257,7 @@ manual twin: control-point alignment, residual policy, diff, validation, two-per
 embodied survey: strict manifest, clock/frame/quality, hash/size policy and no-download GrandTour selection verified
 survey intake: atomic upload mapping, manifest-only verification, immutable rejection evidence and HTTP lifecycle verified
 survey materialization: immutable input, leased/retry-safe streaming, content-addressed preview, PostgreSQL provenance, HTTP lifecycle and source-frame 2D/3D browser QA verified
+survey registration: complete source/preview/report lineage, versioned rigid transform evidence, HTTP lifecycle, operator controls, and fused/source-frame 2D/3D browser QA verified
 dataset: ConSLAM IFC/GT checksum, geometry and trajectory validation verified
 GrandTour: pinned SHA-256, safe Zarr/PLY bounds, real trajectory/TF/map metrics and bounded preview verified
 ```

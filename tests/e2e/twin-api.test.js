@@ -11,6 +11,7 @@ import { UploadService } from "@brash-twin/application/uploads";
 import { ValidationJobService } from "@brash-twin/application/validation-jobs";
 import { SurveyIntakeService } from "@brash-twin/application/survey-intakes";
 import { SurveyMaterializationService } from "@brash-twin/application/survey-materializations";
+import { SurveyRegistrationService } from "@brash-twin/application/survey-registrations";
 import {
   ImmutableReleaseStore,
   LocalMultipartArtifactStore,
@@ -55,6 +56,13 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
     catalog,
     surveyIntakes,
     uploadSystem,
+    { draftArtifacts, clock: () => new Date("2026-08-13T14:00:00.000Z") },
+  );
+  const surveyRegistrations = memorySurveyRegistrations(
+    catalog,
+    surveyMaterializations,
+    draftArtifacts,
+    uploadSystem,
     { clock: () => new Date("2026-08-13T14:00:00.000Z") },
   );
   const api = new TwinApi({
@@ -63,6 +71,7 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
     draftArtifacts,
     surveyIntakes,
     surveyMaterializations,
+    surveyRegistrations,
     validationJobs,
     releaseStore,
   });
@@ -292,6 +301,7 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
     assert.equal(materializationRun.status, 200);
     assert.equal(materializationRun.body.job.status, "SUCCEEDED");
     assert.equal(materializationRun.body.job.output.summary.trajectoryPoseCount, 5);
+    assert.equal(materializationRun.body.job.output.previewBindingId, "survey-preview-survey-materialization-1");
     const materializationPreview = await request(
       baseUrl,
       "GET",
@@ -300,6 +310,31 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
     assert.equal(materializationPreview.status, 200);
     assert.equal(materializationPreview.body.preview.coordinateSystem.rootFrameId, "slam-map");
     assert.equal(materializationPreview.body.preview.reconstruction.vertexCount, 6);
+
+    const registrationCreated = await request(
+      baseUrl,
+      "POST",
+      "/api/v1/map-drafts/draft-demo-2/survey-registrations",
+      {
+        registrationId: "survey-registration-1",
+        materializationJobId: "survey-materialization-1",
+        allowScale: false,
+        operatorId: "mapping-operator-1",
+        controlPoints: [
+          { controlPointId: "cp-1", source: { x: 0, y: 0 }, target: { x: 5, y: 10 } },
+          { controlPointId: "cp-2", source: { x: 1, y: 0 }, target: { x: 6, y: 10 } },
+          { controlPointId: "cp-3", source: { x: 1, y: 1 }, target: { x: 6, y: 11 } },
+        ],
+      },
+    );
+    assert.equal(registrationCreated.status, 201);
+    assert.equal(registrationCreated.body.registration.report.transform.scale, 1);
+    assert.deepEqual(registrationCreated.body.registration.report.transform.translation, { x: 5, y: 10 });
+    assert.equal(
+      (await request(baseUrl, "GET", "/api/v1/map-drafts/draft-demo-2/survey-registrations"))
+        .body.registrations[0].report.registrationId,
+      "survey-registration-1",
+    );
 
     const sourceBinding = await request(baseUrl, "POST", "/api/v1/map-drafts/draft-demo-2/artifacts", {
       bindingId: "source-ifc-1",
@@ -348,10 +383,17 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
 
     const provenance = await request(baseUrl, "GET", "/api/v1/map-drafts/draft-demo-2/artifacts");
     assert.equal(provenance.status, 200);
-    assert.deepEqual(provenance.body.artifacts.map((artifact) => artifact.bindingId), [
-      "import-report-1",
-      "source-ifc-1",
-    ]);
+    assert.equal(provenance.body.artifacts.filter((artifact) => artifact.role === "SURVEY_SOURCE").length, 5);
+    assert.equal(
+      provenance.body.artifacts.find((artifact) => artifact.role === "SURVEY_PREVIEW").inputBindings.length,
+      5,
+    );
+    assert.deepEqual(
+      provenance.body.artifacts
+        .filter((artifact) => ["IMPORT_REPORT", "BIM_SOURCE", "REGISTRATION_REPORT"].includes(artifact.role))
+        .map((artifact) => artifact.bindingId),
+      ["import-report-1", "source-ifc-1", "survey-registration-report-survey-registration-1"],
+    );
 
     const lockedBinding = await request(baseUrl, "POST", "/api/v1/map-drafts/draft-demo-1/artifacts", {
       uploadId: "upload-ifc-1",
@@ -373,13 +415,15 @@ test("HTTP boundary rejects malformed JSON without invoking application logic", 
   const uploadSystem = memoryUploads(uploadRoot);
   const draftArtifacts = memoryDraftArtifacts(catalog, uploadSystem.uploads);
   const surveyIntakes = memorySurveyIntakes(catalog, uploadSystem);
-  const surveyMaterializations = memorySurveyMaterializations(catalog, surveyIntakes, uploadSystem);
+  const surveyMaterializations = memorySurveyMaterializations(catalog, surveyIntakes, uploadSystem, { draftArtifacts });
+  const surveyRegistrations = memorySurveyRegistrations(catalog, surveyMaterializations, draftArtifacts, uploadSystem);
   const api = new TwinApi({
     catalog,
     uploads: uploadSystem.uploads,
     draftArtifacts,
     surveyIntakes,
     surveyMaterializations,
+    surveyRegistrations,
     validationJobs: memoryValidationJobs(catalog, draftArtifacts, uploadSystem),
     releaseStore: new ImmutableReleaseStore(storeRoot),
   });
@@ -456,6 +500,17 @@ function memorySurveyMaterializations(catalog, surveyIntakes, uploadSystem, opti
     repository: new InMemorySurveyMaterializationRepository(),
     surveyIntakes,
     catalog,
+    uploads: uploadSystem.uploads,
+    multipartStore: uploadSystem.multipartStore,
+    ...options,
+  });
+}
+
+function memorySurveyRegistrations(catalog, materializations, draftArtifacts, uploadSystem, options = {}) {
+  return new SurveyRegistrationService({
+    catalog,
+    materializations,
+    draftArtifacts,
     uploads: uploadSystem.uploads,
     multipartStore: uploadSystem.multipartStore,
     ...options,

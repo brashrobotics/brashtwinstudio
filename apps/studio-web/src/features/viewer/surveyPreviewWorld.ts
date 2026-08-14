@@ -1,10 +1,20 @@
 import type { WorldEntity } from "@brash-twin/viewer-sdk";
-import type { SurveyBounds, SurveyMaterializationPreview } from "../../api/types";
+import type {
+  SurveyBounds,
+  SurveyMaterializationPreview,
+  SurveyRegistrationReport,
+} from "../../api/types";
 
-export function surveyPreviewWorldEntities(preview: SurveyMaterializationPreview): WorldEntity[] {
-  const trajectoryPoints = preview.trajectory.preview.poses.map((pose) => vector(pose.position));
-  const pointCloud = preview.reconstruction.preview.points.map((point) => vector(point));
+export function surveyPreviewWorldEntities(
+  preview: SurveyMaterializationPreview,
+  registration: SurveyRegistrationReport | null = null,
+): WorldEntity[] {
+  const trajectoryPoints = preview.trajectory.preview.poses.map((pose) => vector(pose.position, registration));
+  const pointCloud = preview.reconstruction.preview.points.map((point) => vector(point, registration));
   const bounds = preview.reconstruction.bounds;
+  const boundsMidpoint = transformPosition(midpoint(bounds), registration);
+  const boundsExtent = extent(bounds);
+  const scale = registration?.transform.scale ?? 1;
   return [
     {
       entityId: "survey-point-cloud-preview",
@@ -24,14 +34,40 @@ export function surveyPreviewWorldEntities(preview: SurveyMaterializationPreview
       entityId: "survey-reconstruction-bounds",
       layerId: "survey",
       label: "Survey reconstruction bounds",
-      position: midpoint(bounds),
-      geometry: { type: "BOX", size: extent(bounds), style: "WIREFRAME" },
+      position: boundsMidpoint,
+      rotationZ: registration?.transform.rotationRadians ?? 0,
+      geometry: {
+        type: "BOX",
+        size: { x: boundsExtent.x * scale, y: boundsExtent.y * scale, z: boundsExtent.z },
+        style: "WIREFRAME",
+      },
     },
   ];
 }
 
-function vector(value: readonly number[]): { x: number; y: number; z: number } {
-  return { x: value[0] ?? 0, y: value[1] ?? 0, z: value[2] ?? 0 };
+function vector(
+  value: readonly number[],
+  registration: SurveyRegistrationReport | null,
+): { x: number; y: number; z: number } {
+  return transformPosition(
+    { x: value[0] ?? 0, y: value[1] ?? 0, z: value[2] ?? 0 },
+    registration,
+  );
+}
+
+function transformPosition(
+  value: { x: number; y: number; z: number },
+  registration: SurveyRegistrationReport | null,
+): { x: number; y: number; z: number } {
+  if (!registration) return value;
+  const { scale, rotationRadians, translation } = registration.transform;
+  const cosine = Math.cos(rotationRadians);
+  const sine = Math.sin(rotationRadians);
+  return {
+    x: scale * (cosine * value.x - sine * value.y) + translation.x,
+    y: scale * (sine * value.x + cosine * value.y) + translation.y,
+    z: value.z,
+  };
 }
 
 function midpoint(bounds: SurveyBounds): { x: number; y: number; z: number } {

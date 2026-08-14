@@ -12,6 +12,8 @@ import { validateEmbodiedSurveyPackage } from "@brash-twin/embodied-survey";
 import { createSurveyMaterializationJobRecord } from "@brash-twin/domain";
 import { LocalMultipartArtifactStore } from "@brash-twin/artifact-store";
 import { UploadService } from "@brash-twin/application/uploads";
+import { DraftArtifactService } from "@brash-twin/application/draft-artifacts";
+import { InMemoryDraftArtifactRepository } from "@brash-twin/persistence/draft-artifacts";
 import { InMemorySurveyMaterializationRepository } from "@brash-twin/persistence/survey-materializations";
 import { InMemoryUploadRepository } from "@brash-twin/persistence/uploads";
 
@@ -93,6 +95,12 @@ test("leased materialization streams standard inputs into an integrity-checked p
   });
   const snapshot = await storedSnapshot(uploads, multipartStore);
   const repository = new InMemorySurveyMaterializationRepository();
+  const draftArtifacts = new DraftArtifactService({
+    repository: new InMemoryDraftArtifactRepository(),
+    catalog: { getMapDraft: async (draftId) => ({ draftId, status: "DRAFT" }) },
+    uploads,
+    clock,
+  });
   const intake = {
     intakeId: snapshot.intakeId,
     draftId: snapshot.draftId,
@@ -112,6 +120,7 @@ test("leased materialization streams standard inputs into an integrity-checked p
     surveyIntakes: { get: async () => intake },
     catalog: { getMapDraftContext: async () => ({ draft: { status: "DRAFT" } }) },
     uploads,
+    draftArtifacts,
     multipartStore,
     clock,
   });
@@ -126,6 +135,10 @@ test("leased materialization streams standard inputs into an integrity-checked p
   assert.equal(completed.output.summary.trajectoryPoseCount, 5);
   assert.equal(completed.output.summary.pointCloudVertexCount, 6);
   assert.match(completed.output.previewSha256, /^[a-f0-9]{64}$/);
+  assert.equal(completed.output.previewBindingId, "survey-preview-materialization-stream-1");
+  const lineage = await draftArtifacts.list(snapshot.draftId);
+  assert.equal(lineage.filter((binding) => binding.role === "SURVEY_SOURCE").length, snapshot.artifacts.length);
+  assert.equal(lineage.find((binding) => binding.role === "SURVEY_PREVIEW")?.inputBindings.length, snapshot.artifacts.length);
 
   const preview = await service.getPreview(completed.jobId);
   assert.equal(preview.coordinateSystem.rootFrameId, "slam-map");
@@ -152,6 +165,10 @@ function materializationService(intake, content, reads) {
       async initiate() { throw new Error("Not used by snapshot creation tests."); },
       async get() { throw new Error("Not used by snapshot creation tests."); },
       async complete() { throw new Error("Not used by snapshot creation tests."); },
+    },
+    draftArtifacts: {
+      async bind() { throw new Error("Not used by snapshot creation tests."); },
+      async list() { throw new Error("Not used by snapshot creation tests."); },
     },
     multipartStore: {
       async get(sha256) {

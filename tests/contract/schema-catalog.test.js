@@ -13,7 +13,7 @@ const schemaDirectory = fileURLToPath(new URL("../../packages/contracts/schemas"
 test("every published schema has a unique HTTPS identifier", async () => {
   const files = (await readdir(schemaDirectory)).filter((file) => file.endsWith(".schema.json"));
   const schemas = await Promise.all(files.map(async (file) => JSON.parse(await readFile(`${schemaDirectory}/${file}`, "utf8"))));
-  assert.equal(files.length, 15);
+  assert.equal(files.length, 16);
   assert.equal(new Set(schemas.map((schema) => schema.$id)).size, schemas.length);
   for (const schema of schemas) {
     assert.match(schema.$id, /^https:\/\/schemas\.brashrobotics\.com\//);
@@ -28,6 +28,7 @@ test("every published schema has a unique HTTPS identifier", async () => {
   assert.equal(CONTRACT_VERSIONS.surveyMaterializationPreview, "brash.survey-materialization-preview/v1");
   assert.equal(CONTRACT_VERSIONS.surveyCoordinateFrames, "brash.survey-coordinate-frames/v1");
   assert.equal(CONTRACT_VERSIONS.surveyCalibration, "brash.survey-calibration/v1");
+  assert.equal(CONTRACT_VERSIONS.surveyRegistrationReport, "brash.survey-registration-report/v1");
 });
 
 test("OpenAPI catalog documents every implemented operation", async () => {
@@ -64,6 +65,8 @@ test("OpenAPI catalog documents every implemented operation", async () => {
     "getSurveyMaterialization",
     "runSurveyMaterialization",
     "getSurveyMaterializationPreview",
+    "listDraftSurveyRegistrations",
+    "createSurveyRegistration",
     "listUploadSessions",
     "initiateUploadSession",
     "getUploadSession",

@@ -26,7 +26,7 @@ describe("Studio Web shell", () => {
         jobId: "validation-job-3", draftId: "draft-1", jobType: "RELEASE_VALIDATION", status: "SUCCEEDED", output: { reportBindingId: "report-3", reportSha256: "a".repeat(64), outcome: "PASSED", summary: { errorCount: 0, warningCount: 2, infoCount: 1 } }, attemptCount: 1, createdBy: "validator", createdAt: "2026-08-13T01:00:00.000Z", startedAt: "2026-08-13T01:00:00.000Z", completedAt: "2026-08-13T01:01:00.000Z", failureReason: null,
       }],
       listSurveyMaterializations: async () => [{
-        jobId: "survey-materialization-1", intakeId: "intake-1", draftId: "draft-1", status: "SUCCEEDED", manifestSha256: "b".repeat(64), snapshotSha256: "c".repeat(64), output: { schemaVersion: "brash.survey-materialization-preview/v1", mediaType: "application/vnd.brash.survey-materialization-preview+json", previewUploadId: "preview-upload-1", previewSha256: "d".repeat(64), previewBytes: 1024, sourceFrameId: "slam-map", summary: { trajectoryPoseCount: 5, pointCloudVertexCount: 6, warningCount: 0 } }, attemptCount: 1, maximumAttempts: 3, nextAttemptAt: "2026-08-13T01:00:00.000Z", startedAt: "2026-08-13T01:00:00.000Z", completedAt: "2026-08-13T01:01:00.000Z", failureReason: null, rowVersion: 3, createdBy: "operator", createdAt: "2026-08-13T01:00:00.000Z", updatedAt: "2026-08-13T01:01:00.000Z",
+        jobId: "survey-materialization-1", intakeId: "intake-1", draftId: "draft-1", status: "SUCCEEDED", manifestSha256: "b".repeat(64), snapshotSha256: "c".repeat(64), output: { schemaVersion: "brash.survey-materialization-preview/v1", mediaType: "application/vnd.brash.survey-materialization-preview+json", previewUploadId: "preview-upload-1", previewBindingId: "survey-preview-1", previewSha256: "d".repeat(64), previewBytes: 1024, sourceFrameId: "slam-map", summary: { trajectoryPoseCount: 5, pointCloudVertexCount: 6, warningCount: 0 } }, attemptCount: 1, maximumAttempts: 3, nextAttemptAt: "2026-08-13T01:00:00.000Z", startedAt: "2026-08-13T01:00:00.000Z", completedAt: "2026-08-13T01:01:00.000Z", failureReason: null, rowVersion: 3, createdBy: "operator", createdAt: "2026-08-13T01:00:00.000Z", updatedAt: "2026-08-13T01:01:00.000Z",
       }],
       getSurveyMaterializationPreview: async () => ({
         schemaVersion: "brash.survey-materialization-preview/v1",
@@ -39,6 +39,8 @@ describe("Studio Web shell", () => {
         qualityWarnings: [],
         generatedBy: { name: "materializer", version: "1" },
       }),
+      listSurveyRegistrations: async () => [surveyRegistration()],
+      createSurveyRegistration: async () => { throw new Error("Not used by this test."); },
       listReleases: async () => [{
         schemaVersion: "brash.twin-map-bundle/v1", bundleId: "bundle-plant-2", mapReleaseId: "plant@2", familyId: "plant", revision: 2, status: "PUBLISHED", createdAt: "2026-08-13T00:00:00.000Z", canonicalFrameId: "plant/floor-1", artifacts: [],
       }],
@@ -50,7 +52,39 @@ describe("Studio Web shell", () => {
     expect(await screen.findByText("plant/floor-1")).toBeTruthy();
     expect(await screen.findByText("validation-job-3")).toBeTruthy();
     expect(await screen.findByText(/survey-materialization-1/)).toBeTruthy();
-    expect(await screen.findByText("Unaligned survey source · read-only")).toBeTruthy();
+    expect(await screen.findByText("Registered survey overlay")).toBeTruthy();
     expect(await screen.findByText("plant@2")).toBeTruthy();
   });
 });
+
+function surveyRegistration() {
+  const residuals = [
+    { controlPointId: "cp-1", source: { x: -1, y: -2 }, target: { x: 4, y: 8 } },
+    { controlPointId: "cp-2", source: { x: 3, y: -2 }, target: { x: 8, y: 8 } },
+    { controlPointId: "cp-3", source: { x: 3, y: 2 }, target: { x: 8, y: 12 } },
+  ].map((pair) => ({ ...pair, transformed: pair.target, dxMetres: 0, dyMetres: 0, errorMetres: 0 }));
+  return {
+    reportBindingId: "survey-registration-report-1",
+    reportUploadId: "survey-registration-upload-1",
+    reportSha256: "e".repeat(64),
+    report: {
+      schemaVersion: "brash.survey-registration-report/v1" as const,
+      registrationId: "registration-1",
+      draftId: "draft-1",
+      materializationJobId: "survey-materialization-1",
+      sourcePreview: { bindingId: "survey-preview-1", sha256: "d".repeat(64), frameId: "slam-map" },
+      canonicalFrameId: "plant/floor-1",
+      solver: {
+        name: "brash.similarity-2d" as const,
+        version: "1.0.0" as const,
+        configurationSha256: "f".repeat(64),
+        allowScale: false,
+      },
+      transform: { scale: 1, rotationRadians: 0, translation: { x: 5, y: 10 } },
+      residuals,
+      metrics: { controlPointCount: 3, rmseMetres: 0, maximumErrorMetres: 0, meanErrorMetres: 0, scaleDeviation: 0 },
+      createdBy: "operator",
+      createdAt: "2026-08-13T01:02:00.000Z",
+    },
+  };
+}

@@ -9,6 +9,7 @@
     "./publications": "./publications.js",
     "./survey-intakes": "./survey-intakes.js",
     "./survey-materializations": "./survey-materializations.js",
+    "./survey-registrations": "./survey-registrations.js",
     "./uploads": "./uploads.js",
     "./validation-jobs": "./validation-jobs.js"
   },

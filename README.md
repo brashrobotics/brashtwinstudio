@@ -137,6 +137,18 @@ The first Phase 0 increment is implemented:
   and preserves immutable acceptance or rejection evidence.
 - Checksum-protected dataset adapter for ConSLAM IFC and ground-truth data.
 - Real BIM triangulation through IfcOpenShell and TUM trajectory quality checks.
+- Leased accepted-survey materialization that streams standard frame,
+  calibration, TUM trajectory, and binary PLY inputs into a bounded,
+  content-addressed 2D/3D preview.
+- Immutable `SURVEY_SOURCE -> SURVEY_PREVIEW -> REGISTRATION_REPORT` draft
+  provenance, retaining every accepted input hash and operator control-point
+  residual.
+- Versioned survey-to-canonical registration API with locked-scale 2D rigid
+  alignment by default, plus a fused CAD/survey view and a reversible read-only
+  source-frame view.
+- A compact local demo seed that exercises upload, intake, verification,
+  materialization, artifact lineage, and registration without downloading an
+  external dataset.
 
 Run the local quality gate:
 
@@ -159,6 +171,19 @@ You can then read `http://127.0.0.1:4380/health` and
 metadata in memory by default. For persistent operation, set
 `TWIN_PERSISTENCE_MODE=postgres` and `TWIN_DATABASE_URL`, run
 `npm run db:migrate`, and then start `npm run dev:api`.
+
+To open a reproducible registered-survey demo, start the API and Studio with a
+dedicated object store, then seed it from another terminal:
+
+```bash
+TWIN_OBJECT_STORE_PATH=.local/demo-object-store npm run dev:api
+npm run dev --workspace @brash-twin/studio-web
+TWIN_OBJECT_STORE_PATH=.local/demo-object-store npm run demo:seed
+```
+
+Open `http://127.0.0.1:4390/`. See
+[`tools/demo-seed/README.md`](tools/demo-seed/README.md) for the exact local
+configuration boundary.
 
 See [docs/status/README.md](docs/status/README.md) for the current implementation
 status and the

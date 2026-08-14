@@ -1,18 +1,24 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { TwinApiClient } from "../../api/client";
 import type {
   MapDraft,
   MapDraftStatus,
   SurveyMaterializationJob,
+  SurveyMaterializationPreview,
+  SurveyRegistrationControlPoint,
+  SurveyRegistrationRecord,
   ValidationJob,
 } from "../../api/types";
 import { useI18n } from "../../i18n/i18n";
+import { useIdentity } from "../../auth/identity";
 
 const SpatialWorkspace = lazy(() => import("../viewer/SpatialWorkspace"));
 
 export function WorkspacePage({ api }: { api: TwinApiClient }) {
   const { t } = useI18n();
+  const { identity } = useIdentity();
+  const queryClient = useQueryClient();
   const [siteId, setSiteId] = useState("");
   const [floorId, setFloorId] = useState("");
   const [familyId, setFamilyId] = useState("");
@@ -44,6 +50,11 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
     queryFn: ({ signal }) => api.listSurveyMaterializations(draftId, signal),
     enabled: draftId !== "",
   });
+  const surveyRegistrations = useQuery({
+    queryKey: ["survey-registrations", draftId],
+    queryFn: ({ signal }) => api.listSurveyRegistrations(draftId, signal),
+    enabled: draftId !== "",
+  });
   const releases = useQuery({
     queryKey: ["releases"],
     queryFn: ({ signal }) => api.listReleases(signal),
@@ -70,6 +81,19 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
     queryKey: ["survey-materialization-preview", latestMaterialization?.jobId ?? ""],
     queryFn: ({ signal }) => api.getSurveyMaterializationPreview(latestMaterialization!.jobId, signal),
     enabled: latestMaterialization?.status === "SUCCEEDED",
+  });
+  const latestRegistration = useMemo(
+    () => latestSurveyRegistration(surveyRegistrations.data ?? []),
+    [surveyRegistrations.data],
+  );
+  const createRegistration = useMutation({
+    mutationFn: (controlPoints: SurveyRegistrationControlPoint[]) => api.createSurveyRegistration(draftId, {
+      materializationJobId: latestMaterialization!.jobId,
+      controlPoints,
+      allowScale: false,
+      operatorId: identity.subject,
+    }),
+    onSuccess: async () => queryClient.invalidateQueries({ queryKey: ["survey-registrations", draftId] }),
   });
   const firstError = [sites.error, floors.error, families.error, drafts.error].find(Boolean);
   const initialLoading = sites.isPending;
@@ -144,6 +168,7 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
               familyId={(selectedDraft?.familyId ?? familyId) || "manual-twin"}
               revision={selectedDraft?.revision ?? 1}
               surveyPreview={surveyPreview.data ?? null}
+              surveyRegistration={latestRegistration?.report ?? null}
             />
           </Suspense>
 
@@ -154,10 +179,17 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
               loading={surveyMaterializations.isPending && draftId !== ""}
               previewReady={surveyPreview.isSuccess}
             />
+            <SurveyRegistrationPanel
+              preview={surveyPreview.data ?? null}
+              registration={latestRegistration}
+              busy={createRegistration.isPending}
+              error={createRegistration.error instanceof Error ? createRegistration.error.message : null}
+              onRegister={(controlPoints) => createRegistration.mutateAsync(controlPoints)}
+            />
             <ValidationPanel job={latestValidation} loading={validationJobs.isPending && draftId !== ""} />
             <section className="panel release-panel">
               <div className="panel-heading compact">
-                <div><p className="section-index">06 / OUTPUT</p><h3>{t("latestReleases")}</h3></div>
+                <div><p className="section-index">07 / OUTPUT</p><h3>{t("latestReleases")}</h3></div>
                 <span className="count-chip">{releases.data?.length ?? 0}</span>
               </div>
               {(releases.data?.length ?? 0) === 0 ? <p className="muted-copy">{t("noReleases")}</p> : (
@@ -222,7 +254,7 @@ function ValidationPanel({ job, loading }: { job: ValidationJob | null; loading:
   return (
     <section className="panel validation-panel">
       <div className="panel-heading compact">
-        <div><p className="section-index">05 / QUALITY</p><h3>{t("validation")}</h3></div>
+        <div><p className="section-index">06 / QUALITY</p><h3>{t("validation")}</h3></div>
         {job && <span className={`job-state job-${job.status.toLowerCase()}`}>{job.status}</span>}
       </div>
       {loading ? <div className="skeleton-row" /> : job ? (
@@ -262,6 +294,99 @@ function SurveyPanel({ job, loading, previewReady }: {
       ) : <p className="muted-copy">{t("noSurveyMaterialization")}</p>}
     </section>
   );
+}
+
+function SurveyRegistrationPanel({ preview, registration, busy, error, onRegister }: {
+  preview: SurveyMaterializationPreview | null;
+  registration: SurveyRegistrationRecord | null;
+  busy: boolean;
+  error: string | null;
+  onRegister(controlPoints: SurveyRegistrationControlPoint[]): Promise<unknown>;
+}) {
+  const { t } = useI18n();
+  const [controlPoints, setControlPoints] = useState<SurveyRegistrationControlPoint[]>([]);
+  useEffect(() => {
+    if (registration) {
+      setControlPoints(registration.report.residuals.map(({ controlPointId, source, target }) => ({
+        controlPointId,
+        source: { ...source },
+        target: { ...target },
+      })));
+    } else if (preview) {
+      setControlPoints(defaultSurveyControlPoints(preview));
+    }
+  }, [preview?.source.revision, registration?.report.registrationId]);
+  return (
+    <section className="panel survey-registration-panel">
+      <div className="panel-heading compact">
+        <div><p className="section-index">05 / ALIGN</p><h3>{t("surveyRegistration")}</h3></div>
+        {registration && <span className="job-state job-succeeded">REGISTERED</span>}
+      </div>
+      {!preview ? <p className="muted-copy">{t("registrationNeedsPreview")}</p> : (
+        <>
+          <div className="survey-registration-grid">
+            <span>ID</span><span>SX</span><span>SY</span><span>TX</span><span>TY</span>
+            {controlPoints.map((pair, index) => (
+              <SurveyControlPointRow
+                key={pair.controlPointId}
+                pair={pair}
+                onChange={(next) => setControlPoints((current) => current.map(
+                  (candidate, candidateIndex) => candidateIndex === index ? next : candidate,
+                ))}
+              />
+            ))}
+          </div>
+          <button
+            className="registration-submit"
+            type="button"
+            disabled={busy || controlPoints.length < 2}
+            onClick={() => void onRegister(controlPoints)}
+          >{busy ? t("registeringSurvey") : t("saveRegistrationVersion")}</button>
+          {registration && (
+            <dl className="metadata-list registration-summary">
+              <div><dt>RMSE</dt><dd>{registration.report.metrics.rmseMetres.toFixed(3)} m</dd></div>
+              <div><dt>{t("rotation")}</dt><dd>{registration.report.transform.rotationRadians.toFixed(3)} rad</dd></div>
+              <div className="metadata-wide"><dt>{t("targetFrame")}</dt><dd>{registration.report.canonicalFrameId}</dd></div>
+            </dl>
+          )}
+          {error && <p className="registration-error" role="alert">{error}</p>}
+        </>
+      )}
+    </section>
+  );
+}
+
+function SurveyControlPointRow({ pair, onChange }: {
+  pair: SurveyRegistrationControlPoint;
+  onChange(pair: SurveyRegistrationControlPoint): void;
+}) {
+  return (
+    <>
+      <b>{pair.controlPointId.replace("cp-", "")}</b>
+      <RegistrationNumber value={pair.source.x} onChange={(x) => onChange({ ...pair, source: { ...pair.source, x } })} />
+      <RegistrationNumber value={pair.source.y} onChange={(y) => onChange({ ...pair, source: { ...pair.source, y } })} />
+      <RegistrationNumber value={pair.target.x} onChange={(x) => onChange({ ...pair, target: { ...pair.target, x } })} />
+      <RegistrationNumber value={pair.target.y} onChange={(y) => onChange({ ...pair, target: { ...pair.target, y } })} />
+    </>
+  );
+}
+
+function RegistrationNumber({ value, onChange }: { value: number; onChange(value: number): void }) {
+  return <input type="number" step="0.05" value={value} onChange={(event) => event.currentTarget.value !== "" && onChange(Number(event.currentTarget.value))} />;
+}
+
+function defaultSurveyControlPoints(preview: SurveyMaterializationPreview): SurveyRegistrationControlPoint[] {
+  const [minimumX, minimumY] = preview.reconstruction.bounds.minimum;
+  const [maximumX, maximumY] = preview.reconstruction.bounds.maximum;
+  return [
+    { x: minimumX, y: minimumY },
+    { x: maximumX, y: minimumY },
+    { x: maximumX, y: maximumY },
+  ].map((point, index) => ({
+    controlPointId: `cp-${index + 1}`,
+    source: point,
+    target: { ...point },
+  }));
 }
 
 function StatusBadge({ status }: { status: MapDraftStatus }) {
@@ -308,4 +433,8 @@ function latestJob(jobs: ValidationJob[]): ValidationJob | null {
 
 function latestSurveyMaterialization(jobs: SurveyMaterializationJob[]): SurveyMaterializationJob | null {
   return [...jobs].sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ?? null;
+}
+
+function latestSurveyRegistration(registrations: SurveyRegistrationRecord[]): SurveyRegistrationRecord | null {
+  return [...registrations].sort((left, right) => right.report.createdAt.localeCompare(left.report.createdAt))[0] ?? null;
 }

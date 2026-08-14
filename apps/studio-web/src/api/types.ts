@@ -78,6 +78,7 @@ export interface SurveyMaterializationJob {
     schemaVersion: "brash.survey-materialization-preview/v1";
     mediaType: "application/vnd.brash.survey-materialization-preview+json";
     previewUploadId: string;
+    previewBindingId: string;
     previewSha256: string;
     previewBytes: number;
     sourceFrameId: string;
@@ -146,6 +147,67 @@ export interface SurveyMaterializationPreview {
 export interface SurveyBounds {
   minimum: [number, number, number];
   maximum: [number, number, number];
+}
+
+export interface RegistrationPoint2D {
+  x: number;
+  y: number;
+}
+
+export interface SurveyRegistrationControlPoint {
+  controlPointId: string;
+  source: RegistrationPoint2D;
+  target: RegistrationPoint2D;
+}
+
+export interface SurveyRegistrationReport {
+  schemaVersion: "brash.survey-registration-report/v1";
+  registrationId: string;
+  draftId: string;
+  materializationJobId: string;
+  sourcePreview: { bindingId: string; sha256: string; frameId: string };
+  canonicalFrameId: string;
+  solver: {
+    name: "brash.similarity-2d";
+    version: "1.0.0";
+    configurationSha256: string;
+    allowScale: boolean;
+  };
+  transform: {
+    scale: number;
+    rotationRadians: number;
+    translation: RegistrationPoint2D;
+  };
+  residuals: Array<SurveyRegistrationControlPoint & {
+    transformed: RegistrationPoint2D;
+    dxMetres: number;
+    dyMetres: number;
+    errorMetres: number;
+  }>;
+  metrics: {
+    controlPointCount: number;
+    rmseMetres: number;
+    maximumErrorMetres: number;
+    meanErrorMetres: number;
+    scaleDeviation: number;
+  };
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface SurveyRegistrationRecord {
+  reportBindingId: string;
+  reportUploadId: string;
+  reportSha256: string;
+  report: SurveyRegistrationReport;
+}
+
+export interface CreateSurveyRegistrationInput {
+  registrationId?: string;
+  materializationJobId: string;
+  controlPoints: SurveyRegistrationControlPoint[];
+  allowScale?: boolean;
+  operatorId: string;
 }
 
 export interface ReleaseManifest {

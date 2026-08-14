@@ -138,7 +138,7 @@ export function ManualTwinMilestone({
   return (
     <section className="manual-milestone" aria-label={t("manualTwinMilestone")}>
       <div className="milestone-heading">
-        <div><p className="section-index">06 / MILESTONE</p><h3>{t("manualTwinMilestone")}</h3></div>
+        <div><p className="section-index">08 / MILESTONE</p><h3>{t("manualTwinMilestone")}</h3></div>
         {release
           ? <span className="milestone-state is-published">{releaseView ? t("releaseView") : t("publishedPreview")}</span>
           : <span className="milestone-state">{approvedBy ? t("approved") : validation?.valid ? t("validated") : t("draft")}</span>}

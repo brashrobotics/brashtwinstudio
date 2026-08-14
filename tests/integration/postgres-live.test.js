@@ -46,7 +46,7 @@ test("real PostgreSQL persists the catalog and survives repository recreation", 
   await admin.query(`CREATE SCHEMA ${quoteIdentifier(schema)}`);
 
   const scopedUrl = new URL(databaseUrl);
-  scopedUrl.searchParams.set("options", `-c search_path=${schema},public`);
+  scopedUrl.searchParams.set("options", `-c search_path=${schema}`);
   const pool = createPostgresPool(loadPostgresConfig({
     TWIN_DATABASE_URL: scopedUrl.toString(),
     TWIN_DATABASE_APPLICATION_NAME: "brash-twin-live-integration",
@@ -59,11 +59,11 @@ test("real PostgreSQL persists the catalog and survives repository recreation", 
     const secondRunner = new PostgresMigrationRunner({ database, migrationDirectory });
     const beforeMigration = await firstRunner.status();
     assert.equal(beforeMigration.currentVersion, 0);
-    assert.equal(beforeMigration.pendingCount, 11);
+    assert.equal(beforeMigration.pendingCount, 12);
     const concurrentResults = await Promise.all([firstRunner.migrate(), secondRunner.migrate()]);
     assert.deepEqual(
       concurrentResults.map((result) => result.appliedNow.length).sort((left, right) => left - right),
-      [0, 11],
+      [0, 12],
     );
     const migrationStatus = await firstRunner.status();
     assert.equal(migrationStatus.pendingCount, 0);
@@ -71,7 +71,7 @@ test("real PostgreSQL persists the catalog and survives repository recreation", 
       migrationStatus.entries.map((entry) => entry.state),
       [
         "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED",
-        "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED",
+        "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED", "APPLIED",
       ],
     );
 
@@ -93,8 +93,8 @@ test("real PostgreSQL persists the catalog and survives repository recreation", 
       assert.equal(readiness.body.persistence.mode, "postgres");
       assert.deepEqual(readiness.body.persistence.migrations, {
         ready: true,
-        currentVersion: 11,
-        latestVersion: 11,
+        currentVersion: 12,
+        latestVersion: 12,
         pendingCount: 0,
       });
     } finally {

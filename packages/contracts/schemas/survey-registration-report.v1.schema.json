@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/survey-registration-report.v1.schema.json",
+  "title": "Brash Survey Registration Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "registrationId", "draftId", "materializationJobId",
+    "sourcePreview", "canonicalFrameId", "solver", "transform", "residuals",
+    "metrics", "createdBy", "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "brash.survey-registration-report/v1" },
+    "registrationId": { "$ref": "#/$defs/identifier" },
+    "draftId": { "$ref": "#/$defs/identifier" },
+    "materializationJobId": { "$ref": "#/$defs/identifier" },
+    "sourcePreview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bindingId", "sha256", "frameId"],
+      "properties": {
+        "bindingId": { "$ref": "#/$defs/identifier" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "frameId": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "canonicalFrameId": { "$ref": "#/$defs/nonEmptyString" },
+    "solver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "configurationSha256", "allowScale"],
+      "properties": {
+        "name": { "const": "brash.similarity-2d" },
+        "version": { "const": "1.0.0" },
+        "configurationSha256": { "$ref": "#/$defs/sha256" },
+        "allowScale": { "type": "boolean" }
+      }
+    },
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scale", "rotationRadians", "translation"],
+      "properties": {
+        "scale": { "type": "number", "exclusiveMinimum": 0, "maximum": 100 },
+        "rotationRadians": { "type": "number" },
+        "translation": { "$ref": "#/$defs/point" }
+      }
+    },
+    "residuals": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["controlPointId", "source", "target", "transformed", "dxMetres", "dyMetres", "errorMetres"],
+        "properties": {
+          "controlPointId": { "$ref": "#/$defs/identifier" },
+          "source": { "$ref": "#/$defs/point" },
+          "target": { "$ref": "#/$defs/point" },
+          "transformed": { "$ref": "#/$defs/point" },
+          "dxMetres": { "type": "number" },
+          "dyMetres": { "type": "number" },
+          "errorMetres": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["controlPointCount", "rmseMetres", "maximumErrorMetres", "meanErrorMetres", "scaleDeviation"],
+      "properties": {
+        "controlPointCount": { "type": "integer", "minimum": 2, "maximum": 100 },
+        "rmseMetres": { "type": "number", "minimum": 0 },
+        "maximumErrorMetres": { "type": "number", "minimum": 0 },
+        "meanErrorMetres": { "type": "number", "minimum": 0 },
+        "scaleDeviation": { "type": "number", "minimum": 0 }
+      }
+    },
+    "createdBy": { "$ref": "#/$defs/nonEmptyString" },
+    "createdAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "identifier": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": { "x": { "type": "number" }, "y": { "type": "number" } }
+    }
+  }
+}

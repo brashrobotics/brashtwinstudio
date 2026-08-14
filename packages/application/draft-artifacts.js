@@ -133,10 +133,10 @@ export class DraftArtifactService {
 
 function normalizeInputBindingIds(value) {
   if (value === undefined) return [];
-  if (!Array.isArray(value) || value.length > 100) {
+  if (!Array.isArray(value) || value.length > 256) {
     throw new DraftArtifactError(
       "DRAFT_ARTIFACT_INPUTS_INVALID",
-      "inputBindingIds must be an array with at most 100 entries.",
+      "inputBindingIds must be an array with at most 256 entries.",
     );
   }
   const identifiers = value.map((bindingId) => {

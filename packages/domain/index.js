@@ -47,6 +47,8 @@ export const DRAFT_ARTIFACT_ROLE = Object.freeze({
   trajectorySource: "TRAJECTORY_SOURCE",
   cameraSource: "CAMERA_SOURCE",
   calibrationSource: "CALIBRATION_SOURCE",
+  surveySource: "SURVEY_SOURCE",
+  surveyPreview: "SURVEY_PREVIEW",
   registeredPointCloud: "REGISTERED_POINT_CLOUD",
   reconstructedMesh: "RECONSTRUCTED_MESH",
   occupancy: "OCCUPANCY",
@@ -64,6 +66,7 @@ const SOURCE_DRAFT_ARTIFACT_ROLES = new Set([
   DRAFT_ARTIFACT_ROLE.trajectorySource,
   DRAFT_ARTIFACT_ROLE.cameraSource,
   DRAFT_ARTIFACT_ROLE.calibrationSource,
+  DRAFT_ARTIFACT_ROLE.surveySource,
 ]);
 
 const SPATIAL_DRAFT_ARTIFACT_ROLES = new Set([
@@ -72,6 +75,7 @@ const SPATIAL_DRAFT_ARTIFACT_ROLES = new Set([
   DRAFT_ARTIFACT_ROLE.pointCloudSource,
   DRAFT_ARTIFACT_ROLE.trajectorySource,
   DRAFT_ARTIFACT_ROLE.cameraSource,
+  DRAFT_ARTIFACT_ROLE.surveyPreview,
   DRAFT_ARTIFACT_ROLE.registeredPointCloud,
   DRAFT_ARTIFACT_ROLE.reconstructedMesh,
   DRAFT_ARTIFACT_ROLE.occupancy,

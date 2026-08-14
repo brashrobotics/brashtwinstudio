@@ -4,6 +4,7 @@ import { UploadError } from "@brash-twin/application/uploads";
 import { ValidationJobError } from "@brash-twin/application/validation-jobs";
 import { SurveyIntakeError } from "@brash-twin/application/survey-intakes";
 import { SurveyMaterializationError } from "@brash-twin/application/survey-materializations";
+import { SurveyRegistrationError } from "@brash-twin/application/survey-registrations";
 import { ArtifactStoreError } from "@brash-twin/artifact-store";
 
 export class TwinApi {
@@ -12,6 +13,7 @@ export class TwinApi {
   #draftArtifacts;
   #surveyIntakes;
   #surveyMaterializations;
+  #surveyRegistrations;
   #validationJobs;
   #releaseStore;
   #readiness;
@@ -22,6 +24,7 @@ export class TwinApi {
     draftArtifacts,
     surveyIntakes,
     surveyMaterializations,
+    surveyRegistrations,
     validationJobs,
     releaseStore,
     readiness = async () => ({ ready: true, mode: "memory" }),
@@ -31,6 +34,7 @@ export class TwinApi {
     if (!draftArtifacts) throw new TypeError("Draft artifact service is required.");
     if (!surveyIntakes) throw new TypeError("Survey intake service is required.");
     if (!surveyMaterializations) throw new TypeError("Survey materialization service is required.");
+    if (!surveyRegistrations) throw new TypeError("Survey registration service is required.");
     if (!validationJobs) throw new TypeError("Validation job service is required.");
     if (!releaseStore) throw new TypeError("Release store is required.");
     if (typeof readiness !== "function") throw new TypeError("Readiness probe must be a function.");
@@ -39,6 +43,7 @@ export class TwinApi {
     this.#draftArtifacts = draftArtifacts;
     this.#surveyIntakes = surveyIntakes;
     this.#surveyMaterializations = surveyMaterializations;
+    this.#surveyRegistrations = surveyRegistrations;
     this.#validationJobs = validationJobs;
     this.#releaseStore = releaseStore;
     this.#readiness = readiness;
@@ -197,6 +202,26 @@ export class TwinApi {
       return response(200, {
         jobs: await this.#surveyMaterializations.list(segment(draftSurveyMaterializationsMatch[1])),
       });
+    }
+
+    const draftSurveyRegistrationsMatch = pathname.match(
+      /^\/api\/v1\/map-drafts\/([^/]+)\/survey-registrations$/,
+    );
+    if (draftSurveyRegistrationsMatch) {
+      const draftId = segment(draftSurveyRegistrationsMatch[1]);
+      if (method === "GET") {
+        return response(200, { registrations: await this.#surveyRegistrations.list(draftId) });
+      }
+      if (method === "POST") {
+        const registration = await this.#surveyRegistrations.create(draftId, objectBody(body, [
+          "registrationId",
+          "materializationJobId",
+          "controlPoints",
+          "allowScale",
+          "operatorId",
+        ]));
+        return response(201, { registration });
+      }
     }
 
     const surveyIntakeMaterializationsMatch = pathname.match(
@@ -388,6 +413,11 @@ function errorResponse(error) {
       error: { code: error.code, message: error.message },
     });
   }
+  if (error instanceof SurveyRegistrationError) {
+    return response(statusForSurveyRegistrationError(error.code), {
+      error: { code: error.code, message: error.message },
+    });
+  }
   if (error instanceof ArtifactStoreError) {
     const status = error.code === "RELEASE_ID_INVALID" ? 400 : 500;
     return response(status, { error: { code: error.code, message: error.message } });
@@ -482,5 +512,16 @@ function statusForSurveyMaterializationError(code) {
     "SURVEY_MATERIALIZATION_PROVENANCE_INVALID",
   ].includes(code)) return 422;
   if (code === "SURVEY_MATERIALIZATION_PERSISTENCE_ERROR") return 500;
+  return 400;
+}
+
+function statusForSurveyRegistrationError(code) {
+  if (code === "SURVEY_REGISTRATION_NOT_FOUND") return 404;
+  if ([
+    "SURVEY_REGISTRATION_CONFLICT",
+    "SURVEY_REGISTRATION_DRAFT_LOCKED",
+    "SURVEY_REGISTRATION_PREVIEW_INELIGIBLE",
+  ].includes(code)) return 409;
+  if (code === "SURVEY_REGISTRATION_INTEGRITY_FAILED") return 422;
   return 400;
 }

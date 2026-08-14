@@ -49,4 +49,36 @@ describe("Twin API client", () => {
       "http://twin.local/api/v1/survey-materializations/job%20%2F%201/preview",
     ]);
   });
+
+  it("creates a versioned survey registration through the draft boundary", async () => {
+    const response = {
+      registration: {
+        reportBindingId: "survey-registration-report-registration-1",
+        reportUploadId: "survey-registration-registration-1",
+        reportSha256: "a".repeat(64),
+        report: { registrationId: "registration-1" },
+      },
+    };
+    const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(response), {
+      status: 201,
+      headers: { "content-type": "application/json" },
+    }));
+    const api = createTwinApiClient({ baseUrl: "http://twin.local", fetchImplementation });
+    const input = {
+      materializationJobId: "materialization-1",
+      operatorId: "operator-1",
+      controlPoints: [
+        { controlPointId: "cp-1", source: { x: 0, y: 0 }, target: { x: 1, y: 2 } },
+        { controlPointId: "cp-2", source: { x: 1, y: 0 }, target: { x: 2, y: 2 } },
+      ],
+    };
+
+    const registration = await api.createSurveyRegistration("draft / 1", input);
+
+    expect(registration.reportBindingId).toBe("survey-registration-report-registration-1");
+    expect(fetchImplementation).toHaveBeenCalledWith(
+      "http://twin.local/api/v1/map-drafts/draft%20%2F%201/survey-registrations",
+      expect.objectContaining({ method: "POST", body: JSON.stringify(input) }),
+    );
+  });
 });

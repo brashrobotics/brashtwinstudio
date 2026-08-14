@@ -42,6 +42,9 @@ Published releases and audit history must never be deleted during migration.
 - `011_survey_materialization_lifecycle.sql`: Leased execution and bounded
   retries over an immutable input snapshot, with a content-addressed preview
   artifact reference for successful jobs.
+- `012_survey_artifact_lineage.sql`: Accepted survey source bindings and
+  source-frame preview derivation roles, with the artifact input bound aligned
+  to the 256-file survey intake limit.
 
 PostgreSQL triggers prevent updates and deletes to primary release records,
 release-artifact bindings, and asset revisions linked to a release. Draft artifact
@@ -55,3 +58,5 @@ terminal verification result exactly once.
 Survey materialization input snapshots remain immutable and can only reference
 an accepted intake and the exact manifest identity sealed during verification;
 only guarded execution-state transitions may update their job rows.
+Each successful survey preview is a derived draft artifact with immutable
+input edges to every accepted survey source artifact used to create it.
