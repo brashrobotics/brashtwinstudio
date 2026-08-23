@@ -9,6 +9,7 @@
   },
   "workspaces": [
     "apps/studio-web",
+    "apps/fleet-demo-web",
     "packages/contracts",
     "packages/coordinate-frames",
     "packages/domain",
@@ -22,11 +23,14 @@
     "packages/spatial-editor",
     "packages/manual-twin",
     "packages/embodied-survey",
+    "packages/scene-pipeline",
+    "packages/fleet-replay",
     "tools/map-bundle-cli",
     "tools/dataset-cli",
     "tools/database-cli",
     "tools/demo-seed",
     "tools/grandtour-seed",
+    "tools/scene-cli",
     "services/twin-api"
   ],
   "scripts": {
@@ -39,6 +43,9 @@
     "test:web": "npm run test --workspace @brash-twin/studio-web",
     "typecheck:web": "npm run typecheck --workspace @brash-twin/studio-web",
     "build:web": "npm run build --workspace @brash-twin/studio-web",
+    "test:fleet-demo": "npm run test --workspace @brash-twin/fleet-demo-web",
+    "typecheck:fleet-demo": "npm run typecheck --workspace @brash-twin/fleet-demo-web",
+    "build:fleet-demo": "npm run build --workspace @brash-twin/fleet-demo-web",
     "test:postgres": "node --test tests/integration/postgres-live.test.js",
     "db:migrate": "node tools/database-cli/cli.js migrate",
     "db:status": "node tools/database-cli/cli.js status",
@@ -48,9 +55,14 @@
     "dataset:grandtour-inspect": "node tools/dataset-cli/cli.js grandtour-inspect",
     "demo:seed": "node tools/demo-seed/cli.js",
     "grandtour:seed": "node tools/grandtour-seed/cli.js",
+    "scene:package": "node tools/scene-cli/cli.js package",
+    "fleet-demo:fixture": "node tools/fleet-demo-fixture/cli.js",
     "validate:fixture": "node tools/map-bundle-cli/cli.js validate tests/fixtures/bundles/demo-plant@1",
+    "validate:optimized-fixture": "node tools/map-bundle-cli/cli.js validate tests/fixtures/bundles/demo-plant@2",
     "dev:api": "node services/twin-api/server.js",
+    "dev:fleet-demo": "npm run dev --workspace @brash-twin/fleet-demo-web",
     "check:web": "npm run typecheck:web && npm run test:web && npm run build:web",
-    "check": "npm run lint && npm test && npm run check:web && npm run validate:fixture"
+    "check:fleet-demo": "npm run typecheck:fleet-demo && npm run test:fleet-demo && npm run build:fleet-demo",
+    "check": "npm run lint && npm test && npm run check:web && npm run check:fleet-demo && npm run validate:fixture && npm run validate:optimized-fixture"
   }
 }

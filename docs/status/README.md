@@ -10,7 +10,7 @@ Phase 5 — Publication outputs and Fleet-compatible visualization contracts.
 
 - Independent Node.js workspace and local package linking
 - Repository syntax and JSON quality checks
-- Thirty-four published versioned JSON Schemas
+- Thirty-seven published versioned JSON Schemas
 - Coordinate-frame graph and 3D transform mathematics
 - `MapDraft -> review -> validated -> immutable release` domain flow
 - Twin Map Bundle semantic and integrity validator
@@ -294,23 +294,38 @@ Phase 5 — Publication outputs and Fleet-compatible visualization contracts.
   redacted route configuration, terminal failure, and retry controls
 - Deterministic application, PostgreSQL repository, HTTP, typed-client, and UI
   tests for routing, idempotency, retry, terminal state, and redaction
+- Twin Map Bundle v2 and Scene Manifest v2 with retained legacy v1 validation
+- Deterministic canonical grid partitioning and valid detailed/coarse GLB
+  generation derived only from reviewed Twin asset bounds
+- Scene producer/configuration/input identities, per-level path/hash/bytes,
+  tile bounds, asset IDs, and explicit tile/LOD/byte budgets
+- Atomic source-preserving scene target exposure followed by full semantic and
+  integrity validation
+- Immutable release-store publication of generated Bundle v2 output
+- Reproducible project-owned `demo-plant@2` with four tiles, eight GLB levels,
+  and 10.4 KiB of bound static geometry
+- Fleet Live Replay v1 contract, release/frame/topology/asset validation, and
+  non-mutating interpolated robot-pose sampling
+- Standalone Fleet 3D demo with actual GLB loading, route/reservation overlays,
+  mission/robot state, asset-linked alarms, timeline, and playback speed
+- Real WebGL playback through warning and mission completion, zero console
+  warnings/errors, code-split production build, and 390 px no-overflow QA
 
 ## Next development increment
 
-Phase 5 starts with immutable scene packaging and a decoupled Fleet integration
-fixture:
+Phase 5 continues with durable scene execution and deployment integration:
 
-1. Produce a deterministic optimized scene manifest from sealed canonical Twin
-   geometry with explicit LOD, bounds, coordinate-frame, hash, and byte budgets.
-2. Bind the scene output into the immutable Twin Map Bundle and validate it at
-   publication without mixing static release geometry with live robot state.
-3. Add a mock versioned Fleet live-overlay and mission-replay fixture that can
-   drive a standalone demo viewer while leaving Fleet Control source untouched.
+1. Wrap scene packaging in a leased durable job whose sealed draft snapshot and
+   generated output bindings commit with complete provenance.
+2. Add a content-addressed object-store/CDN adapter and signed-read boundary for
+   immutable GLB tiles without proxying large geometry through Twin API.
+3. Specify the authenticated release-import and live-overlay transport handoff
+   for a later coordinated Fleet Control implementation.
 
 ## Deliberately deferred
 
 - Brash Embodied Controller SLAM implementation, which is outside this product
-- Web rendering engine selection
+- Production Fleet viewer placement and live transport selection
 - Production CAD/IFC importer
 - AI model/dataset selection
 - 3D viewer changes inside Fleet Control
@@ -322,13 +337,14 @@ lifecycle are stable.
 
 ```text
 npm run check
-syntax/json: 287 files passed
-backend tests: 131 total, 128 passed, 3 conditionally skipped, 0 failed
+syntax/json: 334 files passed
+backend tests: 137 total, 134 passed, 3 conditionally skipped, 0 failed
 web tests: 46/46 passed with strict TypeScript and production build
+Fleet demo tests: 2/2 passed with strict TypeScript and code-split production build
 latest migration contract: schema version 19; last live PostgreSQL 16 gate passed with schema version 12
 live GrandTour ETH-2 SHA-256/preview gate: passed against the 290,764,702-byte base selection
 ConSLAM/IfcOpenShell gate: last passed August 13, 2026 and remains opt-in
-fixture: demo-plant@1 valid
+fixtures: legacy demo-plant@1 and optimized demo-plant@2 valid
 publication: immutable release store verified
 http: localhost API lifecycle verified
 postgres: PostgreSQL 16 live migrations/catalog/readiness/transactional-outbox verified

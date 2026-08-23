@@ -28,5 +28,9 @@ the manifest SHA-256 and every artifact identity. If a retry finds an existing
 release, it proceeds only when that immutable identity is exactly the one sealed
 by the database request.
 
+The same immutable store accepts validated Twin Map Bundle v2 outputs. Scene
+Manifest v2 and every referenced GLB must already pass provenance, budget, and
+path/hash/byte/media checks before staging or publication can succeed.
+
 The local filesystem implementation is intended for development and pilots. A
 production S3 adapter must provide the same behavioral contract.

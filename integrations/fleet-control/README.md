@@ -19,7 +19,7 @@ ready, its own importer may consume these bundle entries:
 Twin Studio does not write to the Fleet Control database or call existing map
 endpoints. The Fleet Control team owns the decision to import a release.
 
-## Future integration: live 3D view
+## Live 3D compatibility proof
 
 Live 3D monitoring must combine two separate data streams:
 
@@ -30,14 +30,17 @@ Twin Studio does not own live Fleet Control mission state. Fleet Control does no
 mutate published 3D geometry at runtime. Shared keys are `mapReleaseId`,
 `coordinateFrameId`, `assetId`, and `robotId`.
 
-Planned compatibility contracts:
+Implemented compatibility contracts:
 
 ```text
-MapRelease v1       Twin Studio -> Fleet Control
-Scene Manifest v1   Twin Studio -> 3D Viewer
+Twin Map Bundle v2  Twin Studio -> Fleet Control importer/CDN
+Scene Manifest v2   Twin Studio -> 3D Viewer
 Live Overlay v1     Fleet Control -> 3D Viewer
 Replay Events v1    Fleet Control -> 3D Viewer
 ```
 
-Until these contracts are complete, integration remains limited to documentation
-and fixtures.
+`apps/fleet-demo-web` is an independent proof: it loads the project-owned
+`demo-plant@2` GLB tiles, validates the synthetic replay against the bundle,
+interpolates the robot pose, and displays route and alarm state. It imports no
+Fleet Control source and performs no Fleet write. A production Fleet importer,
+CDN URL signer, and live transport remain owned integration work.

@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/twin-map-bundle.v2.schema.json",
+  "title": "Brash Twin Map Bundle v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "bundleId", "mapReleaseId", "familyId", "revision", "status", "createdAt", "canonicalFrameId", "validationReportSha256", "producer", "units", "bounds", "artifacts", "compatibility"],
+  "properties": {
+    "schemaVersion": { "const": "brash.twin-map-bundle/v2" },
+    "bundleId": { "type": "string", "minLength": 1 },
+    "mapReleaseId": { "type": "string", "minLength": 1 },
+    "familyId": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "status": { "const": "PUBLISHED" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "canonicalFrameId": { "type": "string", "minLength": 1 },
+    "validationReportSha256": { "$ref": "#/$defs/sha256" },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "configurationSha256", "inputManifestSha256"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "configurationSha256": { "$ref": "#/$defs/sha256" },
+        "inputManifestSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "units": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["length", "angle"],
+      "properties": {
+        "length": { "const": "m" },
+        "angle": { "const": "rad" }
+      }
+    },
+    "bounds": { "$ref": "#/$defs/bounds3d" },
+    "artifacts": {
+      "type": "array",
+      "minItems": 6,
+      "items": { "$ref": "#/$defs/artifact" }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["navigationTopologyContract", "sceneManifestContract", "fleetLiveOverlayContract", "fleetReplayContract"],
+      "properties": {
+        "navigationTopologyContract": { "const": "brash.navigation-topology/v1" },
+        "sceneManifestContract": { "const": "brash.scene-manifest/v2" },
+        "fleetLiveOverlayContract": { "const": "brash.fleet-live-overlay/v1" },
+        "fleetReplayContract": { "const": "brash.fleet-live-replay/v1" }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "point3d": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" }
+      }
+    },
+    "bounds3d": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum", "maximum"],
+      "properties": {
+        "minimum": { "$ref": "#/$defs/point3d" },
+        "maximum": { "$ref": "#/$defs/point3d" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "path", "mediaType", "sha256", "bytes"],
+      "properties": {
+        "role": {
+          "enum": ["COORDINATE_FRAMES", "NAVIGATION_TOPOLOGY", "TWIN_ASSETS", "SEMANTIC_ZONES", "SCENE_MANIFEST", "SCENE_TILESET", "FLOORPLAN", "OCCUPANCY"]
+        },
+        "path": { "type": "string", "minLength": 1 },
+        "mediaType": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "bytes": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

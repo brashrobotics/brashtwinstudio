@@ -1,0 +1,197 @@
+{
+  "schemaVersion": "brash.scene-manifest/v2",
+  "mapReleaseId": "demo-plant@2",
+  "frameId": "demo-plant/floor-1",
+  "bounds": {
+    "minimum": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "maximum": {
+      "x": 30,
+      "y": 20,
+      "z": 5
+    }
+  },
+  "producer": {
+    "name": "brash-scene-worker",
+    "version": "1.0.0",
+    "configurationSha256": "3bcaa0b6111791e1213a6149fc19ff33d3a526c29a3bd2acfab312351db80029",
+    "inputArtifacts": [
+      {
+        "role": "COORDINATE_FRAMES",
+        "sha256": "77ac96fcbed22f2da1557bee859a8a5346fa5f407c4f1f135e174f4857a8bc05"
+      },
+      {
+        "role": "NAVIGATION_TOPOLOGY",
+        "sha256": "c56d7112af9be72357a378377fba9f6023b924508b6d6f076f715ec74af95020"
+      },
+      {
+        "role": "TWIN_ASSETS",
+        "sha256": "1d5ca2fdd0cd7bbc531f06883486b5331c12c953e01e98029d7e8a55d3d5b326"
+      },
+      {
+        "role": "SEMANTIC_ZONES",
+        "sha256": "f9845eba89999534c9cccc9a1b790343299276f4a336bcea578092be82078421"
+      }
+    ]
+  },
+  "budgets": {
+    "tileSizeMeters": 16,
+    "maximumTileCount": 256,
+    "maximumLevelsPerTile": 2,
+    "maximumTileBytes": 4194304,
+    "totalTileBytes": 10600
+  },
+  "tiles": [
+    {
+      "tileId": "tile-000-000",
+      "bounds": {
+        "minimum": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "maximum": {
+          "x": 16,
+          "y": 16,
+          "z": 5
+        }
+      },
+      "assetIds": [
+        "PANEL-LV-01"
+      ],
+      "levels": [
+        {
+          "level": 0,
+          "path": "scene/tiles/tile-000-000-lod0.glb",
+          "mediaType": "model/gltf-binary",
+          "sha256": "58de500c631068635d7a79c6ee2df939d6334ee743a7b9662cf794db34f11973",
+          "bytes": 1384,
+          "maximumScreenError": 1,
+          "geometricErrorMeters": 0.02
+        },
+        {
+          "level": 1,
+          "path": "scene/tiles/tile-000-000-lod1.glb",
+          "mediaType": "model/gltf-binary",
+          "sha256": "ea342003351affcec5f8f69e1d6d8a668a72077ce5fbaed275e92de1fdbe0226",
+          "bytes": 1388,
+          "maximumScreenError": 12,
+          "geometricErrorMeters": 0.5
+        }
+      ]
+    },
+    {
+      "tileId": "tile-000-001",
+      "bounds": {
+        "minimum": {
+          "x": 16,
+          "y": 0,
+          "z": 0
+        },
+        "maximum": {
+          "x": 30,
+          "y": 16,
+          "z": 5
+        }
+      },
+      "assetIds": [
+        "CONVEYOR-01"
+      ],
+      "levels": [
+        {
+          "level": 0,
+          "path": "scene/tiles/tile-000-001-lod0.glb",
+          "mediaType": "model/gltf-binary",
+          "sha256": "13fee5b40ac743310d4845d8e25b723bee81026920ad9355faa5f24e1066aa59",
+          "bytes": 1368,
+          "maximumScreenError": 1,
+          "geometricErrorMeters": 0.02
+        },
+        {
+          "level": 1,
+          "path": "scene/tiles/tile-000-001-lod1.glb",
+          "mediaType": "model/gltf-binary",
+          "sha256": "b92a86be7721a9cc5818433a551d7e8a496554dd537ce42444f7f4d38e1a6435",
+          "bytes": 1372,
+          "maximumScreenError": 12,
+          "geometricErrorMeters": 0.5
+        }
+      ]
+    },
+    {
+      "tileId": "tile-001-000",
+      "bounds": {
+        "minimum": {
+          "x": 0,
+          "y": 16,
+          "z": 0
+        },
+        "maximum": {
+          "x": 16,
+          "y": 20,
+          "z": 5
+        }
+      },
+      "assetIds": [],
+      "levels": [
+        {
+          "level": 0,
+          "path": "scene/tiles/tile-001-000-lod0.glb",
+          "mediaType": "model/gltf-binary",
+          "sha256": "8fcf06911d636f323db4ecb9fdf07565e031b63541f9b19c828f63fc8cb42f77",
+          "bytes": 1272,
+          "maximumScreenError": 1,
+          "geometricErrorMeters": 0.02
+        },
+        {
+          "level": 1,
+          "path": "scene/tiles/tile-001-000-lod1.glb",
+          "mediaType": "model/gltf-binary",
+          "sha256": "d552fdb428c0a5a7cf9012dea9eae29d19fd3edc63b36d090eea45717afb3675",
+          "bytes": 1272,
+          "maximumScreenError": 12,
+          "geometricErrorMeters": 0.5
+        }
+      ]
+    },
+    {
+      "tileId": "tile-001-001",
+      "bounds": {
+        "minimum": {
+          "x": 16,
+          "y": 16,
+          "z": 0
+        },
+        "maximum": {
+          "x": 30,
+          "y": 20,
+          "z": 5
+        }
+      },
+      "assetIds": [],
+      "levels": [
+        {
+          "level": 0,
+          "path": "scene/tiles/tile-001-001-lod0.glb",
+          "mediaType": "model/gltf-binary",
+          "sha256": "da39fdf6ddb443a387a85b5f565bf531d459a543a268583b6586365390ae22db",
+          "bytes": 1272,
+          "maximumScreenError": 1,
+          "geometricErrorMeters": 0.02
+        },
+        {
+          "level": 1,
+          "path": "scene/tiles/tile-001-001-lod1.glb",
+          "mediaType": "model/gltf-binary",
+          "sha256": "5928c26c63dd89489c88fbe4d26a3b5f96dd9ac79077d52ed8c40505e11f2467",
+          "bytes": 1272,
+          "maximumScreenError": 12,
+          "geometricErrorMeters": 0.5
+        }
+      ]
+    }
+  ]
+}

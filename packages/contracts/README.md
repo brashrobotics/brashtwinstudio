@@ -36,6 +36,11 @@ evidence while retaining the legacy v1 schema for readers of existing reports.
 `brash.manager-notification-message/v1` defines the bounded redacted payload
 handed to provider adapters.
 
+Twin Map Bundle v2 and Scene Manifest v2 retain v1 readers while adding scene
+producer/input hashes, tile/LOD budgets, and per-GLB path/hash/byte identity.
+Fleet Live Replay v1 seals an ordered series of Live Overlay v1 snapshots against
+one immutable map release and canonical coordinate frame.
+
 `openapi/twin-api.v1.yaml` defines the catalog, upload, draft artifact provenance,
 embodied survey intake, quality/registration review, semantic candidate review,
 asset promotion/change detection/review/application, validation-job, and release API surface. Validation is

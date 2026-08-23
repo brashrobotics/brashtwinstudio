@@ -52,7 +52,7 @@ export async function validateBundleDirectory(bundleDirectory, options = {}) {
       issue(errors, "ARTIFACT_PATH_REQUIRED", `${artifactPath}.path`, "Path is required.");
       continue;
     }
-    if (roles.has(artifact.role)) {
+    if (roles.has(artifact.role) && artifact.role !== ARTIFACT_ROLES.sceneTileset) {
       issue(errors, "ARTIFACT_ROLE_DUPLICATE", `${artifactPath}.role`, `Role ${artifact.role} is declared more than once.`);
     } else {
       roles.set(artifact.role, artifact);
@@ -135,7 +135,13 @@ function validateManifest(manifest, errors, warnings) {
     issue(errors, "MANIFEST_INVALID", "manifest.json", "Manifest must be an object.");
     return;
   }
-  equal(manifest.schemaVersion, CONTRACT_VERSIONS.twinMapBundle, errors, "schemaVersion", "MANIFEST_SCHEMA_UNSUPPORTED");
+  const supportedBundleVersions = new Set([
+    CONTRACT_VERSIONS.twinMapBundleV1,
+    CONTRACT_VERSIONS.twinMapBundle,
+  ]);
+  if (!supportedBundleVersions.has(manifest.schemaVersion)) {
+    issue(errors, "MANIFEST_SCHEMA_UNSUPPORTED", "schemaVersion", `Unsupported bundle schema ${String(manifest.schemaVersion)}.`);
+  }
   for (const field of ["bundleId", "mapReleaseId", "familyId", "canonicalFrameId", "createdAt"]) {
     if (!nonEmptyString(manifest[field])) issue(errors, "MANIFEST_FIELD_REQUIRED", field, `${field} is required.`);
   }
@@ -153,8 +159,12 @@ function validateManifest(manifest, errors, warnings) {
   if (!Number.isFinite(Date.parse(manifest.createdAt))) {
     issue(errors, "MANIFEST_DATE_INVALID", "createdAt", "createdAt must be an ISO date-time.");
   }
+  if (manifest.schemaVersion === CONTRACT_VERSIONS.twinMapBundle
+    && manifest.validationReportSha256 === undefined) {
+    issue(errors, "VALIDATION_REPORT_HASH_REQUIRED", "validationReportSha256", "Bundle v2 requires sealed validation evidence.");
+  }
   if (manifest.validationReportSha256 !== undefined
-    && !/^[a-f0-9]{64}$/.test(manifest.validationReportSha256)) {
+    && !sha256Value(manifest.validationReportSha256)) {
     issue(
       errors,
       "VALIDATION_REPORT_HASH_INVALID",
@@ -165,8 +175,28 @@ function validateManifest(manifest, errors, warnings) {
   if (manifest.compatibility?.navigationTopologyContract !== CONTRACT_VERSIONS.topology) {
     issue(errors, "TOPOLOGY_CONTRACT_UNSUPPORTED", "compatibility.navigationTopologyContract", "Unsupported topology contract.");
   }
-  if (manifest.compatibility?.sceneManifestContract !== CONTRACT_VERSIONS.sceneManifest) {
+  const expectedSceneContract = manifest.schemaVersion === CONTRACT_VERSIONS.twinMapBundle
+    ? CONTRACT_VERSIONS.sceneManifest
+    : CONTRACT_VERSIONS.sceneManifestV1;
+  if (manifest.compatibility?.sceneManifestContract !== expectedSceneContract) {
     issue(errors, "SCENE_CONTRACT_UNSUPPORTED", "compatibility.sceneManifestContract", "Unsupported scene contract.");
+  }
+  if (manifest.schemaVersion === CONTRACT_VERSIONS.twinMapBundle) {
+    validateProducer(manifest.producer, errors, "producer", true);
+    equal(
+      manifest.compatibility?.fleetLiveOverlayContract,
+      CONTRACT_VERSIONS.liveOverlay,
+      errors,
+      "compatibility.fleetLiveOverlayContract",
+      "FLEET_OVERLAY_CONTRACT_UNSUPPORTED",
+    );
+    equal(
+      manifest.compatibility?.fleetReplayContract,
+      CONTRACT_VERSIONS.fleetReplay,
+      errors,
+      "compatibility.fleetReplayContract",
+      "FLEET_REPLAY_CONTRACT_UNSUPPORTED",
+    );
   }
   if (manifest.mapReleaseId && manifest.familyId && Number.isInteger(manifest.revision)) {
     const conventionalId = `${manifest.familyId}@${manifest.revision}`;
@@ -262,10 +292,132 @@ function validateDocuments(manifest, documents, errors, warnings) {
   }
 
   if (scene) {
-    equal(scene.schemaVersion, CONTRACT_VERSIONS.sceneManifest, errors, "scene.schemaVersion", "SCENE_SCHEMA_UNSUPPORTED");
+    const expectedSceneVersion = manifest.schemaVersion === CONTRACT_VERSIONS.twinMapBundle
+      ? CONTRACT_VERSIONS.sceneManifest
+      : CONTRACT_VERSIONS.sceneManifestV1;
+    equal(scene.schemaVersion, expectedSceneVersion, errors, "scene.schemaVersion", "SCENE_SCHEMA_UNSUPPORTED");
     equal(scene.mapReleaseId, manifest.mapReleaseId, errors, "scene.mapReleaseId", "MAP_RELEASE_MISMATCH");
     if (frameGraph && !frameGraph.has(scene.frameId)) issue(errors, "SCENE_FRAME_UNKNOWN", "scene.frameId", `Unknown frame ${scene.frameId}.`);
     validateBounds(scene.bounds, errors, "scene.bounds");
+    if (scene.schemaVersion === CONTRACT_VERSIONS.sceneManifest) {
+      validateSceneV2(scene, manifest, errors);
+    }
+  }
+}
+
+function validateSceneV2(scene, manifest, errors) {
+  validateProducer(scene.producer, errors, "scene.producer", false);
+  const coreArtifacts = new Map(
+    manifest.artifacts
+      .filter((artifact) => artifact.role !== ARTIFACT_ROLES.sceneTileset)
+      .map((artifact) => [artifact.role, artifact]),
+  );
+  const inputRoles = new Set();
+  for (const [index, input] of (scene.producer?.inputArtifacts ?? []).entries()) {
+    const path = `scene.producer.inputArtifacts[${index}]`;
+    if (!nonEmptyString(input?.role) || !sha256Value(input?.sha256)) {
+      issue(errors, "SCENE_INPUT_INVALID", path, "Scene input requires a role and SHA-256 identity.");
+      continue;
+    }
+    if (inputRoles.has(input.role)) issue(errors, "SCENE_INPUT_DUPLICATE", `${path}.role`, `Duplicate input role ${input.role}.`);
+    inputRoles.add(input.role);
+    const artifact = coreArtifacts.get(input.role);
+    if (!artifact || artifact.sha256 !== input.sha256) {
+      issue(errors, "SCENE_INPUT_IDENTITY_MISMATCH", path, `Scene input ${input.role} is not bound to the bundle identity.`);
+    }
+  }
+  for (const role of [
+    ARTIFACT_ROLES.coordinateFrames,
+    ARTIFACT_ROLES.topology,
+    ARTIFACT_ROLES.twinAssets,
+    ARTIFACT_ROLES.zones,
+  ]) {
+    if (!inputRoles.has(role)) issue(errors, "SCENE_INPUT_REQUIRED", "scene.producer.inputArtifacts", `Scene input ${role} is required.`);
+  }
+
+  const budgets = scene.budgets;
+  if (!isRecord(budgets)
+    || !positiveFinite(budgets.tileSizeMeters)
+    || !positiveInteger(budgets.maximumTileCount)
+    || !positiveInteger(budgets.maximumLevelsPerTile)
+    || !positiveInteger(budgets.maximumTileBytes)
+    || !positiveInteger(budgets.totalTileBytes)) {
+    issue(errors, "SCENE_BUDGETS_INVALID", "scene.budgets", "Scene v2 requires positive tile, level, and byte budgets.");
+    return;
+  }
+  if (!Array.isArray(scene.tiles) || scene.tiles.length === 0 || scene.tiles.length > budgets.maximumTileCount) {
+    issue(errors, "SCENE_TILE_COUNT_INVALID", "scene.tiles", "Scene tile count exceeds the sealed budget or is empty.");
+    return;
+  }
+
+  const artifactByPath = new Map(
+    manifest.artifacts
+      .filter((artifact) => artifact.role === ARTIFACT_ROLES.sceneTileset)
+      .map((artifact) => [artifact.path, artifact]),
+  );
+  const referencedPaths = new Set();
+  const tileIds = new Set();
+  let totalTileBytes = 0;
+  for (const [tileIndex, tile] of scene.tiles.entries()) {
+    const tilePath = `scene.tiles[${tileIndex}]`;
+    uniqueId(tile?.tileId, tileIds, errors, tilePath, "TILE");
+    validateBounds(tile?.bounds, errors, `${tilePath}.bounds`);
+    if (tile?.bounds && !boundsContain(scene.bounds, tile.bounds)) {
+      issue(errors, "SCENE_TILE_BOUNDS_INVALID", `${tilePath}.bounds`, "Tile bounds must remain inside scene bounds.");
+    }
+    if (!Array.isArray(tile?.assetIds) || new Set(tile.assetIds).size !== tile.assetIds.length) {
+      issue(errors, "SCENE_TILE_ASSETS_INVALID", `${tilePath}.assetIds`, "Tile asset IDs must be a unique array.");
+    }
+    if (!Array.isArray(tile?.levels)
+      || tile.levels.length === 0
+      || tile.levels.length > budgets.maximumLevelsPerTile) {
+      issue(errors, "SCENE_LEVEL_COUNT_INVALID", `${tilePath}.levels`, "Tile LOD count exceeds the sealed budget or is empty.");
+      continue;
+    }
+    const levels = new Set();
+    for (const [levelIndex, level] of tile.levels.entries()) {
+      const levelPath = `${tilePath}.levels[${levelIndex}]`;
+      if (!Number.isInteger(level?.level) || level.level < 0 || levels.has(level.level)) {
+        issue(errors, "SCENE_LEVEL_INVALID", `${levelPath}.level`, "LOD levels must be unique non-negative integers.");
+      }
+      levels.add(level?.level);
+      if (!nonEmptyString(level?.path) || referencedPaths.has(level.path)) {
+        issue(errors, "SCENE_LEVEL_PATH_INVALID", `${levelPath}.path`, "LOD paths must be non-empty and unique.");
+        continue;
+      }
+      referencedPaths.add(level.path);
+      const artifact = artifactByPath.get(level.path);
+      if (!artifact
+        || artifact.mediaType !== "model/gltf-binary"
+        || artifact.sha256 !== level.sha256
+        || artifact.bytes !== level.bytes) {
+        issue(errors, "SCENE_LEVEL_IDENTITY_MISMATCH", levelPath, "LOD path, hash, bytes, and media type must match a bound SCENE_TILESET artifact.");
+      }
+      if (!positiveInteger(level.bytes) || level.bytes > budgets.maximumTileBytes) {
+        issue(errors, "SCENE_LEVEL_BYTES_INVALID", `${levelPath}.bytes`, "LOD bytes exceed the sealed per-tile budget.");
+      }
+      if (!Number.isFinite(level.maximumScreenError) || level.maximumScreenError < 0
+        || !Number.isFinite(level.geometricErrorMeters) || level.geometricErrorMeters < 0) {
+        issue(errors, "SCENE_LEVEL_ERROR_INVALID", levelPath, "LOD screen and geometric errors must be non-negative.");
+      }
+      totalTileBytes += Number.isInteger(level.bytes) ? level.bytes : 0;
+    }
+  }
+  for (const path of artifactByPath.keys()) {
+    if (!referencedPaths.has(path)) issue(errors, "SCENE_TILESET_UNREFERENCED", path, "Bound scene tileset is not referenced by the scene manifest.");
+  }
+  if (totalTileBytes !== budgets.totalTileBytes) {
+    issue(errors, "SCENE_TOTAL_BYTES_MISMATCH", "scene.budgets.totalTileBytes", `Declared ${budgets.totalTileBytes}; referenced ${totalTileBytes}.`);
+  }
+}
+
+function validateProducer(producer, errors, path, includeInputManifest) {
+  if (!isRecord(producer)
+    || !nonEmptyString(producer.name)
+    || !nonEmptyString(producer.version)
+    || !sha256Value(producer.configurationSha256)
+    || (includeInputManifest && !sha256Value(producer.inputManifestSha256))) {
+    issue(errors, "PRODUCER_INVALID", path, "Producer identity, version, and immutable configuration/input hashes are required.");
   }
 }
 
@@ -423,4 +575,27 @@ function isRecord(value) {
 
 function nonEmptyString(value) {
   return typeof value === "string" && value.trim() !== "";
+}
+
+function sha256Value(value) {
+  return typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
+}
+
+function positiveFinite(value) {
+  return Number.isFinite(value) && value > 0;
+}
+
+function positiveInteger(value) {
+  return Number.isSafeInteger(value) && value > 0;
+}
+
+function boundsContain(outer, inner) {
+  return outer && inner && ["x", "y", "z"].every(
+    (axis) => Number.isFinite(outer.minimum?.[axis])
+      && Number.isFinite(outer.maximum?.[axis])
+      && Number.isFinite(inner.minimum?.[axis])
+      && Number.isFinite(inner.maximum?.[axis])
+      && inner.minimum[axis] >= outer.minimum[axis]
+      && inner.maximum[axis] <= outer.maximum[axis],
+  );
 }

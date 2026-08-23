@@ -1773,6 +1773,30 @@ controls, and deterministic retry/redaction tests cover the complete internal
 delivery boundary. No external provider or public event-ingestion endpoint was
 enabled, and Fleet Control and robot-side SLAM sources were not changed.
 
+### Increment 26 — Optimized scene packaging and Fleet replay proof
+
+- Publish Twin Map Bundle v2 and Scene Manifest v2 while retaining legacy v1
+  reader support
+- Seal scene producer configuration, canonical input artifact hashes, tile
+  bounds, reviewed asset identities, and tile/LOD/byte budgets
+- Generate deterministic valid GLB detailed/coarse levels without mutating the
+  source bundle staging directory
+- Bind every GLB path, media type, SHA-256, and byte length into the immutable
+  bundle and reject any scene-manifest divergence
+- Define Fleet Live Replay v1 as ordered Live Overlay v1 frames against one map
+  release and canonical frame
+- Validate robot pose, normalized orientation, topology routes, asset/edge/robot
+  alarm references, sequence, and time before visualization
+- Load the real project-owned GLBs in an independent Three.js demo with robot,
+  mission, route, reservation, alarm, timeline, and replay controls
+
+**Status:** Completed on August 23, 2026. The atomic scene pipeline, Scene/Bundle
+v2 validator, `demo-plant@2` fixture, immutable release-store publication test,
+Fleet replay validator/sampler, standalone code-split demo, deterministic tests,
+and real WebGL desktop/390 px browser QA cover both static and operational sides
+of the contract. Fleet Control and Brash Embodied Controller sources were not
+changed; the operational replay remains explicitly synthetic.
+
 ---
 
 ## 30. Karar kapıları
@@ -1837,7 +1861,7 @@ olması bundle/live-overlay demo ölçümünden sonra kararlaştırılır.
 - Kabul ölçütü sessizce gevşetilmez; waiver açık audit kararıdır.
 - Fleet Control entegrasyon kapsamı yalnız ortak contract kararıyla genişletilir.
 
-The next active work starts Phase 5 by producing a sealed optimized scene
-manifest from canonical Twin geometry, binding it into an immutable release
-bundle, and validating a mock versioned Fleet live-overlay/replay fixture without
-changing Fleet Control source code.
+The next active work wraps the deterministic scene pipeline in a durable sealed
+job, publishes tiles through a content-addressed object-store/CDN adapter, and
+defines the authenticated release-import/live-transport handoff that Fleet
+Control can implement in its own repository.

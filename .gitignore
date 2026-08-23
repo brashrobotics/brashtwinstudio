@@ -19,6 +19,8 @@ __pycache__/
 *.e57
 *.glb
 *.gltf
+# The tiny project-owned Bundle v2 visual fixture is intentionally versioned.
+!tests/fixtures/bundles/demo-plant@2/scene/tiles/*.glb
 *.ifc
 *.dxf
 raw-surveys/

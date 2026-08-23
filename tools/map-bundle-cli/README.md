@@ -2,6 +2,10 @@
 
 Offline operations tool for Twin Map Bundles.
 
+Validation and inspection support legacy Bundle/Scene v1 and the current
+Bundle/Scene v2 integrity model. Scene v2 additionally verifies every GLB level
+against its bound root artifact identity and sealed budgets.
+
 Planned commands:
 
 - `validate`: Validate schema, checksums, coordinate frames, and topology.

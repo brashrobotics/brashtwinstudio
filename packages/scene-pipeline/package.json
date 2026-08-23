@@ -1,0 +1,13 @@
+{
+  "name": "@brash-twin/scene-pipeline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.js"
+  },
+  "dependencies": {
+    "@brash-twin/contracts": "*",
+    "@brash-twin/validation": "*"
+  }
+}

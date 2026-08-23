@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/fleet-live-replay.v1.schema.json",
+  "title": "Brash Fleet Live Replay v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "replayId", "mapReleaseId", "coordinateFrameId", "startedAt", "endedAt", "frames"],
+  "properties": {
+    "schemaVersion": { "const": "brash.fleet-live-replay/v1" },
+    "replayId": { "type": "string", "minLength": 1 },
+    "mapReleaseId": { "type": "string", "minLength": 1 },
+    "coordinateFrameId": { "type": "string", "minLength": 1 },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "endedAt": { "type": "string", "format": "date-time" },
+    "frames": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 10000,
+      "items": { "$ref": "https://schemas.brashrobotics.com/twin/fleet-live-overlay.v1.schema.json" }
+    }
+  }
+}

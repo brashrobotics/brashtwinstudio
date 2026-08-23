@@ -27,6 +27,9 @@ Results are produced as a machine-readable report and an operator summary.
 - Zone identity and GeoJSON polygon types
 - Asset frame and node/edge/zone binding references
 - Scene-manifest release/frame/bounds consistency
+- Bundle v1 and v2 reader compatibility
+- Scene Manifest v2 producer/input provenance, tile bounds, unique LOD paths,
+  tile/level/byte budgets, and exact `SCENE_TILESET` path/hash/byte/media binding
 
 The validator does not replace JSON Schema; schema validation and semantic
 quality gates will eventually run together.

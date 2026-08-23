@@ -3,12 +3,19 @@
 The schemas in this directory define Twin Studio file and integration boundaries.
 
 - `raw-survey-package.v1.schema.json`: Sensor collection manifest.
-- `twin-map-bundle.v1.schema.json`: Published release manifest.
+- `twin-map-bundle.v1.schema.json`: Legacy published release manifest.
+- `twin-map-bundle.v2.schema.json`: Published release manifest with sealed
+  validation, producer/input identity, Scene Manifest v2, Fleet overlay/replay
+  compatibility, and individually bound scene tilesets.
 - `coordinate-frames.v1.schema.json`: Spatial frame tree.
 - `navigation-topology.v1.schema.json`: Fleet-compatible driving graph.
 - `twin-assets.v1.schema.json`: 2D/3D semantic asset catalog.
-- `scene-manifest.v1.schema.json`: Optimized scene and LOD parts.
+- `scene-manifest.v1.schema.json`: Legacy optimized scene and LOD references.
+- `scene-manifest.v2.schema.json`: Producer- and input-bound canonical scene,
+  explicit tile/LOD/byte budgets, and per-level SHA-256 identity.
 - `fleet-live-overlay.v1.schema.json`: Future live 3D visualization boundary.
+- `fleet-live-replay.v1.schema.json`: Ordered immutable Fleet overlay frames for
+  mission, route, alarm, and robot-pose replay against one map release.
 - `draft-validation-report.v1.schema.json`: Legacy immutable validation evidence.
 - `draft-validation-report.v2.schema.json`: Immutable validation evidence,
   deterministic validator identity, issue severity, and UI-ready spatial or

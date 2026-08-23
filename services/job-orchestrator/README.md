@@ -35,3 +35,11 @@ redacted provider message with the delivery ID as idempotency key, record every
 attempt, and dead-letter exhausted work. Notification delivery never becomes a
 transactional prerequisite for the reviewed Twin asset revision. A real broker
 and provider adapter remain deployment concerns.
+
+## Scene packaging
+
+The deterministic scene packager is now available as a worker boundary. It
+reads a valid sealed bundle staging directory, produces content-addressed GLB
+LODs under bounded tile/byte policy, validates Bundle/Scene v2, and atomically
+exposes a new target directory. Durable job scheduling and remote object-store
+publication can wrap this boundary without changing the output contract.

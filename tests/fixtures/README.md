@@ -11,5 +11,6 @@ Planned fixtures:
 - Moved, missing, and new asset scenarios
 - Valid and invalid Twin Map Bundle examples
 - Mock Fleet Control live-overlay events
+- A project-owned optimized Bundle v2 plus synthetic Fleet mission replay
 
 Every fixture must include expected results and license/source metadata.

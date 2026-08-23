@@ -1,0 +1,77 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "zoneId": "ZONE-LOGISTICS",
+        "mapReleaseId": "demo-plant@2",
+        "displayName": "Logistics corridor",
+        "semanticClass": "LOGISTICS"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              0,
+              0
+            ],
+            [
+              16,
+              0
+            ],
+            [
+              16,
+              16
+            ],
+            [
+              0,
+              16
+            ],
+            [
+              0,
+              0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zoneId": "ZONE-PRODUCTION",
+        "mapReleaseId": "demo-plant@2",
+        "displayName": "Production line",
+        "semanticClass": "PRODUCTION"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              16,
+              0
+            ],
+            [
+              30,
+              0
+            ],
+            [
+              30,
+              16
+            ],
+            [
+              16,
+              16
+            ],
+            [
+              16,
+              0
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

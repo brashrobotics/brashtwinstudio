@@ -13,13 +13,17 @@ const schemaDirectory = fileURLToPath(new URL("../../packages/contracts/schemas"
 test("every published schema has a unique HTTPS identifier", async () => {
   const files = (await readdir(schemaDirectory)).filter((file) => file.endsWith(".schema.json"));
   const schemas = await Promise.all(files.map(async (file) => JSON.parse(await readFile(`${schemaDirectory}/${file}`, "utf8"))));
-  assert.equal(files.length, 34);
+  assert.equal(files.length, 37);
   assert.equal(new Set(schemas.map((schema) => schema.$id)).size, schemas.length);
   for (const schema of schemas) {
     assert.match(schema.$id, /^https:\/\/schemas\.brashrobotics\.com\//);
     assert.equal(schema.$schema, "https://json-schema.org/draft/2020-12/schema");
   }
-  assert.equal(CONTRACT_VERSIONS.twinMapBundle, "brash.twin-map-bundle/v1");
+  assert.equal(CONTRACT_VERSIONS.twinMapBundleV1, "brash.twin-map-bundle/v1");
+  assert.equal(CONTRACT_VERSIONS.twinMapBundle, "brash.twin-map-bundle/v2");
+  assert.equal(CONTRACT_VERSIONS.sceneManifestV1, "brash.scene-manifest/v1");
+  assert.equal(CONTRACT_VERSIONS.sceneManifest, "brash.scene-manifest/v2");
+  assert.equal(CONTRACT_VERSIONS.fleetReplay, "brash.fleet-live-replay/v1");
   assert.equal(CONTRACT_VERSIONS.draftValidationReport, "brash.draft-validation-report/v2");
   assert.equal(CONTRACT_VERSIONS.floorplanImportReport, "brash.floorplan-import-report/v1");
   assert.equal(CONTRACT_VERSIONS.registrationReport, "brash.registration-report/v1");

@@ -7,3 +7,5 @@ and reusable client contracts from `packages/`.
 - `studio-web/`: React/TypeScript operator shell for site/floor/draft navigation,
   validation and release status, surveys, CAD fusion, semantic editing, and
   shared 2D/3D review.
+- `fleet-demo-web/`: Standalone contract proof combining immutable GLB release
+  geometry with synthetic Fleet live-overlay and mission-replay state.

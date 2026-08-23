@@ -27,6 +27,8 @@ This project is responsible for:
 - Delivering reviewed change summaries through durable, redacted site/floor
   manager notification routes with retry and audit evidence.
 - Publishing immutable, versioned `Twin Map Bundle` artifacts for Fleet Control.
+- Packaging deterministic browser-ready GLB LOD tiles and proving static-scene
+  plus live Fleet overlay/replay behavior in an independent demo.
 
 This project is not responsible for:
 
@@ -184,6 +186,14 @@ The first Phase 0 increment is implemented:
   redacted outside persistence; attempts use expiring leases, bounded retry,
   dead-letter state, and audited manual requeue. No external provider is
   connected by default.
+- Twin Map Bundle v2 and Scene Manifest v2 now bind deterministic detailed and
+  coarse GLB tiles to reviewed canonical geometry with producer/input hashes,
+  per-level SHA-256/bytes, and explicit tile/LOD budgets. The atomic packager
+  never edits its source and its output passes the immutable release store.
+- A standalone Fleet 3D integration demo loads the actual `demo-plant@2` GLBs,
+  validates a synthetic Live Replay v1 against the release frame/topology/assets,
+  and displays interpolated robot pose, mission, route, reservation, and alarm
+  state without importing or modifying Fleet Control.
 - A compact local demo seed that exercises upload, intake, verification,
   materialization, artifact lineage, registration, semantic review, asset
   promotion, change review, and confirmed revision application without
@@ -202,6 +212,15 @@ Run the local quality gate:
 npm install
 npm run check
 ```
+
+Run the independent Fleet-compatible 3D replay demo:
+
+```bash
+npm run dev:fleet-demo
+```
+
+Open `http://127.0.0.1:4392`. This demo is self-contained and does not require
+Twin API or Fleet Control to be running.
 
 Publish the sample release and start the local API:
 

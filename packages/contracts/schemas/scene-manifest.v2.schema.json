@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/scene-manifest.v2.schema.json",
+  "title": "Brash Scene Manifest v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "mapReleaseId", "frameId", "bounds", "producer", "budgets", "tiles"],
+  "properties": {
+    "schemaVersion": { "const": "brash.scene-manifest/v2" },
+    "mapReleaseId": { "type": "string", "minLength": 1 },
+    "frameId": { "type": "string", "minLength": 1 },
+    "bounds": { "$ref": "#/$defs/bounds3d" },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "configurationSha256", "inputArtifacts"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "configurationSha256": { "$ref": "#/$defs/sha256" },
+        "inputArtifacts": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["role", "sha256"],
+            "properties": {
+              "role": { "type": "string", "minLength": 1 },
+              "sha256": { "$ref": "#/$defs/sha256" }
+            }
+          }
+        }
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tileSizeMeters", "maximumTileCount", "maximumLevelsPerTile", "maximumTileBytes", "totalTileBytes"],
+      "properties": {
+        "tileSizeMeters": { "type": "number", "exclusiveMinimum": 0 },
+        "maximumTileCount": { "type": "integer", "minimum": 1 },
+        "maximumLevelsPerTile": { "type": "integer", "minimum": 1 },
+        "maximumTileBytes": { "type": "integer", "minimum": 1 },
+        "totalTileBytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "tiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/tile" }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "vector3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" }
+      }
+    },
+    "bounds3d": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum", "maximum"],
+      "properties": {
+        "minimum": { "$ref": "#/$defs/vector3" },
+        "maximum": { "$ref": "#/$defs/vector3" }
+      }
+    },
+    "level": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "path", "mediaType", "sha256", "bytes", "maximumScreenError", "geometricErrorMeters"],
+      "properties": {
+        "level": { "type": "integer", "minimum": 0 },
+        "path": { "type": "string", "minLength": 1 },
+        "mediaType": { "const": "model/gltf-binary" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "maximumScreenError": { "type": "number", "minimum": 0 },
+        "geometricErrorMeters": { "type": "number", "minimum": 0 }
+      }
+    },
+    "tile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tileId", "bounds", "assetIds", "levels"],
+      "properties": {
+        "tileId": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "bounds": { "$ref": "#/$defs/bounds3d" },
+        "assetIds": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "levels": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/level" }
+        }
+      }
+    }
+  }
+}

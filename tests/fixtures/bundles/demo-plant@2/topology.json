@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "brash.navigation-topology/v1",
+  "mapReleaseId": "demo-plant@2",
+  "frameId": "demo-plant/floor-1",
+  "nodes": [
+    {
+      "nodeId": "N-RECEIVING",
+      "label": "Receiving station",
+      "kind": "STATION",
+      "stationId": "RECEIVING",
+      "zoneIds": [
+        "ZONE-LOGISTICS"
+      ],
+      "position": {
+        "x": 2,
+        "y": 4,
+        "z": 0
+      }
+    },
+    {
+      "nodeId": "N-JUNCTION-01",
+      "label": "Main junction",
+      "kind": "INTERSECTION",
+      "zoneIds": [
+        "ZONE-LOGISTICS"
+      ],
+      "position": {
+        "x": 12,
+        "y": 4,
+        "z": 0
+      }
+    },
+    {
+      "nodeId": "N-CONVEYOR-01",
+      "label": "Conveyor input",
+      "kind": "STATION",
+      "stationId": "CONVEYOR-01-IN",
+      "zoneIds": [
+        "ZONE-PRODUCTION"
+      ],
+      "position": {
+        "x": 24,
+        "y": 4,
+        "z": 0
+      }
+    },
+    {
+      "nodeId": "N-HOLD-01",
+      "label": "Safe holding point",
+      "kind": "HOLDING_POINT",
+      "zoneIds": [
+        "ZONE-LOGISTICS"
+      ],
+      "position": {
+        "x": 12,
+        "y": 12,
+        "z": 0
+      }
+    }
+  ],
+  "edges": [
+    {
+      "edgeId": "E-RECEIVING-JUNCTION",
+      "fromNodeId": "N-RECEIVING",
+      "toNodeId": "N-JUNCTION-01",
+      "directed": false,
+      "lengthMeters": 10,
+      "travelTimeSeconds": 10,
+      "speedLimitMetersPerSecond": 1,
+      "widthMeters": 2.4,
+      "capacity": 1,
+      "allowedRobotClasses": [
+        "AMR"
+      ],
+      "requiredAssetIds": []
+    },
+    {
+      "edgeId": "E-JUNCTION-CONVEYOR",
+      "fromNodeId": "N-JUNCTION-01",
+      "toNodeId": "N-CONVEYOR-01",
+      "directed": false,
+      "lengthMeters": 12,
+      "travelTimeSeconds": 12,
+      "speedLimitMetersPerSecond": 1,
+      "widthMeters": 2.2,
+      "capacity": 1,
+      "allowedRobotClasses": [
+        "AMR"
+      ],
+      "requiredAssetIds": []
+    },
+    {
+      "edgeId": "E-JUNCTION-HOLD",
+      "fromNodeId": "N-JUNCTION-01",
+      "toNodeId": "N-HOLD-01",
+      "directed": false,
+      "lengthMeters": 8,
+      "travelTimeSeconds": 10,
+      "speedLimitMetersPerSecond": 0.8,
+      "widthMeters": 2,
+      "capacity": 1,
+      "allowedRobotClasses": [
+        "AMR"
+      ],
+      "requiredAssetIds": []
+    }
+  ]
+}

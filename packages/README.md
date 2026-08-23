@@ -4,6 +4,8 @@ Infrastructure-independent domain libraries shared by multiple applications,
 services, and workers live here.
 
 - `contracts/`: API, event, and bundle schemas.
+- `scene-pipeline/`: Deterministic Scene Manifest v2 and GLB LOD packaging.
+- `fleet-replay/`: Live-overlay replay validation and visualization sampling.
 - `domain/`: Twin lifecycle and core business rules.
 - `coordinate-frames/`: Frame graph and pose transforms.
 - `importers/`: Adapters that convert source formats into a canonical intermediate model.

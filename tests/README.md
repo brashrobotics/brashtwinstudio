@@ -40,6 +40,12 @@ public records, provider idempotency keys, leased temporary-failure retry,
 terminal dead-letter state, audited manual requeue, parameterized PostgreSQL
 transactions and skip-locked claims, HTTP operations, and typed Studio clients.
 
+The scene/Fleet gate covers deterministic GLB generation, source immutability,
+atomic target exposure, tile/LOD byte budgets, Bundle v2 identity binding,
+immutable release-store publication, replay release/frame/topology validation,
+pose interpolation, a standalone production build, real WebGL tile loading,
+alarm playback, console cleanliness, and 390 px responsive behavior.
+
 The validation quality gate covers deterministic reports, UI-ready issue
 locations, sealed input snapshots, multipart report storage, HTTP job execution,
 real PostgreSQL job/run transactions, report-binding consistency triggers, and

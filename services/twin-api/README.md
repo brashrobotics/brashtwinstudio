@@ -102,8 +102,14 @@ the shared transactional outbox nor calls an external messaging provider.
 Release publication does not accept a server filesystem path through the API.
 The bootstrap now constructs the trusted publication application service for
 packager/reconciliation workers, while the HTTP API continues to expose a
-read-only release catalog. A future draft-bundle producer will pass an internal
-sealed bundle handle; clients will never submit a server path.
+read-only release catalog. Internal packager/reconciliation workers pass a
+sealed bundle handle; clients never submit a server path.
+
+The deterministic Scene Manifest v2/Bundle v2 packager now provides that
+internal filesystem boundary and its output is accepted by the immutable release
+store. Durable job execution and a remote content-addressed tile store remain the
+next production step; HTTP clients still cannot submit server paths or proxy GLB
+bytes through Twin API.
 
 Start the local server:
 

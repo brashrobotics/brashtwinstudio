@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "brash.fleet-live-replay/v1",
+  "replayId": "demo-mission-replay-1",
+  "mapReleaseId": "demo-plant@2",
+  "coordinateFrameId": "demo-plant/floor-1",
+  "startedAt": "2026-08-23T18:10:00.000Z",
+  "endedAt": "2026-08-23T18:10:25.000Z",
+  "frames": [
+    {
+      "schemaVersion": "brash.fleet-live-overlay/v1",
+      "mapReleaseId": "demo-plant@2",
+      "sequence": 0,
+      "observedAt": "2026-08-23T18:10:00.000Z",
+      "robots": [{
+        "robotId": "brash-amr-01",
+        "frameId": "demo-plant/floor-1",
+        "position": { "x": 2, "y": 4, "z": 0.45 },
+        "orientation": { "x": 0, "y": 0, "z": 0, "w": 1 },
+        "state": "MISSION_STARTING",
+        "missionId": "mission-conveyor-feed-42",
+        "poseObservedAt": "2026-08-23T18:10:00.000Z"
+      }],
+      "routes": [{
+        "routeId": "route-conveyor-feed-42",
+        "robotId": "brash-amr-01",
+        "edgeIds": ["E-RECEIVING-JUNCTION", "E-JUNCTION-CONVEYOR"],
+        "state": "RESERVED"
+      }],
+      "alarms": []
+    },
+    {
+      "schemaVersion": "brash.fleet-live-overlay/v1",
+      "mapReleaseId": "demo-plant@2",
+      "sequence": 1,
+      "observedAt": "2026-08-23T18:10:05.000Z",
+      "robots": [{
+        "robotId": "brash-amr-01",
+        "frameId": "demo-plant/floor-1",
+        "position": { "x": 7, "y": 4, "z": 0.45 },
+        "orientation": { "x": 0, "y": 0, "z": 0, "w": 1 },
+        "state": "NAVIGATING",
+        "missionId": "mission-conveyor-feed-42",
+        "poseObservedAt": "2026-08-23T18:10:05.000Z"
+      }],
+      "routes": [{
+        "routeId": "route-conveyor-feed-42",
+        "robotId": "brash-amr-01",
+        "edgeIds": ["E-RECEIVING-JUNCTION", "E-JUNCTION-CONVEYOR"],
+        "state": "ACTIVE"
+      }],
+      "alarms": []
+    },
+    {
+      "schemaVersion": "brash.fleet-live-overlay/v1",
+      "mapReleaseId": "demo-plant@2",
+      "sequence": 2,
+      "observedAt": "2026-08-23T18:10:10.000Z",
+      "robots": [{
+        "robotId": "brash-amr-01",
+        "frameId": "demo-plant/floor-1",
+        "position": { "x": 12, "y": 4, "z": 0.45 },
+        "orientation": { "x": 0, "y": 0, "z": 0, "w": 1 },
+        "state": "NAVIGATING",
+        "missionId": "mission-conveyor-feed-42",
+        "poseObservedAt": "2026-08-23T18:10:10.000Z"
+      }],
+      "routes": [{
+        "routeId": "route-conveyor-feed-42",
+        "robotId": "brash-amr-01",
+        "edgeIds": ["E-RECEIVING-JUNCTION", "E-JUNCTION-CONVEYOR"],
+        "state": "ACTIVE"
+      }],
+      "alarms": []
+    },
+    {
+      "schemaVersion": "brash.fleet-live-overlay/v1",
+      "mapReleaseId": "demo-plant@2",
+      "sequence": 3,
+      "observedAt": "2026-08-23T18:10:15.000Z",
+      "robots": [{
+        "robotId": "brash-amr-01",
+        "frameId": "demo-plant/floor-1",
+        "position": { "x": 16, "y": 4, "z": 0.45 },
+        "orientation": { "x": 0, "y": 0, "z": 0, "w": 1 },
+        "state": "NAVIGATING_WITH_WARNING",
+        "missionId": "mission-conveyor-feed-42",
+        "poseObservedAt": "2026-08-23T18:10:15.000Z"
+      }],
+      "routes": [{
+        "routeId": "route-conveyor-feed-42",
+        "robotId": "brash-amr-01",
+        "edgeIds": ["E-JUNCTION-CONVEYOR"],
+        "state": "DELAYED"
+      }],
+      "alarms": [{
+        "alarmId": "alarm-panel-clearance-1",
+        "severity": "WARNING",
+        "message": "Temporary clearance review near the electrical panel.",
+        "robotId": "brash-amr-01",
+        "assetId": "PANEL-LV-01",
+        "edgeId": "E-JUNCTION-CONVEYOR"
+      }]
+    },
+    {
+      "schemaVersion": "brash.fleet-live-overlay/v1",
+      "mapReleaseId": "demo-plant@2",
+      "sequence": 4,
+      "observedAt": "2026-08-23T18:10:20.000Z",
+      "robots": [{
+        "robotId": "brash-amr-01",
+        "frameId": "demo-plant/floor-1",
+        "position": { "x": 20, "y": 4, "z": 0.45 },
+        "orientation": { "x": 0, "y": 0, "z": 0, "w": 1 },
+        "state": "NAVIGATING",
+        "missionId": "mission-conveyor-feed-42",
+        "poseObservedAt": "2026-08-23T18:10:20.000Z"
+      }],
+      "routes": [{
+        "routeId": "route-conveyor-feed-42",
+        "robotId": "brash-amr-01",
+        "edgeIds": ["E-JUNCTION-CONVEYOR"],
+        "state": "ACTIVE"
+      }],
+      "alarms": []
+    },
+    {
+      "schemaVersion": "brash.fleet-live-overlay/v1",
+      "mapReleaseId": "demo-plant@2",
+      "sequence": 5,
+      "observedAt": "2026-08-23T18:10:25.000Z",
+      "robots": [{
+        "robotId": "brash-amr-01",
+        "frameId": "demo-plant/floor-1",
+        "position": { "x": 24, "y": 4, "z": 0.45 },
+        "orientation": { "x": 0, "y": 0, "z": 0, "w": 1 },
+        "state": "MISSION_COMPLETED",
+        "missionId": "mission-conveyor-feed-42",
+        "poseObservedAt": "2026-08-23T18:10:25.000Z"
+      }],
+      "routes": [{
+        "routeId": "route-conveyor-feed-42",
+        "robotId": "brash-amr-01",
+        "edgeIds": ["E-JUNCTION-CONVEYOR"],
+        "state": "RESERVED"
+      }],
+      "alarms": []
+    }
+  ]
+}

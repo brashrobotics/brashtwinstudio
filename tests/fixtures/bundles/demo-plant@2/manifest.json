@@ -1,0 +1,132 @@
+{
+  "schemaVersion": "brash.twin-map-bundle/v2",
+  "bundleId": "bundle-demo-plant-2-4a67d957694b8c97",
+  "mapReleaseId": "demo-plant@2",
+  "familyId": "demo-plant",
+  "revision": 2,
+  "status": "PUBLISHED",
+  "createdAt": "2026-08-23T18:00:00.000Z",
+  "canonicalFrameId": "demo-plant/floor-1",
+  "units": {
+    "length": "m",
+    "angle": "rad"
+  },
+  "bounds": {
+    "minimum": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "maximum": {
+      "x": 30,
+      "y": 20,
+      "z": 5
+    }
+  },
+  "artifacts": [
+    {
+      "role": "COORDINATE_FRAMES",
+      "path": "coordinate-frames.json",
+      "mediaType": "application/json",
+      "sha256": "77ac96fcbed22f2da1557bee859a8a5346fa5f407c4f1f135e174f4857a8bc05",
+      "bytes": 937
+    },
+    {
+      "role": "NAVIGATION_TOPOLOGY",
+      "path": "topology.json",
+      "mediaType": "application/json",
+      "sha256": "c56d7112af9be72357a378377fba9f6023b924508b6d6f076f715ec74af95020",
+      "bytes": 2282
+    },
+    {
+      "role": "TWIN_ASSETS",
+      "path": "assets.json",
+      "mediaType": "application/json",
+      "sha256": "1d5ca2fdd0cd7bbc531f06883486b5331c12c953e01e98029d7e8a55d3d5b326",
+      "bytes": 2715
+    },
+    {
+      "role": "SEMANTIC_ZONES",
+      "path": "zones.geojson",
+      "mediaType": "application/geo+json",
+      "sha256": "f9845eba89999534c9cccc9a1b790343299276f4a336bcea578092be82078421",
+      "bytes": 1364
+    },
+    {
+      "role": "SCENE_MANIFEST",
+      "path": "scene/manifest.json",
+      "mediaType": "application/json",
+      "sha256": "70310e11001420e58fba3affbc99d28780182b31b17ff2861c772d2b1d03066a",
+      "bytes": 5058
+    },
+    {
+      "role": "SCENE_TILESET",
+      "path": "scene/tiles/tile-000-000-lod0.glb",
+      "mediaType": "model/gltf-binary",
+      "sha256": "58de500c631068635d7a79c6ee2df939d6334ee743a7b9662cf794db34f11973",
+      "bytes": 1384
+    },
+    {
+      "role": "SCENE_TILESET",
+      "path": "scene/tiles/tile-000-000-lod1.glb",
+      "mediaType": "model/gltf-binary",
+      "sha256": "ea342003351affcec5f8f69e1d6d8a668a72077ce5fbaed275e92de1fdbe0226",
+      "bytes": 1388
+    },
+    {
+      "role": "SCENE_TILESET",
+      "path": "scene/tiles/tile-000-001-lod0.glb",
+      "mediaType": "model/gltf-binary",
+      "sha256": "13fee5b40ac743310d4845d8e25b723bee81026920ad9355faa5f24e1066aa59",
+      "bytes": 1368
+    },
+    {
+      "role": "SCENE_TILESET",
+      "path": "scene/tiles/tile-000-001-lod1.glb",
+      "mediaType": "model/gltf-binary",
+      "sha256": "b92a86be7721a9cc5818433a551d7e8a496554dd537ce42444f7f4d38e1a6435",
+      "bytes": 1372
+    },
+    {
+      "role": "SCENE_TILESET",
+      "path": "scene/tiles/tile-001-000-lod0.glb",
+      "mediaType": "model/gltf-binary",
+      "sha256": "8fcf06911d636f323db4ecb9fdf07565e031b63541f9b19c828f63fc8cb42f77",
+      "bytes": 1272
+    },
+    {
+      "role": "SCENE_TILESET",
+      "path": "scene/tiles/tile-001-000-lod1.glb",
+      "mediaType": "model/gltf-binary",
+      "sha256": "d552fdb428c0a5a7cf9012dea9eae29d19fd3edc63b36d090eea45717afb3675",
+      "bytes": 1272
+    },
+    {
+      "role": "SCENE_TILESET",
+      "path": "scene/tiles/tile-001-001-lod0.glb",
+      "mediaType": "model/gltf-binary",
+      "sha256": "da39fdf6ddb443a387a85b5f565bf531d459a543a268583b6586365390ae22db",
+      "bytes": 1272
+    },
+    {
+      "role": "SCENE_TILESET",
+      "path": "scene/tiles/tile-001-001-lod1.glb",
+      "mediaType": "model/gltf-binary",
+      "sha256": "5928c26c63dd89489c88fbe4d26a3b5f96dd9ac79077d52ed8c40505e11f2467",
+      "bytes": 1272
+    }
+  ],
+  "compatibility": {
+    "navigationTopologyContract": "brash.navigation-topology/v1",
+    "sceneManifestContract": "brash.scene-manifest/v2",
+    "fleetLiveOverlayContract": "brash.fleet-live-overlay/v1",
+    "fleetReplayContract": "brash.fleet-live-replay/v1"
+  },
+  "validationReportSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "producer": {
+    "name": "brash-scene-worker",
+    "version": "1.0.0",
+    "configurationSha256": "3bcaa0b6111791e1213a6149fc19ff33d3a526c29a3bd2acfab312351db80029",
+    "inputManifestSha256": "82954e45cc1838d89a262b7f3cf69ea97560e8f73fb15b11261335f1640d3e25"
+  }
+}
