@@ -12,6 +12,7 @@
     "./survey-quality-reviews": "./survey-quality-reviews.js",
     "./semantic-candidates": "./semantic-candidates.js",
     "./sensor-visibility": "./sensor-visibility.js",
+    "./manager-notifications": "./manager-notifications.js",
     "./twin-assets": "./twin-assets.js",
     "./survey-registrations": "./survey-registrations.js",
     "./uploads": "./uploads.js",

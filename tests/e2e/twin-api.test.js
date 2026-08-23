@@ -14,6 +14,7 @@ import { SurveyMaterializationService } from "@brash-twin/application/survey-mat
 import { SurveyQualityReviewService } from "@brash-twin/application/survey-quality-reviews";
 import { SemanticCandidateService } from "@brash-twin/application/semantic-candidates";
 import { SensorVisibilityService } from "@brash-twin/application/sensor-visibility";
+import { ManagerNotificationService } from "@brash-twin/application/manager-notifications";
 import { TwinAssetService } from "@brash-twin/application/twin-assets";
 import { SurveyRegistrationService } from "@brash-twin/application/survey-registrations";
 import {
@@ -30,6 +31,7 @@ import { InMemoryUploadRepository } from "@brash-twin/persistence/uploads";
 import { InMemoryValidationJobRepository } from "@brash-twin/persistence/validation-jobs";
 import { InMemorySurveyIntakeRepository } from "@brash-twin/persistence/survey-intakes";
 import { InMemorySurveyMaterializationRepository } from "@brash-twin/persistence/survey-materializations";
+import { InMemoryManagerNotificationRepository } from "@brash-twin/persistence/manager-notifications";
 import { TwinApi } from "../../services/twin-api/index.js";
 import { startTwinApiServer } from "../../services/twin-api/server.js";
 
@@ -99,6 +101,9 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
     uploadSystem,
     { clock: () => new Date("2026-08-13T14:00:00.000Z") },
   );
+  const managerNotifications = memoryManagerNotifications(catalog, {
+    clock: () => new Date("2026-08-13T14:00:00.000Z"),
+  });
   const api = new TwinApi({
     catalog,
     uploads: uploadSystem.uploads,
@@ -109,6 +114,7 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
     surveyRegistrations,
     semanticCandidates,
     sensorVisibility,
+    managerNotifications,
     twinAssets,
     validationJobs,
     releaseStore,
@@ -151,6 +157,20 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
       elevationMeters: 0,
       operatorId: "engineer-1",
     })).status, 201);
+
+    const notificationRoute = await request(baseUrl, "POST", "/api/v1/notification-routes", {
+      routeId: "demo-manager-route",
+      scopeType: "FLOOR",
+      siteId: "demo-site",
+      floorId: "floor-1",
+      channel: "EMAIL",
+      destination: "manager@example.com",
+      displayLabel: "Demo floor manager",
+      operatorId: "engineer-1",
+    });
+    assert.equal(notificationRoute.status, 201);
+    assert.equal(notificationRoute.body.route.destination, undefined);
+    assert.equal(notificationRoute.body.route.destinationHint, "m***@example.com");
 
     assert.equal((await request(baseUrl, "POST", "/api/v1/map-families", {
       familyId: "demo-plant",
@@ -687,6 +707,47 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
       2,
     );
 
+    await managerNotifications.consume({
+      eventId: "asset-changes-applied-http-event-1",
+      aggregateType: "MAP_DRAFT",
+      aggregateId: "draft-demo-2",
+      eventType: "TwinAssetChangesApplied.v1",
+      schemaVersion: 1,
+      payload: {
+        schemaVersion: "brash.twin-asset-changes-applied-event/v1",
+        draftId: "draft-demo-2",
+        assetSetId: "asset-set-2",
+        assetRevision: 2,
+        changeSetId: "change-set-1",
+        reviewId: "change-review-1",
+        notificationRequired: true,
+        confirmedChanges: [
+          {
+            changeId: "change-set-1-moved-candidate-panel",
+            changeType: "MOVED",
+            assetId: "asset-panel",
+            semanticClass: "electrical-panel",
+            confidence: 0.96,
+            severity: "CRITICAL",
+          },
+        ],
+      },
+      occurredAt: "2026-08-13T14:00:00.000Z",
+    });
+    const managerStatus = await request(
+      baseUrl,
+      "GET",
+      "/api/v1/map-drafts/draft-demo-2/manager-notifications",
+    );
+    assert.equal(managerStatus.status, 200);
+    assert.equal(managerStatus.body.notifications[0].status, "PENDING");
+    assert.equal(managerStatus.body.notifications[0].deliveries[0].destination, undefined);
+    assert.equal(
+      (await request(baseUrl, "GET", "/api/v1/notification-routes?siteId=demo-site&floorId=floor-1"))
+        .body.routes.length,
+      1,
+    );
+
     const reportContent = Buffer.from("deterministic IFC import report");
     const reportSha256 = createHash("sha256").update(reportContent).digest("hex");
     assert.equal((await request(baseUrl, "POST", "/api/v1/uploads", {
@@ -810,6 +871,7 @@ test("HTTP boundary rejects malformed JSON without invoking application logic", 
   const semanticCandidates = memorySemanticCandidates(catalog, surveyRegistrations, draftArtifacts, uploadSystem);
   const sensorVisibility = memorySensorVisibility(catalog, surveyRegistrations, draftArtifacts, uploadSystem);
   const twinAssets = memoryTwinAssets(catalog, semanticCandidates, sensorVisibility, draftArtifacts, uploadSystem);
+  const managerNotifications = memoryManagerNotifications(catalog);
   const api = new TwinApi({
     catalog,
     uploads: uploadSystem.uploads,
@@ -820,6 +882,7 @@ test("HTTP boundary rejects malformed JSON without invoking application logic", 
     surveyRegistrations,
     semanticCandidates,
     sensorVisibility,
+    managerNotifications,
     twinAssets,
     validationJobs: memoryValidationJobs(catalog, draftArtifacts, uploadSystem),
     releaseStore: new ImmutableReleaseStore(storeRoot),
@@ -952,6 +1015,14 @@ function memorySensorVisibility(catalog, registrations, draftArtifacts, uploadSy
     draftArtifacts,
     uploads: uploadSystem.uploads,
     multipartStore: uploadSystem.multipartStore,
+    ...options,
+  });
+}
+
+function memoryManagerNotifications(catalog, options = {}) {
+  return new ManagerNotificationService({
+    repository: new InMemoryManagerNotificationRepository(),
+    catalog,
     ...options,
   });
 }

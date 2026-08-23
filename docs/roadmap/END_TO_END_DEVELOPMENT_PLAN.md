@@ -1750,6 +1750,29 @@ revision flow. The pinned GrandTour subset is explicitly ineligible because it
 lacks the calibrated synchronized raw sensor evidence required for line-of-sight
 and occlusion claims; no coverage or `MISSING` evidence is fabricated.
 
+### Increment 25 — Durable manager notification delivery
+
+- Define exact `TwinAssetChangesApplied.v1` and redacted manager-message
+  contracts without exposing geometry, properties, images, destinations, or
+  provider credentials
+- Configure immutable email or HTTPS webhook routes at site or floor scope
+- Project events idempotently without consuming or acknowledging the shared
+  transactional outbox inside Twin API
+- Claim separate expiring delivery leases and use each delivery ID as the
+  provider idempotency key
+- Record every attempt, retry temporary failures with bounded exponential
+  backoff, dead-letter exhaustion, and audit explicit manual requeues
+- Expose route-required, pending, partial, delivered, and failed state in Studio
+  while keeping notification failure independent from reviewed asset revision
+  persistence
+
+**Status:** Completed on August 23, 2026. JSON Schemas, OpenAPI, PostgreSQL
+migration 019, in-memory/PostgreSQL repositories, the trusted event projector,
+provider-neutral dispatcher, Twin API status and routing operations, Studio
+controls, and deterministic retry/redaction tests cover the complete internal
+delivery boundary. No external provider or public event-ingestion endpoint was
+enabled, and Fleet Control and robot-side SLAM sources were not changed.
+
 ---
 
 ## 30. Karar kapıları
@@ -1814,5 +1837,7 @@ olması bundle/live-overlay demo ölçümünden sonra kararlaştırılır.
 - Kabul ölçütü sessizce gevşetilmez; waiver açık audit kararıdır.
 - Fleet Control entegrasyon kapsamı yalnız ortak contract kararıyla genişletilir.
 
-The next active work connects applied critical changes to a durable
-manager-notification adapter without coupling Twin Studio to Fleet Control.
+The next active work starts Phase 5 by producing a sealed optimized scene
+manifest from canonical Twin geometry, binding it into an immutable release
+bundle, and validating a mock versioned Fleet live-overlay/replay fixture without
+changing Fleet Control source code.

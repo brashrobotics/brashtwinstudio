@@ -7,6 +7,7 @@ import { SurveyMaterializationError } from "@brash-twin/application/survey-mater
 import { SurveyQualityReviewError } from "@brash-twin/application/survey-quality-reviews";
 import { SemanticCandidateError } from "@brash-twin/application/semantic-candidates";
 import { SensorVisibilityError } from "@brash-twin/application/sensor-visibility";
+import { ManagerNotificationError } from "@brash-twin/application/manager-notifications";
 import { TwinAssetError } from "@brash-twin/application/twin-assets";
 import { SurveyRegistrationError } from "@brash-twin/application/survey-registrations";
 import { ArtifactStoreError } from "@brash-twin/artifact-store";
@@ -36,6 +37,7 @@ export class TwinApi {
   #surveyRegistrations;
   #semanticCandidates;
   #sensorVisibility;
+  #managerNotifications;
   #twinAssets;
   #validationJobs;
   #releaseStore;
@@ -51,6 +53,7 @@ export class TwinApi {
     surveyRegistrations,
     semanticCandidates,
     sensorVisibility,
+    managerNotifications,
     twinAssets,
     validationJobs,
     releaseStore,
@@ -65,6 +68,7 @@ export class TwinApi {
     if (!surveyRegistrations) throw new TypeError("Survey registration service is required.");
     if (!semanticCandidates) throw new TypeError("Semantic candidate service is required.");
     if (!sensorVisibility) throw new TypeError("Sensor visibility service is required.");
+    if (!managerNotifications) throw new TypeError("Manager notification service is required.");
     if (!twinAssets) throw new TypeError("Twin asset service is required.");
     if (!validationJobs) throw new TypeError("Validation job service is required.");
     if (!releaseStore) throw new TypeError("Release store is required.");
@@ -78,6 +82,7 @@ export class TwinApi {
     this.#surveyRegistrations = surveyRegistrations;
     this.#semanticCandidates = semanticCandidates;
     this.#sensorVisibility = sensorVisibility;
+    this.#managerNotifications = managerNotifications;
     this.#twinAssets = twinAssets;
     this.#validationJobs = validationJobs;
     this.#releaseStore = releaseStore;
@@ -349,6 +354,51 @@ export class TwinApi {
       }
     }
 
+    const managerNotificationsMatch = pathname.match(
+      /^\/api\/v1\/map-drafts\/([^/]+)\/manager-notifications$/,
+    );
+    if (managerNotificationsMatch && method === "GET") {
+      const draftId = segment(managerNotificationsMatch[1]);
+      return response(200, { notifications: await this.#managerNotifications.listForDraft(draftId) });
+    }
+
+    const routeManagerNotificationMatch = pathname.match(/^\/api\/v1\/manager-notifications\/([^/]+)\/route$/);
+    if (routeManagerNotificationMatch && method === "POST") {
+      const notificationId = segment(routeManagerNotificationMatch[1]);
+      const notification = await this.#managerNotifications.routeNotification(
+        notificationId,
+        objectBody(body, ["operatorId"]),
+      );
+      return response(200, { notification });
+    }
+
+    const retryNotificationDeliveryMatch = pathname.match(
+      /^\/api\/v1\/manager-notification-deliveries\/([^/]+)\/retry$/,
+    );
+    if (retryNotificationDeliveryMatch && method === "POST") {
+      const deliveryId = segment(retryNotificationDeliveryMatch[1]);
+      const notification = await this.#managerNotifications.retryDelivery(
+        deliveryId,
+        objectBody(body, ["requeueId", "operatorId"]),
+      );
+      return response(200, { notification });
+    }
+
+    if (pathname === "/api/v1/notification-routes") {
+      if (method === "GET") {
+        return response(200, { routes: await this.#managerNotifications.listRoutes({
+          siteId: optionalQuery(url, "siteId"),
+          floorId: optionalQuery(url, "floorId"),
+        }) });
+      }
+      if (method === "POST") {
+        const route = await this.#managerNotifications.createRoute(objectBody(body, [
+          "routeId", "scopeType", "siteId", "floorId", "channel", "destination", "displayLabel", "operatorId",
+        ]));
+        return response(201, { route });
+      }
+    }
+
     const twinAssetsMatch = pathname.match(/^\/api\/v1\/map-drafts\/([^/]+)\/twin-assets$/);
     if (twinAssetsMatch) {
       const draftId = segment(twinAssetsMatch[1]);
@@ -610,6 +660,11 @@ function errorResponse(error) {
       error: { code: error.code, message: error.message },
     });
   }
+  if (error instanceof ManagerNotificationError) {
+    return response(statusForManagerNotificationError(error.code), {
+      error: { code: error.code, message: error.message },
+    });
+  }
   if (error instanceof TwinAssetError) {
     return response(statusForTwinAssetError(error.code), {
       error: { code: error.code, message: error.message },
@@ -763,6 +818,25 @@ function statusForSensorVisibilityError(code) {
     "SENSOR_VISIBILITY_REGISTRATION_REQUIRED",
   ].includes(code)) return 409;
   if (code === "SENSOR_VISIBILITY_INTEGRITY_FAILED") return 422;
+  return 400;
+}
+
+function statusForManagerNotificationError(code) {
+  if ([
+    "MANAGER_NOTIFICATION_NOT_FOUND",
+    "MANAGER_NOTIFICATION_DELIVERY_NOT_FOUND",
+    "MANAGER_NOTIFICATION_SCOPE_NOT_FOUND",
+  ].includes(code)) return 404;
+  if ([
+    "MANAGER_NOTIFICATION_ROUTE_CONFLICT",
+    "MANAGER_NOTIFICATION_CONFLICT",
+    "MANAGER_NOTIFICATION_DELIVERY_CONFLICT",
+    "MANAGER_NOTIFICATION_ROUTE_REQUIRED",
+    "MANAGER_NOTIFICATION_ROUTING_NOT_REQUIRED",
+    "MANAGER_NOTIFICATION_REQUEUE_INVALID",
+    "MANAGER_NOTIFICATION_REQUEUE_CONFLICT",
+  ].includes(code)) return 409;
+  if (code === "MANAGER_NOTIFICATION_INTEGRITY_FAILED") return 422;
   return 400;
 }
 

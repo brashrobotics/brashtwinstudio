@@ -537,6 +537,103 @@ export interface SensorVisibilityRecord {
   report: SensorVisibilityReport;
 }
 
+export type ManagerNotificationStatus =
+  | "NOT_REQUIRED"
+  | "ROUTING_REQUIRED"
+  | "PENDING"
+  | "PARTIALLY_DELIVERED"
+  | "DELIVERED"
+  | "FAILED";
+
+export interface ManagerNotificationRoute {
+  routeId: string;
+  scopeType: "SITE" | "FLOOR";
+  siteId: string;
+  floorId: string | null;
+  channel: "EMAIL" | "WEBHOOK";
+  destinationSha256: string;
+  destinationHint: string;
+  displayLabel: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface CreateManagerNotificationRouteInput {
+  scopeType: "SITE" | "FLOOR";
+  siteId: string;
+  floorId?: string;
+  channel: "EMAIL" | "WEBHOOK";
+  destination: string;
+  displayLabel: string;
+  operatorId: string;
+}
+
+export interface ManagerNotificationDelivery {
+  deliveryId: string;
+  routeId: string;
+  channel: "EMAIL" | "WEBHOOK";
+  destinationSha256: string;
+  destinationHint: string;
+  displayLabel: string;
+  status: "PENDING" | "DELIVERED" | "DEAD_LETTER";
+  availableAt: string;
+  deliveryAttempts: number;
+  deliveredAt: string | null;
+  providerMessageId: string | null;
+  lastError: string | null;
+  attempts: Array<{
+    deliveryId: string;
+    attemptNumber: number;
+    outcome: "DELIVERED" | "FAILED";
+    providerMessageId: string | null;
+    error: string | null;
+    completedAt: string;
+  }>;
+  requeues: Array<{
+    requeueId: string;
+    deliveryId: string;
+    requestedBy: string;
+    requestedAt: string;
+  }>;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface ManagerNotificationRecord {
+  notificationId: string;
+  sourceEventId: string;
+  sourceEventSha256: string;
+  draftId: string;
+  siteId: string;
+  floorId: string;
+  notificationRequired: boolean;
+  status: ManagerNotificationStatus;
+  message: {
+    schemaVersion: "brash.manager-notification-message/v1";
+    notificationId: string;
+    siteId: string;
+    floorId: string;
+    draftId: string;
+    assetSetId: string;
+    assetRevision: number;
+    changeSetId: string;
+    reviewId: string;
+    subject: string;
+    summary: { criticalCount: number; warningCount: number; totalCount: number };
+    changes: Array<{
+      changeId: string;
+      changeType: "MOVED" | "MISSING" | "APPEARED";
+      assetId: string;
+      semanticClass: string;
+      confidence: number;
+      severity: "CRITICAL" | "WARNING";
+    }>;
+    occurredAt: string;
+  };
+  deliveries: ManagerNotificationDelivery[];
+  createdAt: string;
+}
+
 export type AssetChangeType = "MOVED" | "MISSING" | "APPEARED";
 
 export interface AssetChange {

@@ -60,6 +60,9 @@ Published releases and audit history must never be deleted during migration.
   plus workflow-managed canonical visibility reports, with spatial-frame and
   source/derived role constraints extended without weakening append-only
   provenance.
+- `019_manager_notifications.sql`: Immutable site/floor manager routes,
+  idempotent event projections, leased deliveries, append-only attempts,
+  dead-letter state, and audited manual requeues.
 
 PostgreSQL triggers prevent updates and deletes to primary release records,
 release-artifact bindings, and asset revisions linked to a release. Draft artifact

@@ -13,7 +13,7 @@ const schemaDirectory = fileURLToPath(new URL("../../packages/contracts/schemas"
 test("every published schema has a unique HTTPS identifier", async () => {
   const files = (await readdir(schemaDirectory)).filter((file) => file.endsWith(".schema.json"));
   const schemas = await Promise.all(files.map(async (file) => JSON.parse(await readFile(`${schemaDirectory}/${file}`, "utf8"))));
-  assert.equal(files.length, 32);
+  assert.equal(files.length, 34);
   assert.equal(new Set(schemas.map((schema) => schema.$id)).size, schemas.length);
   for (const schema of schemas) {
     assert.match(schema.$id, /^https:\/\/schemas\.brashrobotics\.com\//);
@@ -41,6 +41,8 @@ test("every published schema has a unique HTTPS identifier", async () => {
   assert.equal(CONTRACT_VERSIONS.assetChangeReportV1, "brash.asset-change-report/v1");
   assert.equal(CONTRACT_VERSIONS.assetChangeReport, "brash.asset-change-report/v2");
   assert.equal(CONTRACT_VERSIONS.assetChangeReview, "brash.asset-change-review/v1");
+  assert.equal(CONTRACT_VERSIONS.twinAssetChangesAppliedEvent, "brash.twin-asset-changes-applied-event/v1");
+  assert.equal(CONTRACT_VERSIONS.managerNotificationMessage, "brash.manager-notification-message/v1");
   assert.equal(CONTRACT_VERSIONS.surveyQualityReport, "brash.survey-quality-report/v1");
   assert.equal(CONTRACT_VERSIONS.surveyQualityAcceptance, "brash.survey-quality-acceptance/v1");
 });
@@ -90,6 +92,11 @@ test("OpenAPI catalog documents every implemented operation", async () => {
     "reviewSemanticCandidateSet",
     "listSensorVisibilityReports",
     "createSensorVisibilityReport",
+    "listManagerNotificationRoutes",
+    "createManagerNotificationRoute",
+    "listDraftManagerNotifications",
+    "routeManagerNotification",
+    "retryManagerNotificationDelivery",
     "listDraftTwinAssetSets",
     "promoteDraftTwinAssets",
     "listDraftAssetChangeSets",

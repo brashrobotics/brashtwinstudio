@@ -91,6 +91,14 @@ failure rolls back the draft binding rather than exposing a revision without its
 notification evidence. Deterministic root/successor binding slots prevent two
 concurrent commands from creating competing revisions from the same baseline.
 
+`manager-notifications.js` projects `TwinAssetChangesApplied.v1` events into a
+bounded, redacted manager message and immutable site/floor route deliveries.
+Projection is idempotent and deliberately separate from outbox acknowledgement.
+Its dispatcher uses expiring leases, provider idempotency keys, bounded
+exponential retry, terminal dead-letter state, and audited manual requeue. A
+provider adapter is injected; the application package performs no external
+network calls.
+
 `validation-jobs.js` creates a sealed validation snapshot while a draft is
 `IN_REVIEW`, runs the deterministic validator, streams its JSON report through
 the multipart object-store boundary, and binds the report with producer/config

@@ -21,6 +21,9 @@ import type {
   AssetChangeSetRecord,
   AssetChangeReviewRecord,
   SensorVisibilityRecord,
+  ManagerNotificationRecord,
+  ManagerNotificationRoute,
+  CreateManagerNotificationRouteInput,
   ReviewAssetChangesInput,
   TwinApiErrorBody,
   ValidationJob,
@@ -58,6 +61,11 @@ export interface TwinApiClient {
   reviewSemanticCandidateSet(draftId: string, candidateSetId: string, input: ReviewAssetCandidateSetInput, signal?: AbortSignal): Promise<AssetCandidateReviewRecord>;
   listSensorVisibilityReports(draftId: string, signal?: AbortSignal): Promise<SensorVisibilityRecord[]>;
   createSensorVisibilityReport(draftId: string, input: { registrationId: string; observationBindingId: string; operatorId: string }, signal?: AbortSignal): Promise<SensorVisibilityRecord>;
+  listManagerNotificationRoutes(siteId: string, floorId: string, signal?: AbortSignal): Promise<ManagerNotificationRoute[]>;
+  createManagerNotificationRoute(input: CreateManagerNotificationRouteInput, signal?: AbortSignal): Promise<ManagerNotificationRoute>;
+  listDraftManagerNotifications(draftId: string, signal?: AbortSignal): Promise<ManagerNotificationRecord[]>;
+  routeManagerNotification(notificationId: string, input: { operatorId: string }, signal?: AbortSignal): Promise<ManagerNotificationRecord>;
+  retryManagerNotificationDelivery(deliveryId: string, input: { operatorId: string }, signal?: AbortSignal): Promise<ManagerNotificationRecord>;
   listDraftTwinAssetSets(draftId: string, signal?: AbortSignal): Promise<DraftTwinAssetSetRecord[]>;
   promoteDraftTwinAssets(draftId: string, input: { candidateSetId: string; operatorId: string }, signal?: AbortSignal): Promise<DraftTwinAssetSetRecord>;
   listDraftAssetChangeSets(draftId: string, signal?: AbortSignal): Promise<AssetChangeSetRecord[]>;
@@ -221,6 +229,39 @@ export function createTwinApiClient({
         { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) },
       )
     ).visibilityReport,
+    listManagerNotificationRoutes: async (siteId, floorId, signal) => (
+      await request<{ routes: ManagerNotificationRoute[] }>(
+        `/api/v1/notification-routes?siteId=${encodeURIComponent(siteId)}&floorId=${encodeURIComponent(floorId)}`,
+        signal,
+      )
+    ).routes,
+    createManagerNotificationRoute: async (input, signal) => (
+      await request<{ route: ManagerNotificationRoute }>(
+        "/api/v1/notification-routes",
+        signal,
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) },
+      )
+    ).route,
+    listDraftManagerNotifications: async (draftId, signal) => (
+      await request<{ notifications: ManagerNotificationRecord[] }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/manager-notifications`,
+        signal,
+      )
+    ).notifications,
+    routeManagerNotification: async (notificationId, input, signal) => (
+      await request<{ notification: ManagerNotificationRecord }>(
+        `/api/v1/manager-notifications/${encodeURIComponent(notificationId)}/route`,
+        signal,
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) },
+      )
+    ).notification,
+    retryManagerNotificationDelivery: async (deliveryId, input, signal) => (
+      await request<{ notification: ManagerNotificationRecord }>(
+        `/api/v1/manager-notification-deliveries/${encodeURIComponent(deliveryId)}/retry`,
+        signal,
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) },
+      )
+    ).notification,
     listDraftTwinAssetSets: async (draftId, signal) => (
       await request<{ assetSets: DraftTwinAssetSetRecord[] }>(
         `/api/v1/map-drafts/${encodeURIComponent(draftId)}/twin-assets`,

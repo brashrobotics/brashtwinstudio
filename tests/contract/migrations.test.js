@@ -26,6 +26,7 @@ test("metadata migrations are ordered, transactional, and forward-only", async (
     "016_twin_asset_promotion_changes.sql",
     "017_asset_change_review.sql",
     "018_sensor_visibility_evidence.sql",
+    "019_manager_notifications.sql",
   ]);
 
   for (const file of files) {
@@ -34,6 +35,18 @@ test("metadata migrations are ordered, transactional, and forward-only", async (
     assert.match(sql, /COMMIT;\s*$/);
     assert.doesNotMatch(sql, /\b(?:DROP\s+TABLE|TRUNCATE|DELETE\s+FROM)\b/i);
   }
+});
+
+test("manager notifications preserve routing, leased retry, terminal, and append-only evidence", async () => {
+  const sql = await readFile(`${migrationDirectory}/019_manager_notifications.sql`, "utf8");
+  assert.match(sql, /CREATE TABLE twin_manager_notification_routes/);
+  assert.match(sql, /CREATE TABLE twin_manager_notifications/);
+  assert.match(sql, /CREATE TABLE twin_manager_notification_deliveries/);
+  assert.match(sql, /CREATE TABLE twin_manager_notification_attempts/);
+  assert.match(sql, /CREATE TABLE twin_manager_notification_requeues/);
+  assert.match(sql, /FOR EACH ROW EXECUTE FUNCTION reject_manager_notification_evidence_mutation/);
+  assert.match(sql, /twin_manager_notification_delivery_claim_idx/);
+  assert.match(sql, /status IN \('PENDING', 'DELIVERED', 'DEAD_LETTER'\)/);
 });
 
 test("calibrated sensor visibility extends immutable spatial provenance", async () => {

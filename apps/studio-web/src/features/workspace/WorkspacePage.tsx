@@ -16,6 +16,8 @@ import type {
   SurveyRegistrationControlPoint,
   SurveyRegistrationRecord,
   SensorVisibilityRecord,
+  ManagerNotificationRecord,
+  ManagerNotificationRoute,
   ValidationJob,
 } from "../../api/types";
 import { useI18n } from "../../i18n/i18n";
@@ -91,6 +93,16 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
   const assetChangeSets = useQuery({
     queryKey: ["asset-changes", draftId],
     queryFn: ({ signal }) => api.listDraftAssetChangeSets(draftId, signal),
+    enabled: draftId !== "",
+  });
+  const managerNotificationRoutes = useQuery({
+    queryKey: ["manager-notification-routes", siteId, floorId],
+    queryFn: ({ signal }) => api.listManagerNotificationRoutes(siteId, floorId, signal),
+    enabled: siteId !== "" && floorId !== "",
+  });
+  const managerNotifications = useQuery({
+    queryKey: ["manager-notifications", draftId],
+    queryFn: ({ signal }) => api.listDraftManagerNotifications(draftId, signal),
     enabled: draftId !== "",
   });
   const releases = useQuery({
@@ -274,6 +286,34 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
       queryClient.invalidateQueries({ queryKey: ["draft-artifacts", draftId] }),
     ]),
   });
+  const createNotificationRoute = useMutation({
+    mutationFn: (input: {
+      scopeType: "SITE" | "FLOOR";
+      channel: "EMAIL" | "WEBHOOK";
+      destination: string;
+      displayLabel: string;
+    }) => api.createManagerNotificationRoute({
+      ...input,
+      siteId,
+      ...(input.scopeType === "FLOOR" ? { floorId } : {}),
+      operatorId: identity.subject,
+    }),
+    onSuccess: async () => queryClient.invalidateQueries({
+      queryKey: ["manager-notification-routes", siteId, floorId],
+    }),
+  });
+  const routeManagerNotification = useMutation({
+    mutationFn: (notificationId: string) => api.routeManagerNotification(notificationId, {
+      operatorId: identity.subject,
+    }),
+    onSuccess: async () => queryClient.invalidateQueries({ queryKey: ["manager-notifications", draftId] }),
+  });
+  const retryNotificationDelivery = useMutation({
+    mutationFn: (deliveryId: string) => api.retryManagerNotificationDelivery(deliveryId, {
+      operatorId: identity.subject,
+    }),
+    onSuccess: async () => queryClient.invalidateQueries({ queryKey: ["manager-notifications", draftId] }),
+  });
   const registrationTargets = useMemo(() => (draftArtifacts.data ?? []).filter(
     (artifact) => ["BIM_SOURCE", "FLOORPLAN_SOURCE"].includes(artifact.role)
       && artifact.coordinateFrameId === selectedDraft?.canonicalFrameId,
@@ -436,10 +476,27 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
               onReviewChanges={(input) => reviewChanges.mutateAsync(input)}
               onApplyChanges={() => applyChanges.mutateAsync()}
             />
+            <ManagerNotificationsPanel
+              routes={managerNotificationRoutes.data ?? []}
+              notifications={managerNotifications.data ?? []}
+              busy={createNotificationRoute.isPending
+                || routeManagerNotification.isPending
+                || retryNotificationDelivery.isPending}
+              error={[
+                managerNotificationRoutes.error,
+                managerNotifications.error,
+                createNotificationRoute.error,
+                routeManagerNotification.error,
+                retryNotificationDelivery.error,
+              ].find((candidate) => candidate instanceof Error)?.message ?? null}
+              onCreateRoute={(input) => createNotificationRoute.mutateAsync(input)}
+              onRoute={(notificationId) => routeManagerNotification.mutateAsync(notificationId)}
+              onRetry={(deliveryId) => retryNotificationDelivery.mutateAsync(deliveryId)}
+            />
             <ValidationPanel job={latestValidation} loading={validationJobs.isPending && draftId !== ""} />
             <section className="panel release-panel">
               <div className="panel-heading compact">
-                <div><p className="section-index">11 / OUTPUT</p><h3>{t("latestReleases")}</h3></div>
+                <div><p className="section-index">12 / OUTPUT</p><h3>{t("latestReleases")}</h3></div>
                 <span className="count-chip">{releases.data?.length ?? 0}</span>
               </div>
               {(releases.data?.length ?? 0) === 0 ? <p className="muted-copy">{t("noReleases")}</p> : (
@@ -765,13 +822,123 @@ function TwinAssetsPanel({
   );
 }
 
+function ManagerNotificationsPanel({
+  routes,
+  notifications,
+  busy,
+  error,
+  onCreateRoute,
+  onRoute,
+  onRetry,
+}: {
+  routes: ManagerNotificationRoute[];
+  notifications: ManagerNotificationRecord[];
+  busy: boolean;
+  error: string | null;
+  onCreateRoute(input: {
+    scopeType: "SITE" | "FLOOR";
+    channel: "EMAIL" | "WEBHOOK";
+    destination: string;
+    displayLabel: string;
+  }): Promise<unknown>;
+  onRoute(notificationId: string): Promise<unknown>;
+  onRetry(deliveryId: string): Promise<unknown>;
+}) {
+  const { t } = useI18n();
+  const [scopeType, setScopeType] = useState<"SITE" | "FLOOR">("FLOOR");
+  const [channel, setChannel] = useState<"EMAIL" | "WEBHOOK">("EMAIL");
+  const [destination, setDestination] = useState("");
+  const [displayLabel, setDisplayLabel] = useState("");
+  const latest = [...notifications].sort((left, right) => (
+    right.createdAt.localeCompare(left.createdAt)
+      || right.notificationId.localeCompare(left.notificationId)
+  ))[0] ?? null;
+  const stateClass = latest?.status === "DELIVERED" || latest?.status === "NOT_REQUIRED"
+    ? "succeeded"
+    : latest?.status === "FAILED" || latest?.status === "ROUTING_REQUIRED" ? "failed" : "running";
+
+  async function createRoute(): Promise<void> {
+    await onCreateRoute({ scopeType, channel, destination, displayLabel });
+    setDestination("");
+    setDisplayLabel("");
+  }
+
+  return (
+    <section className="panel manager-notifications-panel">
+      <div className="panel-heading compact">
+        <div><p className="section-index">10 / NOTIFY</p><h3>{t("managerNotifications")}</h3></div>
+        {latest && <span className={`job-state job-${stateClass}`}>{latest.status}</span>}
+      </div>
+      {latest ? (
+        <>
+          <dl className="metadata-list">
+            <div><dt>{t("criticalChanges")}</dt><dd>{latest.message.summary.criticalCount}</dd></div>
+            <div><dt>{t("deliveryRoutes")}</dt><dd>{latest.deliveries.length}</dd></div>
+            <div className="metadata-wide"><dt>{t("notificationSubject")}</dt><dd>{latest.message.subject}</dd></div>
+          </dl>
+          {latest.deliveries.length > 0 && (
+            <ul className="semantic-review-list">{latest.deliveries.map((delivery) => (
+              <li key={delivery.deliveryId}>
+                <strong>{delivery.displayLabel}</strong>
+                <span>{delivery.channel} · {delivery.destinationHint} · {delivery.status} · {delivery.deliveryAttempts} {t("attempts")}</span>
+                {delivery.lastError && <small>{delivery.lastError}</small>}
+                {delivery.status === "DEAD_LETTER" && (
+                  <button type="button" disabled={busy} onClick={() => void onRetry(delivery.deliveryId)}>
+                    {t("retryDelivery")}
+                  </button>
+                )}
+              </li>
+            ))}</ul>
+          )}
+          {latest.status === "ROUTING_REQUIRED" && routes.length > 0 && (
+            <button className="registration-submit" type="button" disabled={busy} onClick={() => void onRoute(latest.notificationId)}>
+              {t("routeNotification")}
+            </button>
+          )}
+          <p className="muted-copy">{t("notificationEvidenceNotice")}</p>
+        </>
+      ) : <p className="muted-copy">{t("noManagerNotifications")}</p>}
+
+      <div className="registration-review">
+        <label>
+          <span>{t("routeScope")}</span>
+          <select value={scopeType} onChange={(event) => setScopeType(event.target.value as "SITE" | "FLOOR")}>
+            <option value="FLOOR">{t("floor")}</option>
+            <option value="SITE">{t("site")}</option>
+          </select>
+        </label>
+        <label>
+          <span>{t("notificationChannel")}</span>
+          <select value={channel} onChange={(event) => setChannel(event.target.value as "EMAIL" | "WEBHOOK")}>
+            <option value="EMAIL">EMAIL</option>
+            <option value="WEBHOOK">WEBHOOK</option>
+          </select>
+        </label>
+        <label><span>{t("routeLabel")}</span><input value={displayLabel} onChange={(event) => setDisplayLabel(event.target.value)} /></label>
+        <label><span>{t("routeDestination")}</span><input value={destination} onChange={(event) => setDestination(event.target.value)} /></label>
+        <button
+          type="button"
+          disabled={busy || destination.trim() === "" || displayLabel.trim() === ""}
+          onClick={() => void createRoute()}
+        >{t("addNotificationRoute")}</button>
+      </div>
+      {routes.length > 0 && (
+        <ul className="quality-issue-list">{routes.map((route) => (
+          <li key={route.routeId}>{route.displayLabel} · {route.scopeType} · {route.channel} · {route.destinationHint}</li>
+        ))}</ul>
+      )}
+      {error && <p className="registration-error" role="alert">{error}</p>}
+    </section>
+  );
+}
+
 function ValidationPanel({ job, loading }: { job: ValidationJob | null; loading: boolean }) {
   const { t } = useI18n();
   const summary = job?.output?.summary;
   return (
     <section className="panel validation-panel">
       <div className="panel-heading compact">
-        <div><p className="section-index">10 / VALIDATE</p><h3>{t("validation")}</h3></div>
+        <div><p className="section-index">11 / VALIDATE</p><h3>{t("validation")}</h3></div>
         {job && <span className={`job-state job-${job.status.toLowerCase()}`}>{job.status}</span>}
       </div>
       {loading ? <div className="skeleton-row" /> : job ? (

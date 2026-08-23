@@ -29,6 +29,8 @@ export const CONTRACT_VERSIONS = Object.freeze({
   assetChangeReportV1: "brash.asset-change-report/v1",
   assetChangeReport: "brash.asset-change-report/v2",
   assetChangeReview: "brash.asset-change-review/v1",
+  twinAssetChangesAppliedEvent: "brash.twin-asset-changes-applied-event/v1",
+  managerNotificationMessage: "brash.manager-notification-message/v1",
 });
 
 export const ARTIFACT_ROLES = Object.freeze({

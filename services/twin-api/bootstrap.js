@@ -8,6 +8,7 @@ import { SurveyMaterializationService } from "@brash-twin/application/survey-mat
 import { SurveyQualityReviewService } from "@brash-twin/application/survey-quality-reviews";
 import { SemanticCandidateService } from "@brash-twin/application/semantic-candidates";
 import { SensorVisibilityService } from "@brash-twin/application/sensor-visibility";
+import { ManagerNotificationService } from "@brash-twin/application/manager-notifications";
 import { TwinAssetService } from "@brash-twin/application/twin-assets";
 import { SurveyRegistrationService } from "@brash-twin/application/survey-registrations";
 import {
@@ -29,6 +30,10 @@ import {
   PostgresOutboxRepository,
   PostgresTwinUnitOfWork,
 } from "@brash-twin/persistence/outbox";
+import {
+  InMemoryManagerNotificationRepository,
+  PostgresManagerNotificationRepository,
+} from "@brash-twin/persistence/manager-notifications";
 import {
   InMemoryUploadRepository,
   PostgresUploadRepository,
@@ -70,6 +75,7 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
   let publicationRepository;
   let surveyIntakeRepository;
   let surveyMaterializationRepository;
+  let managerNotificationRepository;
   let unitOfWork;
   let readiness;
   let close;
@@ -88,6 +94,7 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     publicationRepository = new PostgresPublicationRepository(database);
     surveyIntakeRepository = new PostgresSurveyIntakeRepository(database);
     surveyMaterializationRepository = new PostgresSurveyMaterializationRepository(database);
+    managerNotificationRepository = new PostgresManagerNotificationRepository(database);
     unitOfWork = new PostgresTwinUnitOfWork(database);
     readiness = async () => {
       const databaseHealth = await database.health();
@@ -129,6 +136,7 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     });
     surveyIntakeRepository = new InMemorySurveyIntakeRepository();
     surveyMaterializationRepository = new InMemorySurveyMaterializationRepository();
+    managerNotificationRepository = new InMemoryManagerNotificationRepository();
     unitOfWork = new InMemoryTwinUnitOfWork({
       catalogRepository: repository,
       outboxRepository,
@@ -196,6 +204,10 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     uploads,
     multipartStore: multipartArtifactStore,
   });
+  const managerNotifications = new ManagerNotificationService({
+    repository: managerNotificationRepository,
+    catalog,
+  });
   const twinAssets = new TwinAssetService({
     catalog,
     semanticCandidates,
@@ -219,6 +231,7 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     surveyRegistrations,
     semanticCandidates,
     sensorVisibility,
+    managerNotifications,
     twinAssets,
     validationJobs,
     releaseStore,
@@ -235,6 +248,7 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     publicationRepository,
     surveyIntakeRepository,
     surveyMaterializationRepository,
+    managerNotificationRepository,
     unitOfWork,
     uploads,
     draftArtifacts,
@@ -244,6 +258,7 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     surveyRegistrations,
     semanticCandidates,
     sensorVisibility,
+    managerNotifications,
     twinAssets,
     validationJobs,
     publications,

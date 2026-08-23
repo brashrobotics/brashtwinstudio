@@ -73,6 +73,10 @@ The schemas in this directory define Twin Studio file and integration boundaries
 - `asset-change-review.v1.schema.json`: Immutable independent confirmation or
   dismissal for every detected change, appeared-asset metadata, summary, and
   explicit acknowledgement of approximate missing coverage.
+- `twin-asset-changes-applied-event.v1.schema.json`: Exact versioned event emitted
+  when a reviewed asset-change report becomes a new immutable asset revision.
+- `manager-notification-message.v1.schema.json`: Bounded and redacted manager
+  delivery payload containing change counts, severity, and Twin Studio context.
 
 Published schemas are extended only in backward-compatible ways. Changes to
 meaning or required fields require a new major version.

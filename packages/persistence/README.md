@@ -50,6 +50,13 @@ draft published, writes publication audit, and appends the published event in on
 PostgreSQL transaction. In-memory persistence provides the same rollback
 behavior for deterministic tests.
 
+`manager-notifications.js` persists immutable routes and projected messages,
+one idempotent delivery per route, append-only provider attempts, and append-only
+manual requeue audit. PostgreSQL projection is transactional and concurrent
+dispatchers claim expiring leases with `FOR UPDATE SKIP LOCKED`. Raw destinations
+stay inside this repository boundary; public records contain only redacted hints
+and fingerprints.
+
 ## PostgreSQL runtime
 
 `postgres.js` validates environment configuration and provides a `pg` connection

@@ -24,6 +24,8 @@ This project is responsible for:
   candidates.
 - Qualifying missing-asset evidence against calibrated sensor poses and
   occlusion-aware visibility cells from the same robot processing run.
+- Delivering reviewed change summaries through durable, redacted site/floor
+  manager notification routes with retry and audit evidence.
 - Publishing immutable, versioned `Twin Map Bundle` artifacts for Fleet Control.
 
 This project is not responsible for:
@@ -177,6 +179,11 @@ The first Phase 0 increment is implemented:
   coverage reports tied to one approved registration and semantic observation
   set. Asset-change report v2 emits `MISSING` only inside qualified cells and
   preserves the cell ID and confidence as review evidence.
+- Applied asset-change events now project idempotently into immutable manager
+  messages and site/floor email or HTTPS webhook deliveries. Routes remain
+  redacted outside persistence; attempts use expiring leases, bounded retry,
+  dead-letter state, and audited manual requeue. No external provider is
+  connected by default.
 - A compact local demo seed that exercises upload, intake, verification,
   materialization, artifact lineage, registration, semantic review, asset
   promotion, change review, and confirmed revision application without

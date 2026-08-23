@@ -549,6 +549,95 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /api/v1/notification-routes:
+    get:
+      operationId: listManagerNotificationRoutes
+      parameters:
+        - name: siteId
+          in: query
+          schema:
+            $ref: "#/components/schemas/Identifier"
+        - name: floorId
+          in: query
+          schema:
+            $ref: "#/components/schemas/Identifier"
+      responses:
+        "200":
+          description: Redacted site and floor manager delivery routes.
+    post:
+      operationId: createManagerNotificationRoute
+      description: Adds an immutable manager destination while returning only its fingerprint and redacted hint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateManagerNotificationRoute"
+      responses:
+        "201":
+          description: Immutable manager notification route created.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/map-drafts/{draftId}/manager-notifications:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+    get:
+      operationId: listDraftManagerNotifications
+      responses:
+        "200":
+          description: Redacted routing, delivery, retry, and terminal evidence for applied asset changes.
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/manager-notifications/{notificationId}/route:
+    parameters:
+      - name: notificationId
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Identifier"
+    post:
+      operationId: routeManagerNotification
+      description: Adds missing delivery records from the current site and floor routes without duplicating prior deliveries.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OperatorCommand"
+      responses:
+        "200":
+          description: Notification routing evidence refreshed.
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/v1/manager-notification-deliveries/{deliveryId}/retry:
+    parameters:
+      - name: deliveryId
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Identifier"
+    post:
+      operationId: retryManagerNotificationDelivery
+      description: Requeues one dead-letter delivery with immutable operator evidence.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RetryManagerNotificationDelivery"
+      responses:
+        "200":
+          description: Dead-letter delivery requeued.
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /api/v1/map-drafts/{draftId}/twin-assets:
     parameters:
       - $ref: "#/components/parameters/DraftId"
@@ -1184,6 +1273,52 @@ components:
         operatorId:
           type: string
           minLength: 1
+    CreateManagerNotificationRoute:
+      type: object
+      additionalProperties: false
+      required: [scopeType, siteId, channel, destination, displayLabel, operatorId]
+      properties:
+        routeId:
+          $ref: "#/components/schemas/Identifier"
+        scopeType:
+          type: string
+          enum: [SITE, FLOOR]
+        siteId:
+          $ref: "#/components/schemas/Identifier"
+        floorId:
+          $ref: "#/components/schemas/Identifier"
+        channel:
+          type: string
+          enum: [EMAIL, WEBHOOK]
+        destination:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        displayLabel:
+          type: string
+          minLength: 1
+          maxLength: 120
+        operatorId:
+          type: string
+          minLength: 1
+    OperatorCommand:
+      type: object
+      additionalProperties: false
+      required: [operatorId]
+      properties:
+        operatorId:
+          type: string
+          minLength: 1
+    RetryManagerNotificationDelivery:
+      type: object
+      additionalProperties: false
+      required: [operatorId]
+      properties:
+        requeueId:
+          $ref: "#/components/schemas/Identifier"
+        operatorId:
+          type: string
+          minLength: 1
     PromoteDraftTwinAssets:
       type: object
       additionalProperties: false
@@ -1213,7 +1348,7 @@ components:
     ReviewDraftAssetChanges:
       type: object
       additionalProperties: false
-      required: [reviewerId, coverageQualificationAcknowledged, decisions]
+      required: [reviewerId, decisions]
       properties:
         reviewId:
           $ref: "#/components/schemas/Identifier"

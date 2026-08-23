@@ -4,13 +4,13 @@ Last updated: August 23, 2026
 
 ## Active phase
 
-Phase 4 — Change detection and notification.
+Phase 5 — Publication outputs and Fleet-compatible visualization contracts.
 
 ## Completed
 
 - Independent Node.js workspace and local package linking
 - Repository syntax and JSON quality checks
-- Thirty-two published versioned JSON Schemas
+- Thirty-four published versioned JSON Schemas
 - Coordinate-frame graph and 3D transform mathematics
 - `MapDraft -> review -> validated -> immutable release` domain flow
 - Twin Map Bundle semantic and integrity validator
@@ -21,7 +21,7 @@ Phase 4 — Change detection and notification.
 - Symlink artifact protection
 - SHA-256 content-addressed local artifact store with deduplication
 - Immutable store preventing reuse of a release identity
-- Eighteen forward-only PostgreSQL metadata migrations
+- Nineteen forward-only PostgreSQL metadata migrations
 - Database-level immutability triggers for release records
 - In-memory catalog repository adapter
 - Driver-independent PostgreSQL repository adapter using parameterized SQL
@@ -279,18 +279,33 @@ Phase 4 — Change detection and notification.
 - GrandTour selection reverified at 290,764,702 bytes and explicitly marked
   ineligible for calibrated visibility instead of fabricating line-of-sight or
   `MISSING` evidence
+- Exact `TwinAssetChangesApplied.v1` event and bounded redacted
+  `brash.manager-notification-message/v1` provider contracts
+- Immutable site/floor manager email or HTTPS webhook routes with public
+  destination hints and fingerprints instead of raw contact values
+- Idempotent event projection into durable notifications and one delivery per
+  matching route, independent from outbox acknowledgement
+- Expiring notification delivery leases, provider idempotency keys, bounded
+  exponential retry, append-only attempt evidence, terminal dead-letter state,
+  and audited manual requeue
+- Twin API/OpenAPI route configuration, explicit route backfill, draft status,
+  and dead-letter retry operations with no public event-ingestion endpoint
+- Studio notification summaries, routing-required state, delivery attempts,
+  redacted route configuration, terminal failure, and retry controls
+- Deterministic application, PostgreSQL repository, HTTP, typed-client, and UI
+  tests for routing, idempotency, retry, terminal state, and redaction
 
 ## Next development increment
 
-Phase 4 continues with durable manager notification delivery:
+Phase 5 starts with immutable scene packaging and a decoupled Fleet integration
+fixture:
 
-1. Add a notification adapter that consumes `TwinAssetChangesApplied.v1` with
-   retry, delivery evidence, and manager routing without coupling it to Fleet Control.
-2. Expose notification attempts, terminal delivery state, and operator-visible
-   failures without turning message delivery into a prerequisite for committing
-   a reviewed Twin asset revision.
-3. Add deterministic adapter tests for routing, retry, idempotency, and redacted
-   payloads before connecting any external email or messaging provider.
+1. Produce a deterministic optimized scene manifest from sealed canonical Twin
+   geometry with explicit LOD, bounds, coordinate-frame, hash, and byte budgets.
+2. Bind the scene output into the immutable Twin Map Bundle and validate it at
+   publication without mixing static release geometry with live robot state.
+3. Add a mock versioned Fleet live-overlay and mission-replay fixture that can
+   drive a standalone demo viewer while leaving Fleet Control source untouched.
 
 ## Deliberately deferred
 
@@ -307,10 +322,10 @@ lifecycle are stable.
 
 ```text
 npm run check
-syntax/json: 278 files passed
-backend tests: 125 total, 122 passed, 3 conditionally skipped, 0 failed
-web tests: 45/45 passed with strict TypeScript and production build
-latest migration contract: schema version 18; last live PostgreSQL 16 gate passed with schema version 12
+syntax/json: 287 files passed
+backend tests: 131 total, 128 passed, 3 conditionally skipped, 0 failed
+web tests: 46/46 passed with strict TypeScript and production build
+latest migration contract: schema version 19; last live PostgreSQL 16 gate passed with schema version 12
 live GrandTour ETH-2 SHA-256/preview gate: passed against the 290,764,702-byte base selection
 ConSLAM/IfcOpenShell gate: last passed August 13, 2026 and remains opt-in
 fixture: demo-plant@1 valid

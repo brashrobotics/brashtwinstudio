@@ -37,3 +37,5 @@ types, or rendering engines.
   publication state with a mandatory requester/approver separation.
 - Sealed bundle/draft/validation identities and a versioned
   `MapReleasePublished.v1` event envelope.
+- Provider-neutral manager notification scopes, channels, and delivery states;
+  raw destinations and provider behavior remain outside the domain package.

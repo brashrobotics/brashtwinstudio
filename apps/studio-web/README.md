@@ -96,6 +96,11 @@ The operator interface for mapping and digital-twin workflows.
 - Confirmed moves, missing assets, and appeared assets can be applied as the
   next immutable Twin asset revision. Dismissed markers disappear, and markers
   for an applied change set yield to the revised 2D/3D asset geometry.
+- Manager notification status for applied revisions, including severity and
+  change counts, route-required state, delivery attempts, provider-safe failure
+  details, and explicit dead-letter retry.
+- Immutable site/floor email or HTTPS webhook route configuration with only
+  redacted destination hints returned to the browser.
 
 The milestone publication button creates a browser-local acceptance preview. It
 does not replace the production Twin API publication service, durable object

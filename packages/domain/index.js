@@ -35,6 +35,22 @@ export const SURVEY_MATERIALIZATION_STATUS = Object.freeze({
   failed: "FAILED",
 });
 
+export const MANAGER_NOTIFICATION_SCOPE = Object.freeze({
+  site: "SITE",
+  floor: "FLOOR",
+});
+
+export const MANAGER_NOTIFICATION_CHANNEL = Object.freeze({
+  email: "EMAIL",
+  webhook: "WEBHOOK",
+});
+
+export const MANAGER_NOTIFICATION_DELIVERY_STATUS = Object.freeze({
+  pending: "PENDING",
+  delivered: "DELIVERED",
+  deadLetter: "DEAD_LETTER",
+});
+
 export const DRAFT_ARTIFACT_KIND = Object.freeze({
   source: "SOURCE",
   derived: "DERIVED",

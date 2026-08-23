@@ -15,3 +15,8 @@ Compares observations from a new survey with the published baseline.
 
 The service does not send messages directly to alarm channels; it emits a domain
 event that notification channels may subscribe to.
+
+After an independent review is applied, `TwinAssetChangesApplied.v1` is the
+versioned subscription boundary. The manager-notification projector converts it
+into a redacted delivery message without exposing asset geometry, properties,
+images, contact destinations, or provider credentials.

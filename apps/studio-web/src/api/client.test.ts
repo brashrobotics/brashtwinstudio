@@ -209,4 +209,46 @@ describe("Twin API client", () => {
       method: "POST", body: JSON.stringify(applyInput),
     }));
   });
+
+  it("configures redacted manager routes and reads notification delivery evidence", async () => {
+    const fetchImplementation = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        routes: [{ routeId: "route-1", destinationHint: "m***@example.com" }],
+      }), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        route: { routeId: "route-2", destinationHint: "alerts.example.com/twin" },
+      }), { status: 201, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        notifications: [{ notificationId: "notification-1", status: "PENDING" }],
+      }), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        notification: { notificationId: "notification-1", status: "PENDING" },
+      }), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        notification: { notificationId: "notification-1", status: "PENDING" },
+      }), { status: 200, headers: { "content-type": "application/json" } }));
+    const api = createTwinApiClient({ baseUrl: "http://twin.local", fetchImplementation });
+
+    expect((await api.listManagerNotificationRoutes("site / 1", "floor / 1"))[0]?.routeId).toBe("route-1");
+    const createInput = {
+      scopeType: "FLOOR" as const,
+      siteId: "site-1",
+      floorId: "floor-1",
+      channel: "WEBHOOK" as const,
+      destination: "https://alerts.example.com/twin",
+      displayLabel: "Twin alerts",
+      operatorId: "admin-1",
+    };
+    expect((await api.createManagerNotificationRoute(createInput)).routeId).toBe("route-2");
+    expect((await api.listDraftManagerNotifications("draft / 1"))[0]?.status).toBe("PENDING");
+    await api.routeManagerNotification("notification / 1", { operatorId: "manager-1" });
+    await api.retryManagerNotificationDelivery("delivery / 1", { operatorId: "manager-1" });
+    expect(fetchImplementation.mock.calls.map(([url]) => url)).toEqual([
+      "http://twin.local/api/v1/notification-routes?siteId=site%20%2F%201&floorId=floor%20%2F%201",
+      "http://twin.local/api/v1/notification-routes",
+      "http://twin.local/api/v1/map-drafts/draft%20%2F%201/manager-notifications",
+      "http://twin.local/api/v1/manager-notifications/notification%20%2F%201/route",
+      "http://twin.local/api/v1/manager-notification-deliveries/delivery%20%2F%201/retry",
+    ]);
+  });
 });

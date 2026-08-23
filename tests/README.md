@@ -34,6 +34,12 @@ missing-evidence acknowledgement, stable-identity application, atomic
 asset-binding/outbox rollback, deterministic single-successor revision slots,
 HTTP routes, and reviewed/applied 2D/3D rendering.
 
+The manager-notification gate covers exact event validation, immutable
+site/floor routing, idempotent event projection and late route backfill, redacted
+public records, provider idempotency keys, leased temporary-failure retry,
+terminal dead-letter state, audited manual requeue, parameterized PostgreSQL
+transactions and skip-locked claims, HTTP operations, and typed Studio clients.
+
 The validation quality gate covers deterministic reports, UI-ready issue
 locations, sealed input snapshots, multipart report storage, HTTP job execution,
 real PostgreSQL job/run transactions, report-binding consistency triggers, and
