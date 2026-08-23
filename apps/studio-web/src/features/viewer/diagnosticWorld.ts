@@ -4,6 +4,7 @@ export const diagnosticLayers: Array<Omit<WorldLayer, "visible"> & { visible?: b
   { layerId: "cad", label: "CAD / BIM", kind: "CAD", color: "#54d6d0", selectable: true },
   { layerId: "survey", label: "Survey", kind: "SURVEY", color: "#97a4ad", selectable: true },
   { layerId: "coverage", label: "Coverage", kind: "ZONE", color: "#d8ff52", selectable: true },
+  { layerId: "visibility", label: "Sensor visibility", kind: "ZONE", color: "#ffcf4a", selectable: true },
   { layerId: "assets", label: "Assets", kind: "ASSET", color: "#b9f227", selectable: true },
   { layerId: "zones", label: "Zones", kind: "ZONE", color: "#7766e8", selectable: true },
   { layerId: "topology", label: "Topology", kind: "TOPOLOGY", color: "#ff9b4a", selectable: true },

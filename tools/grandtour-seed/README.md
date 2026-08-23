@@ -11,6 +11,13 @@ not declare a factory design-coverage denominator, so the report intentionally
 surfaces `COVERAGE_BELOW_MINIMUM` and remains unapproved; the adapter never
 invents a coverage claim merely to pass the registration gate.
 
+The bounded selection contains processed DLIO odometry, coordinate frames, and
+the reconstructed PLY. It does not contain the calibrated sensor model plus
+synchronized raw sensor observations needed to prove line of sight and
+occlusion. The seed therefore reports `sensorVisibilityEligible: false` and
+does not create a sensor-visibility report or `MISSING` asset evidence. Use the
+deterministic factory demo to exercise that safety-critical workflow.
+
 The base selection must already exist at `.local/datasets/grandtour-eth2`. The
 command never downloads data and does not include the optional camera or IMU
 archives.

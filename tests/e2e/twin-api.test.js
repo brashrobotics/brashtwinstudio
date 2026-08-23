@@ -13,6 +13,7 @@ import { SurveyIntakeService } from "@brash-twin/application/survey-intakes";
 import { SurveyMaterializationService } from "@brash-twin/application/survey-materializations";
 import { SurveyQualityReviewService } from "@brash-twin/application/survey-quality-reviews";
 import { SemanticCandidateService } from "@brash-twin/application/semantic-candidates";
+import { SensorVisibilityService } from "@brash-twin/application/sensor-visibility";
 import { TwinAssetService } from "@brash-twin/application/twin-assets";
 import { SurveyRegistrationService } from "@brash-twin/application/survey-registrations";
 import {
@@ -83,9 +84,17 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
     uploadSystem,
     { clock: () => new Date("2026-08-13T14:00:00.000Z") },
   );
+  const sensorVisibility = memorySensorVisibility(
+    catalog,
+    surveyRegistrations,
+    draftArtifacts,
+    uploadSystem,
+    { clock: () => new Date("2026-08-13T14:00:00.000Z") },
+  );
   const twinAssets = memoryTwinAssets(
     catalog,
     semanticCandidates,
+    sensorVisibility,
     draftArtifacts,
     uploadSystem,
     { clock: () => new Date("2026-08-13T14:00:00.000Z") },
@@ -99,6 +108,7 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
     surveyQualityReviews,
     surveyRegistrations,
     semanticCandidates,
+    sensorVisibility,
     twinAssets,
     validationJobs,
     releaseStore,
@@ -561,9 +571,76 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
       observationBindingId: "semantic-observations-2",
       operatorId: "semantic-operator-1",
     })).status, 201);
+    const sourceEvidence = (await request(
+      baseUrl,
+      "GET",
+      "/api/v1/map-drafts/draft-demo-2/artifacts",
+    )).body.artifacts.filter((artifact) => artifact.role === "SURVEY_SOURCE").slice(0, 3);
+    const visibilityModel = {
+      name: "e2e-visibility-worker",
+      version: "1.0.0",
+      parametersSha256: "8".repeat(64),
+    };
+    const visibilityContent = Buffer.from(`${JSON.stringify({
+      schemaVersion: "brash.sensor-visibility-observations/v1",
+      visibilitySetId: "visibility-set-1",
+      semanticObservationSetId: "observation-set-2",
+      sourceFrameId: "slam-map",
+      model: visibilityModel,
+      coverageModel: {
+        method: "CALIBRATED_SENSOR_VISIBILITY_GRID",
+        calibrated: true,
+        poseSynchronized: true,
+        occlusionAware: true,
+        minimumVisibilityConfidence: 0.9,
+      },
+      evidence: ["CALIBRATION", "SENSOR_POSES", "OCCLUSION_GEOMETRY"].map((kind, index) => ({
+        kind,
+        bindingId: sourceEvidence[index].bindingId,
+        artifactSha256: sourceEvidence[index].artifactSha256,
+      })),
+      cells: [{
+        cellId: "cell-1",
+        minimum: [0, 0, 0],
+        maximum: [4, 4, 3],
+        visibilityConfidence: 0.95,
+        sampleCount: 64,
+      }],
+    }, null, 2)}\n`);
+    await uploadThroughApi(
+      baseUrl,
+      uploadSystem.multipartStore,
+      "visibility-observations-upload-1",
+      visibilityContent,
+      "application/json",
+      "visibility-observations.json",
+    );
+    assert.equal((await request(baseUrl, "POST", "/api/v1/map-drafts/draft-demo-2/artifacts", {
+      bindingId: "visibility-observations-1",
+      uploadId: "visibility-observations-upload-1",
+      role: "SENSOR_VISIBILITY_OBSERVATIONS",
+      coordinateFrameId: "slam-map",
+      inputBindingIds: sourceEvidence.map((artifact) => artifact.bindingId),
+      producer: visibilityModel,
+      operatorId: "visibility-worker-1",
+    })).status, 201);
+    const visibilityReport = await request(
+      baseUrl,
+      "POST",
+      "/api/v1/map-drafts/draft-demo-2/sensor-visibility",
+      {
+        visibilityReportId: "visibility-report-1",
+        registrationId: "survey-registration-1",
+        observationBindingId: "visibility-observations-1",
+        operatorId: "visibility-operator-1",
+      },
+    );
+    assert.equal(visibilityReport.status, 201);
+    assert.equal(visibilityReport.body.visibilityReport.report.qualification.outcome, "QUALIFIED");
     const detectedChanges = await request(baseUrl, "POST", "/api/v1/map-drafts/draft-demo-2/asset-changes", {
       changeSetId: "change-set-1",
       candidateSetId: "candidate-set-2",
+      visibilityReportId: "visibility-report-1",
       operatorId: "change-worker-1",
     });
     assert.equal(detectedChanges.status, 201);
@@ -661,6 +738,8 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
           "REGISTRATION_REPORT",
           "REGISTRATION_ACCEPTANCE",
           "SEMANTIC_OBSERVATIONS",
+          "SENSOR_VISIBILITY_OBSERVATIONS",
+          "SENSOR_VISIBILITY_REPORT",
           "ASSET_CANDIDATE_REPORT",
           "ASSET_CANDIDATE_REVIEW",
           "TWIN_ASSETS",
@@ -677,6 +756,8 @@ test("HTTP API creates spatial hierarchy, validates a draft, and exposes release
         "import-report-1",
         "semantic-observations-1",
         "semantic-observations-2",
+        "visibility-observations-1",
+        "sensor-visibility-report-visibility-report-1",
         "source-ifc-1",
         "survey-quality-acceptance-survey-quality-1",
         "survey-quality-report-survey-quality-1",
@@ -727,7 +808,8 @@ test("HTTP boundary rejects malformed JSON without invoking application logic", 
   const surveyQualityReviews = memorySurveyQualityReviews(catalog, surveyMaterializations, draftArtifacts, uploadSystem);
   const surveyRegistrations = memorySurveyRegistrations(catalog, surveyMaterializations, draftArtifacts, uploadSystem, surveyQualityReviews);
   const semanticCandidates = memorySemanticCandidates(catalog, surveyRegistrations, draftArtifacts, uploadSystem);
-  const twinAssets = memoryTwinAssets(catalog, semanticCandidates, draftArtifacts, uploadSystem);
+  const sensorVisibility = memorySensorVisibility(catalog, surveyRegistrations, draftArtifacts, uploadSystem);
+  const twinAssets = memoryTwinAssets(catalog, semanticCandidates, sensorVisibility, draftArtifacts, uploadSystem);
   const api = new TwinApi({
     catalog,
     uploads: uploadSystem.uploads,
@@ -737,6 +819,7 @@ test("HTTP boundary rejects malformed JSON without invoking application logic", 
     surveyQualityReviews,
     surveyRegistrations,
     semanticCandidates,
+    sensorVisibility,
     twinAssets,
     validationJobs: memoryValidationJobs(catalog, draftArtifacts, uploadSystem),
     releaseStore: new ImmutableReleaseStore(storeRoot),
@@ -862,10 +945,22 @@ function memorySemanticCandidates(catalog, registrations, draftArtifacts, upload
   });
 }
 
-function memoryTwinAssets(catalog, semanticCandidates, draftArtifacts, uploadSystem, options = {}) {
+function memorySensorVisibility(catalog, registrations, draftArtifacts, uploadSystem, options = {}) {
+  return new SensorVisibilityService({
+    catalog,
+    registrations,
+    draftArtifacts,
+    uploads: uploadSystem.uploads,
+    multipartStore: uploadSystem.multipartStore,
+    ...options,
+  });
+}
+
+function memoryTwinAssets(catalog, semanticCandidates, sensorVisibility, draftArtifacts, uploadSystem, options = {}) {
   return new TwinAssetService({
     catalog,
     semanticCandidates,
+    sensorVisibility,
     draftArtifacts,
     uploads: uploadSystem.uploads,
     multipartStore: uploadSystem.multipartStore,

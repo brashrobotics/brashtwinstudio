@@ -7,6 +7,7 @@ import { SurveyIntakeService } from "@brash-twin/application/survey-intakes";
 import { SurveyMaterializationService } from "@brash-twin/application/survey-materializations";
 import { SurveyQualityReviewService } from "@brash-twin/application/survey-quality-reviews";
 import { SemanticCandidateService } from "@brash-twin/application/semantic-candidates";
+import { SensorVisibilityService } from "@brash-twin/application/sensor-visibility";
 import { TwinAssetService } from "@brash-twin/application/twin-assets";
 import { SurveyRegistrationService } from "@brash-twin/application/survey-registrations";
 import {
@@ -188,9 +189,17 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     uploads,
     multipartStore: multipartArtifactStore,
   });
+  const sensorVisibility = new SensorVisibilityService({
+    catalog,
+    registrations: surveyRegistrations,
+    draftArtifacts,
+    uploads,
+    multipartStore: multipartArtifactStore,
+  });
   const twinAssets = new TwinAssetService({
     catalog,
     semanticCandidates,
+    sensorVisibility,
     draftArtifacts,
     uploads,
     multipartStore: multipartArtifactStore,
@@ -209,6 +218,7 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     surveyQualityReviews,
     surveyRegistrations,
     semanticCandidates,
+    sensorVisibility,
     twinAssets,
     validationJobs,
     releaseStore,
@@ -233,6 +243,7 @@ export function createTwinApiSystem({ environment = process.env, onDatabaseBackg
     surveyQualityReviews,
     surveyRegistrations,
     semanticCandidates,
+    sensorVisibility,
     twinAssets,
     validationJobs,
     publications,

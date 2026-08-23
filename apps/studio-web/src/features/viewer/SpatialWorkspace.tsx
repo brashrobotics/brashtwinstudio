@@ -19,7 +19,7 @@ import {
 } from "@brash-twin/manual-twin";
 import { useEffect, useRef, useState, useSyncExternalStore, type ChangeEvent } from "react";
 import { useI18n } from "../../i18n/i18n";
-import type { AssetCandidateSetRecord, AssetChangeSetRecord, DraftTwinAssetSetRecord, SurveyMaterializationPreview, SurveyQualityReport, SurveyRegistrationReport } from "../../api/types";
+import type { AssetCandidateSetRecord, AssetChangeSetRecord, DraftTwinAssetSetRecord, SensorVisibilityRecord, SurveyMaterializationPreview, SurveyQualityReport, SurveyRegistrationReport } from "../../api/types";
 import { diagnosticEntities, diagnosticLayers } from "./diagnosticWorld";
 import { diagnosticEditorFeatures } from "./editorSeed";
 import { EditorToolbar, FeatureInspector } from "./EditorControls";
@@ -27,6 +27,7 @@ import { ManualTwinMilestone } from "./ManualTwinMilestone";
 import { ThreeWorldRuntime, type WorldInteraction } from "./threeRuntime";
 import { surveyCoverageWorldEntities, surveyPreviewWorldEntities } from "./surveyPreviewWorld";
 import { assetChangeWorldEntities, draftTwinAssetWorldEntities, semanticCandidateWorldEntities } from "./semanticCandidateWorld";
+import { sensorVisibilityWorldEntities } from "./sensorVisibilityWorld";
 
 export function SpatialWorkspace({
   canonicalFrameId,
@@ -36,6 +37,7 @@ export function SpatialWorkspace({
   surveyRegistration,
   surveyQuality,
   semanticCandidateSet,
+  sensorVisibility,
   twinAssetSet,
   assetChangeSet,
 }: {
@@ -46,6 +48,7 @@ export function SpatialWorkspace({
   surveyRegistration: SurveyRegistrationReport | null;
   surveyQuality: SurveyQualityReport | null;
   semanticCandidateSet: AssetCandidateSetRecord | null;
+  sensorVisibility: SensorVisibilityRecord | null;
   twinAssetSet: DraftTwinAssetSetRecord | null;
   assetChangeSet: AssetChangeSetRecord | null;
 }) {
@@ -193,6 +196,7 @@ export function SpatialWorkspace({
       ...alignedCad,
       ...registeredSurvey,
       ...registeredCoverage,
+      ...(sensorVisibility ? sensorVisibilityWorldEntities(sensorVisibility) : []),
       ...(twinAssetSet
         ? draftTwinAssetWorldEntities(twinAssetSet)
         : semanticCandidateSet ? semanticCandidateWorldEntities(semanticCandidateSet) : []),
@@ -218,6 +222,7 @@ export function SpatialWorkspace({
     surveyRegistration,
     surveyQuality,
     semanticCandidateSet,
+    sensorVisibility,
     twinAssetSet,
     assetChangeSet,
     surveySourceView,

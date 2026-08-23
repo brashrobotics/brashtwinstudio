@@ -59,10 +59,11 @@ test("later registered observations produce moved, missing, and appeared review 
   const report = await system.twinAssets.detectChanges("draft-1", {
     changeSetId: "change-set-1",
     candidateSetId: "later-candidates",
+    visibilityReportId: "visibility-report-1",
     operatorId: "change-worker",
   });
 
-  assert.equal(report.report.schemaVersion, "brash.asset-change-report/v1");
+  assert.equal(report.report.schemaVersion, "brash.asset-change-report/v2");
   assert.deepEqual(report.report.summary, {
     movedCount: 1,
     missingCount: 1,
@@ -79,6 +80,8 @@ test("later registered observations produce moved, missing, and appeared review 
   assert.deepEqual(moved.fromPosition, [1, 2, 1]);
   assert.deepEqual(moved.toPosition, [2, 2, 1]);
   assert.equal(report.report.coverage.baselineAssetsEvaluated, 2);
+  assert.equal(report.report.coverage.qualificationOutcome, "QUALIFIED");
+  assert.equal(report.report.changes.find((change) => change.changeType === "MISSING").visibilityEvidence.cellId, "cell-1");
 
   const binding = (await system.draftArtifacts.list("draft-1")).find(
     (candidate) => candidate.bindingId === report.reportBindingId,
@@ -87,6 +90,7 @@ test("later registered observations produce moved, missing, and appeared review 
   assert.deepEqual(binding.inputBindings.map((input) => input.bindingId), [
     baseline.reportBindingId,
     "candidate-report-later-candidates",
+    "sensor-visibility-report-visibility-report-1",
   ]);
   assert.deepEqual(await system.twinAssets.listChanges("draft-1"), [{ ...report, review: null }]);
   system.later.review = {
@@ -127,6 +131,7 @@ test("promotion requires reviewed candidates and change detection rejects its ow
   await assert.rejects(
     () => system.twinAssets.detectChanges("draft-1", {
       candidateSetId: "baseline-candidates",
+      visibilityReportId: "visibility-report-1",
       operatorId: "change-worker",
     }),
     (error) => error instanceof TwinAssetError && error.code === "TWIN_ASSET_CHANGE_INPUT_INVALID",
@@ -143,11 +148,13 @@ test("independent change review applies only confirmations as a new revision and
   const changeSet = await system.twinAssets.detectChanges("draft-1", {
     changeSetId: "change-set-1",
     candidateSetId: "later-candidates",
+    visibilityReportId: "visibility-report-1",
     operatorId: "change-worker",
   });
   await assert.rejects(
     () => system.twinAssets.detectChanges("draft-1", {
-      changeSetId: "change-set-duplicate", candidateSetId: "later-candidates", operatorId: "change-worker",
+      changeSetId: "change-set-duplicate", candidateSetId: "later-candidates",
+      visibilityReportId: "visibility-report-1", operatorId: "change-worker",
     }),
     (error) => error instanceof TwinAssetError && error.code === "TWIN_ASSET_CHANGE_CONFLICT",
   );
@@ -205,33 +212,47 @@ test("independent change review applies only confirmations as a new revision and
   );
   await assert.rejects(
     () => system.twinAssets.detectChanges("draft-1", {
-      candidateSetId: "baseline-candidates", operatorId: "change-worker",
+      candidateSetId: "baseline-candidates", visibilityReportId: "visibility-report-1", operatorId: "change-worker",
     }),
     (error) => error instanceof TwinAssetError && error.code === "TWIN_ASSET_CHANGE_INPUT_INVALID",
   );
 });
 
-test("confirming approximate missing evidence requires explicit acknowledgement", async () => {
+test("calibrated missing evidence does not require an approximate-coverage acknowledgement", async () => {
   const system = await twinAssetSystem();
   await system.twinAssets.promote("draft-1", {
     assetSetId: "asset-set-1", candidateSetId: "baseline-candidates", operatorId: "asset-curator",
   });
   const changeSet = await system.twinAssets.detectChanges("draft-1", {
-    changeSetId: "change-set-1", candidateSetId: "later-candidates", operatorId: "change-worker",
+    changeSetId: "change-set-1", candidateSetId: "later-candidates",
+    visibilityReportId: "visibility-report-1", operatorId: "change-worker",
   });
-  await assert.rejects(
-    () => system.twinAssets.reviewChanges("draft-1", "change-set-1", {
-      reviewerId: "factory-manager",
-      coverageQualificationAcknowledged: false,
-      decisions: changeSet.report.changes.map((change) => ({
-        changeId: change.changeId,
-        decision: "CONFIRMED",
-        ...(change.changeType === "APPEARED" ? { displayName: "Barrier", assetType: "safety-barrier" } : {}),
-      })),
-    }),
-    (error) => error instanceof TwinAssetError
-      && error.code === "TWIN_ASSET_CHANGE_COVERAGE_ACKNOWLEDGEMENT_REQUIRED",
-  );
+  const review = await system.twinAssets.reviewChanges("draft-1", "change-set-1", {
+    reviewerId: "factory-manager",
+    coverageQualificationAcknowledged: false,
+    decisions: changeSet.report.changes.map((change) => ({
+      changeId: change.changeId,
+      decision: "CONFIRMED",
+      ...(change.changeType === "APPEARED" ? { displayName: "Barrier", assetType: "safety-barrier" } : {}),
+    })),
+  });
+  assert.equal(review.report.summary.confirmedCount, 3);
+});
+
+test("unqualified visibility evidence suppresses missing candidates", async () => {
+  const system = await twinAssetSystem();
+  system.visibility.report.qualification.outcome = "UNQUALIFIED";
+  await system.twinAssets.promote("draft-1", {
+    assetSetId: "asset-set-1", candidateSetId: "baseline-candidates", operatorId: "asset-curator",
+  });
+  const changeSet = await system.twinAssets.detectChanges("draft-1", {
+    changeSetId: "change-set-1", candidateSetId: "later-candidates",
+    visibilityReportId: "visibility-report-1", operatorId: "change-worker",
+  });
+  assert.equal(changeSet.report.coverage.qualificationOutcome, "UNQUALIFIED");
+  assert.equal(changeSet.report.summary.missingCount, 0);
+  assert.equal(changeSet.report.coverage.baselineAssetsEvaluated, 0);
+  assert.equal(changeSet.report.coverage.baselineAssetsOutsideVisibility, 2);
 });
 
 test("asset revision binding rolls back when its outbox event cannot commit", async () => {
@@ -240,7 +261,8 @@ test("asset revision binding rolls back when its outbox event cannot commit", as
     assetSetId: "asset-set-1", candidateSetId: "baseline-candidates", operatorId: "asset-curator",
   });
   const changeSet = await system.twinAssets.detectChanges("draft-1", {
-    changeSetId: "change-set-1", candidateSetId: "later-candidates", operatorId: "change-worker",
+    changeSetId: "change-set-1", candidateSetId: "later-candidates",
+    visibilityReportId: "visibility-report-1", operatorId: "change-worker",
   });
   await system.twinAssets.reviewChanges("draft-1", "change-set-1", {
     reviewId: "review-1",
@@ -326,17 +348,54 @@ async function twinAssetSystem() {
     store,
     draftArtifacts,
   });
+  const visibilityBinding = await derivedBinding({
+    uploads,
+    store,
+    draftArtifacts,
+    uploadId: "sensor-visibility-report-upload-visibility-report-1",
+    bindingId: "sensor-visibility-report-visibility-report-1",
+    role: "SENSOR_VISIBILITY_REPORT",
+    inputBindingIds: ["survey-source-1"],
+    producerName: "brash-sensor-visibility-transformer",
+  });
+  const visibility = {
+    reportBindingId: visibilityBinding.bindingId,
+    reportUploadId: visibilityBinding.uploadId,
+    reportSha256: visibilityBinding.artifactSha256,
+    report: {
+      schemaVersion: "brash.sensor-visibility-report/v1",
+      visibilityReportId: "visibility-report-1",
+      draftId: "draft-1",
+      registrationId: "registration-1",
+      registrationAcceptance: { bindingId: "registration-acceptance-1", sha256: "1".repeat(64) },
+      canonicalFrameId: "plant-floor",
+      observations: { semanticObservationSetId: "later-observations" },
+      qualification: { outcome: "QUALIFIED", minimumVisibilityConfidence: 0.8 },
+      coverage: {
+        cellCount: 1,
+        cells: [{
+          cellId: "cell-1",
+          footprint: [[0, 0], [5, 0], [5, 4], [0, 4]],
+          minimumZ: 0,
+          maximumZ: 2,
+          visibilityConfidence: 0.94,
+        }],
+      },
+    },
+  };
   const semanticCandidates = { list: async () => [baseline, later] };
+  const sensorVisibility = { list: async () => [visibility] };
   const twinAssets = new TwinAssetService({
     catalog,
     semanticCandidates,
+    sensorVisibility,
     draftArtifacts,
     uploads,
     multipartStore: store,
     clock,
     eventIdGenerator: () => "event-change-applied-1",
   });
-  return { twinAssets, draftArtifacts, later, outboxRepository };
+  return { twinAssets, draftArtifacts, later, visibility, outboxRepository };
 }
 
 async function candidateSet({ candidateSetId, candidates, decisions, uploads, store, draftArtifacts }) {
@@ -355,6 +414,9 @@ async function candidateSet({ candidateSetId, candidates, decisions, uploads, st
     candidateSetId,
     draftId: "draft-1",
     canonicalFrameId: "plant-floor",
+    registrationId: "registration-1",
+    registrationAcceptance: { bindingId: "registration-acceptance-1", sha256: "1".repeat(64) },
+    observations: { observationSetId: candidateSetId === "later-candidates" ? "later-observations" : "baseline-observations" },
     candidates,
     createdBy: "semantic-worker",
     createdAt: "2026-08-14T19:00:00.000Z",

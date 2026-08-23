@@ -4,12 +4,15 @@ Creates a compact, deterministic factory survey in a running development Twin
 API. The command exercises the real upload, survey intake, verification,
 materialization, provenance, and survey-to-CAD registration boundaries.
 It also seals independent quality/registration approvals, reviews two synthetic
-semantic candidates, promotes the accepted electrical panel into asset revision
-1, and creates a later observation set with moved/appeared review candidates.
-It then seals an independent manager review, confirms both changes, and applies
-them as asset revision 2. The Studio opens with the moved electrical panel and
-named safety barrier in canonical 2D or 3D geometry, while the immutable report
-and review remain visible.
+semantic candidates and promotes the accepted electrical panel and conveyor
+into asset revision 1. The seed also binds a synthetic but fully provenance-
+sealed calibrated visibility grid backed by calibration, sensor-pose, and
+occlusion-geometry inputs. A later observation set produces moved, missing, and
+appeared review candidates only where that qualified visibility evidence covers
+the baseline. It then seals an independent manager review and applies the
+confirmed changes as asset revision 2. The Studio opens with the moved electrical
+panel and named safety barrier in canonical 2D or 3D geometry, while the removed
+conveyor remains traceable through the immutable change and visibility reports.
 
 Start the API and Studio with a dedicated local object-store directory:
 

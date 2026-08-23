@@ -13,7 +13,7 @@ const schemaDirectory = fileURLToPath(new URL("../../packages/contracts/schemas"
 test("every published schema has a unique HTTPS identifier", async () => {
   const files = (await readdir(schemaDirectory)).filter((file) => file.endsWith(".schema.json"));
   const schemas = await Promise.all(files.map(async (file) => JSON.parse(await readFile(`${schemaDirectory}/${file}`, "utf8"))));
-  assert.equal(files.length, 29);
+  assert.equal(files.length, 32);
   assert.equal(new Set(schemas.map((schema) => schema.$id)).size, schemas.length);
   for (const schema of schemas) {
     assert.match(schema.$id, /^https:\/\/schemas\.brashrobotics\.com\//);
@@ -32,11 +32,14 @@ test("every published schema has a unique HTTPS identifier", async () => {
   assert.equal(CONTRACT_VERSIONS.surveyRegistrationReport, "brash.survey-registration-report/v2");
   assert.equal(CONTRACT_VERSIONS.surveyRegistrationAcceptance, "brash.survey-registration-acceptance/v1");
   assert.equal(CONTRACT_VERSIONS.semanticObservations, "brash.semantic-observations/v1");
+  assert.equal(CONTRACT_VERSIONS.sensorVisibilityObservations, "brash.sensor-visibility-observations/v1");
+  assert.equal(CONTRACT_VERSIONS.sensorVisibilityReport, "brash.sensor-visibility-report/v1");
   assert.equal(CONTRACT_VERSIONS.assetCandidateReport, "brash.asset-candidate-report/v1");
   assert.equal(CONTRACT_VERSIONS.assetCandidateReview, "brash.asset-candidate-review/v1");
   assert.equal(CONTRACT_VERSIONS.draftTwinAssetsV1, "brash.draft-twin-assets/v1");
   assert.equal(CONTRACT_VERSIONS.draftTwinAssets, "brash.draft-twin-assets/v2");
-  assert.equal(CONTRACT_VERSIONS.assetChangeReport, "brash.asset-change-report/v1");
+  assert.equal(CONTRACT_VERSIONS.assetChangeReportV1, "brash.asset-change-report/v1");
+  assert.equal(CONTRACT_VERSIONS.assetChangeReport, "brash.asset-change-report/v2");
   assert.equal(CONTRACT_VERSIONS.assetChangeReview, "brash.asset-change-review/v1");
   assert.equal(CONTRACT_VERSIONS.surveyQualityReport, "brash.survey-quality-report/v1");
   assert.equal(CONTRACT_VERSIONS.surveyQualityAcceptance, "brash.survey-quality-acceptance/v1");
@@ -85,6 +88,8 @@ test("OpenAPI catalog documents every implemented operation", async () => {
     "listSemanticCandidateSets",
     "createSemanticCandidateSet",
     "reviewSemanticCandidateSet",
+    "listSensorVisibilityReports",
+    "createSensorVisibilityReport",
     "listDraftTwinAssetSets",
     "promoteDraftTwinAssets",
     "listDraftAssetChangeSets",

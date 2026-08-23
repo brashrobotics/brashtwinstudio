@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/asset-change-report.v2.schema.json",
+  "title": "Brash Asset Change Report v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "changeSetId", "draftId", "canonicalFrameId", "baseline", "observations", "visibility", "policy", "coverage", "summary", "changes", "createdBy", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "brash.asset-change-report/v2" },
+    "changeSetId": { "$ref": "#/$defs/identifier" }, "draftId": { "$ref": "#/$defs/identifier" },
+    "canonicalFrameId": { "type": "string", "minLength": 1 },
+    "baseline": { "$ref": "#/$defs/baseline" },
+    "observations": { "$ref": "#/$defs/candidates" },
+    "visibility": { "$ref": "#/$defs/visibility" },
+    "policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["matchingAlgorithm", "maximumMatchDistanceMeters", "coverageMode", "minimumVisibilityConfidence"],
+      "properties": {
+        "matchingAlgorithm": { "const": "CLASS_NEAREST_NEIGHBOR" },
+        "maximumMatchDistanceMeters": { "type": "number", "exclusiveMinimum": 0 },
+        "coverageMode": { "const": "CALIBRATED_SENSOR_VISIBILITY" },
+        "minimumVisibilityConfidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "coverage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["qualificationOutcome", "cellCount", "baselineAssetsEvaluated", "baselineAssetsOutsideVisibility"],
+      "properties": {
+        "qualificationOutcome": { "enum": ["QUALIFIED", "UNQUALIFIED"] },
+        "cellCount": { "type": "integer", "minimum": 1 },
+        "baselineAssetsEvaluated": { "type": "integer", "minimum": 0 },
+        "baselineAssetsOutsideVisibility": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "summary": { "$ref": "#/$defs/summary" },
+    "changes": { "type": "array", "maxItems": 5000, "items": { "$ref": "#/$defs/change" } },
+    "createdBy": { "type": "string", "minLength": 1 }, "createdAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "identifier": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "vector3": { "type": "array", "prefixItems": [{ "type": "number" }, { "type": "number" }, { "type": "number" }], "items": false },
+    "identity": {
+      "type": "object", "additionalProperties": false, "required": ["bindingId", "sha256"],
+      "properties": { "bindingId": { "$ref": "#/$defs/identifier" }, "sha256": { "$ref": "#/$defs/sha256" } }
+    },
+    "baseline": {
+      "type": "object", "additionalProperties": false, "required": ["assetSetId", "revision", "bindingId", "sha256"],
+      "properties": {
+        "assetSetId": { "$ref": "#/$defs/identifier" }, "revision": { "type": "integer", "minimum": 1 },
+        "bindingId": { "$ref": "#/$defs/identifier" }, "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "candidates": {
+      "type": "object", "additionalProperties": false, "required": ["candidateSetId", "bindingId", "sha256"],
+      "properties": {
+        "candidateSetId": { "$ref": "#/$defs/identifier" }, "bindingId": { "$ref": "#/$defs/identifier" }, "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "visibility": {
+      "type": "object", "additionalProperties": false, "required": ["visibilityReportId", "bindingId", "sha256"],
+      "properties": {
+        "visibilityReportId": { "$ref": "#/$defs/identifier" }, "bindingId": { "$ref": "#/$defs/identifier" }, "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "summary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["movedCount", "missingCount", "appearedCount", "unchangedCount", "ignoredObservationCount"],
+      "properties": {
+        "movedCount": { "type": "integer", "minimum": 0 }, "missingCount": { "type": "integer", "minimum": 0 },
+        "appearedCount": { "type": "integer", "minimum": 0 }, "unchangedCount": { "type": "integer", "minimum": 0 },
+        "ignoredObservationCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "change": {
+      "type": "object", "additionalProperties": false,
+      "required": ["changeId", "changeType", "assetId", "candidateId", "semanticClass", "confidence", "fromPosition", "toPosition", "distanceMeters", "visibilityEvidence", "reviewStatus"],
+      "properties": {
+        "changeId": { "$ref": "#/$defs/identifier" }, "changeType": { "enum": ["MOVED", "MISSING", "APPEARED"] },
+        "assetId": { "type": ["string", "null"], "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "candidateId": { "type": ["string", "null"], "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "semanticClass": { "type": "string", "minLength": 1 }, "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "fromPosition": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/vector3" }] },
+        "toPosition": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/vector3" }] },
+        "distanceMeters": { "type": ["number", "null"], "minimum": 0 },
+        "visibilityEvidence": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object", "additionalProperties": false, "required": ["cellId", "confidence"],
+              "properties": { "cellId": { "$ref": "#/$defs/identifier" }, "confidence": { "type": "number", "minimum": 0, "maximum": 1 } }
+            }
+          ]
+        },
+        "reviewStatus": { "const": "REVIEW_REQUIRED" }
+      }
+    }
+  }
+}

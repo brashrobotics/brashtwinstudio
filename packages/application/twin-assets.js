@@ -3,7 +3,8 @@ import { createHash, randomUUID } from "node:crypto";
 const LEGACY_ASSET_SET_VERSION = "brash.draft-twin-assets/v1";
 const ASSET_SET_VERSION = "brash.draft-twin-assets/v2";
 const ASSET_SET_MEDIA_TYPE = "application/vnd.brash.draft-twin-assets.v2+json";
-const CHANGE_REPORT_VERSION = "brash.asset-change-report/v1";
+const LEGACY_CHANGE_REPORT_VERSION = "brash.asset-change-report/v1";
+const CHANGE_REPORT_VERSION = "brash.asset-change-report/v2";
 const CHANGE_REPORT_MEDIA_TYPE = "application/vnd.brash.asset-change-report+json";
 const CHANGE_REVIEW_VERSION = "brash.asset-change-review/v1";
 const CHANGE_REVIEW_MEDIA_TYPE = "application/vnd.brash.asset-change-review+json";
@@ -13,7 +14,6 @@ const POSITION_TOLERANCE_METERS = 0.5;
 const MINIMUM_CONFIDENCE = 0.75;
 const REQUIRED_CONFIRMATIONS = 1;
 const MAXIMUM_MATCH_DISTANCE_METERS = 5;
-const COVERAGE_PADDING_METERS = 1.5;
 
 export class TwinAssetError extends Error {
   constructor(code, message, options = {}) {
@@ -26,6 +26,7 @@ export class TwinAssetError extends Error {
 export class TwinAssetService {
   #catalog;
   #semanticCandidates;
+  #sensorVisibility;
   #draftArtifacts;
   #uploads;
   #multipartStore;
@@ -38,6 +39,7 @@ export class TwinAssetService {
   constructor({
     catalog,
     semanticCandidates,
+    sensorVisibility,
     draftArtifacts,
     uploads,
     multipartStore,
@@ -49,6 +51,7 @@ export class TwinAssetService {
   }) {
     if (!catalog || typeof catalog.getMapDraftContext !== "function") invalidConfiguration("Catalog lookup is required.");
     if (!semanticCandidates || typeof semanticCandidates.list !== "function") invalidConfiguration("Semantic candidate lookup is required.");
+    if (!sensorVisibility || typeof sensorVisibility.list !== "function") invalidConfiguration("Sensor visibility lookup is required.");
     if (!draftArtifacts || typeof draftArtifacts.list !== "function" || typeof draftArtifacts.bind !== "function") {
       invalidConfiguration("Draft artifact provenance operations are required.");
     }
@@ -64,6 +67,7 @@ export class TwinAssetService {
     }
     this.#catalog = catalog;
     this.#semanticCandidates = semanticCandidates;
+    this.#sensorVisibility = sensorVisibility;
     this.#draftArtifacts = draftArtifacts;
     this.#uploads = uploads;
     this.#multipartStore = multipartStore;
@@ -199,6 +203,7 @@ export class TwinAssetService {
   async detectChanges(draftId, input = {}) {
     identifier(draftId, "draftId");
     identifier(input.candidateSetId, "candidateSetId");
+    identifier(input.visibilityReportId, "visibilityReportId");
     requiredText(input.operatorId, "operatorId");
     if (input.changeSetId !== undefined) identifier(input.changeSetId, "changeSetId");
     const context = await this.#requireEditableDraft(draftId);
@@ -209,14 +214,37 @@ export class TwinAssetService {
       (candidate) => candidate.report.candidateSetId === input.candidateSetId,
     );
     if (!candidateSet) throw new TwinAssetError("TWIN_ASSET_CANDIDATE_NOT_FOUND", `Candidate set ${input.candidateSetId} was not found.`);
-    if (candidateSet.report.canonicalFrameId !== baseline.report.canonicalFrameId
-      || candidateSet.report.canonicalFrameId !== context.draft.canonicalFrameId) {
-      throw new TwinAssetError("TWIN_ASSET_FRAME_MISMATCH", "Change observations and baseline assets must share the draft canonical frame.");
-    }
     if (assetHistory.some((record) => record.report.assets.some(
       (asset) => asset.source.candidateSetId === input.candidateSetId,
     ))) {
       throw new TwinAssetError("TWIN_ASSET_CHANGE_INPUT_INVALID", "A candidate set already represented in Twin asset history cannot test a later baseline.");
+    }
+    const visibility = (await this.#sensorVisibility.list(draftId)).find(
+      (record) => record.report.visibilityReportId === input.visibilityReportId,
+    );
+    if (!visibility) {
+      throw new TwinAssetError(
+        "TWIN_ASSET_VISIBILITY_REQUIRED",
+        `Sealed sensor visibility report ${input.visibilityReportId} was not found.`,
+      );
+    }
+    if (candidateSet.report.canonicalFrameId !== baseline.report.canonicalFrameId
+      || candidateSet.report.canonicalFrameId !== context.draft.canonicalFrameId
+      || visibility.report.canonicalFrameId !== context.draft.canonicalFrameId) {
+      throw new TwinAssetError(
+        "TWIN_ASSET_FRAME_MISMATCH",
+        "Change observations, visibility evidence, and baseline assets must share the draft canonical frame.",
+      );
+    }
+    if (visibility.report.registrationId !== candidateSet.report.registrationId
+      || visibility.report.registrationAcceptance?.bindingId !== candidateSet.report.registrationAcceptance?.bindingId
+      || visibility.report.registrationAcceptance?.sha256 !== candidateSet.report.registrationAcceptance?.sha256
+      || visibility.report.observations.semanticObservationSetId
+        !== candidateSet.report.observations?.observationSetId) {
+      throw new TwinAssetError(
+        "TWIN_ASSET_VISIBILITY_CONTEXT_MISMATCH",
+        "Visibility evidence and semantic candidates must share the same approved registration and sealed observation set.",
+      );
     }
     if ((await this.listChanges(draftId)).some(
       (record) => record.report.observations.candidateSetId === input.candidateSetId,
@@ -225,7 +253,12 @@ export class TwinAssetService {
     }
     const changeSetId = input.changeSetId ?? this.#changeSetIdGenerator();
     identifier(changeSetId, "changeSetId");
-    const comparison = compareAssets(baseline.report.assets, candidateSet.report.candidates, changeSetId);
+    const comparison = compareAssets(
+      baseline.report.assets,
+      candidateSet.report.candidates,
+      visibility.report,
+      changeSetId,
+    );
     const report = Object.freeze({
       schemaVersion: CHANGE_REPORT_VERSION,
       changeSetId,
@@ -242,11 +275,16 @@ export class TwinAssetService {
         bindingId: candidateSet.reportBindingId,
         sha256: candidateSet.reportSha256,
       }),
+      visibility: Object.freeze({
+        visibilityReportId: visibility.report.visibilityReportId,
+        bindingId: visibility.reportBindingId,
+        sha256: visibility.reportSha256,
+      }),
       policy: Object.freeze({
         matchingAlgorithm: "CLASS_NEAREST_NEIGHBOR",
         maximumMatchDistanceMeters: MAXIMUM_MATCH_DISTANCE_METERS,
-        coverageMode: "OBSERVED_ENVELOPE",
-        coveragePaddingMeters: COVERAGE_PADDING_METERS,
+        coverageMode: "CALIBRATED_SENSOR_VISIBILITY",
+        minimumVisibilityConfidence: visibility.report.qualification.minimumVisibilityConfidence,
       }),
       coverage: comparison.coverage,
       summary: comparison.summary,
@@ -270,7 +308,7 @@ export class TwinAssetService {
         uploadId: stored.uploadId,
         role: "ASSET_CHANGE_REPORT",
         coordinateFrameId: report.canonicalFrameId,
-        inputBindingIds: [baseline.reportBindingId, candidateSet.reportBindingId],
+        inputBindingIds: [baseline.reportBindingId, candidateSet.reportBindingId, visibility.reportBindingId],
         producer: {
           name: "brash-twin-asset-change-detector",
           version: "1.0.0",
@@ -302,7 +340,7 @@ export class TwinAssetService {
     const records = [];
     for (const binding of bindings.filter((candidate) => candidate.role === "ASSET_CHANGE_REPORT"
       && candidate.producer?.name === "brash-twin-asset-change-detector")) {
-      const report = await this.#readJson(binding, CHANGE_REPORT_VERSION);
+      const report = await this.#readJson(binding, [LEGACY_CHANGE_REPORT_VERSION, CHANGE_REPORT_VERSION]);
       validateChangeReport(report, binding, context.draft);
       const review = reviews.get(report.changeSetId) ?? null;
       if (review && (review.report.changeReport.bindingId !== binding.bindingId
@@ -333,7 +371,9 @@ export class TwinAssetService {
     const confirmedMissing = decisions.some((decision) => decision.decision === "CONFIRMED"
       && changeSet.report.changes.find((change) => change.changeId === decision.changeId)?.changeType === "MISSING");
     const coverageQualificationAcknowledged = input.coverageQualificationAcknowledged === true;
-    if (confirmedMissing && !coverageQualificationAcknowledged) {
+    if (confirmedMissing
+      && changeSet.report.schemaVersion === LEGACY_CHANGE_REPORT_VERSION
+      && !coverageQualificationAcknowledged) {
       throw new TwinAssetError(
         "TWIN_ASSET_CHANGE_COVERAGE_ACKNOWLEDGEMENT_REQUIRED",
         "Confirming a missing asset requires acknowledgement that OBSERVED_ENVELOPE coverage is approximate evidence.",
@@ -751,13 +791,15 @@ function isCriticalChange(change) {
   return change?.changeType === "MOVED" || change?.changeType === "MISSING";
 }
 
-function compareAssets(assets, candidates, changeSetId) {
-  const positions = candidates.map((candidate) => candidate.canonicalPosition);
-  const minimum = [0, 1, 2].map((axis) => round(Math.min(...positions.map((position) => position[axis])) - COVERAGE_PADDING_METERS));
-  const maximum = [0, 1, 2].map((axis) => round(Math.max(...positions.map((position) => position[axis])) + COVERAGE_PADDING_METERS));
-  const coveredAssets = assets.filter((asset) => insideEnvelope(assetPosition(asset), minimum, maximum));
+function compareAssets(assets, candidates, visibility, changeSetId) {
+  const qualified = visibility.qualification.outcome === "QUALIFIED";
+  const evidenceByAssetId = new Map(assets.map((asset) => [
+    asset.assetId,
+    qualified ? visibilityEvidenceAt(assetPosition(asset), visibility) : null,
+  ]));
+  const coveredAssets = assets.filter((asset) => evidenceByAssetId.get(asset.assetId) !== null);
   const possiblePairs = [];
-  for (const asset of coveredAssets) {
+  for (const asset of assets) {
     for (const candidate of candidates) {
       if (classKey(asset.source.suggestedClass) !== classKey(candidate.suggestedClass)) continue;
       const distance = euclidean(assetPosition(asset), candidate.canonicalPosition);
@@ -784,11 +826,9 @@ function compareAssets(assets, candidates, changeSetId) {
       unchangedCount += 1;
     }
   }
-  const coverageConfidence = Math.max(...candidates.map((candidate) => candidate.confidence));
   for (const asset of coveredAssets.filter((candidate) => !matchedAssets.has(candidate.assetId))) {
-    if (coverageConfidence >= asset.changePolicy.minimumConfidence) {
-      changes.push(changeRecord(changeSetId, "MISSING", asset, null, null, coverageConfidence));
-    }
+    const evidence = evidenceByAssetId.get(asset.assetId);
+    changes.push(changeRecord(changeSetId, "MISSING", asset, null, null, evidence.confidence, evidence));
   }
   for (const candidate of candidates.filter((observation) => !matchedCandidates.has(observation.candidateId))) {
     if (candidate.confidence >= MINIMUM_CONFIDENCE) {
@@ -799,7 +839,12 @@ function compareAssets(assets, candidates, changeSetId) {
   }
   changes.sort((left, right) => left.changeId.localeCompare(right.changeId));
   return Object.freeze({
-    coverage: Object.freeze({ minimum: Object.freeze(minimum), maximum: Object.freeze(maximum), baselineAssetsEvaluated: coveredAssets.length }),
+    coverage: Object.freeze({
+      qualificationOutcome: visibility.qualification.outcome,
+      cellCount: visibility.coverage.cellCount,
+      baselineAssetsEvaluated: coveredAssets.length,
+      baselineAssetsOutsideVisibility: assets.length - coveredAssets.length,
+    }),
     summary: Object.freeze({
       movedCount: changes.filter((change) => change.changeType === "MOVED").length,
       missingCount: changes.filter((change) => change.changeType === "MISSING").length,
@@ -811,7 +856,7 @@ function compareAssets(assets, candidates, changeSetId) {
   });
 }
 
-function changeRecord(changeSetId, type, asset, candidate, distance, confidence) {
+function changeRecord(changeSetId, type, asset, candidate, distance, confidence, visibilityEvidence = null) {
   const subject = asset?.assetId ?? candidate.candidateId;
   return Object.freeze({
     changeId: `${changeSetId}-${type.toLowerCase()}-${subject}`,
@@ -823,6 +868,10 @@ function changeRecord(changeSetId, type, asset, candidate, distance, confidence)
     fromPosition: asset ? Object.freeze(assetPosition(asset)) : null,
     toPosition: candidate ? Object.freeze([...candidate.canonicalPosition]) : null,
     distanceMeters: distance === null ? null : round(distance),
+    visibilityEvidence: visibilityEvidence ? Object.freeze({
+      cellId: visibilityEvidence.cellId,
+      confidence: round(visibilityEvidence.confidence),
+    }) : null,
     reviewStatus: "REVIEW_REQUIRED",
   });
 }
@@ -871,8 +920,13 @@ function validateAssetChain(records) {
 
 function validateChangeReport(report, binding, draft) {
   const inputs = new Map(binding.inputBindings.map((input) => [input.bindingId, input.artifactSha256]));
+  const visibilityValid = report.schemaVersion === LEGACY_CHANGE_REPORT_VERSION
+    ? binding.inputBindings.length === 2 && report.visibility === undefined
+    : binding.inputBindings.length === 3
+      && inputs.get(report.visibility?.bindingId) === report.visibility?.sha256
+      && report.policy?.coverageMode === "CALIBRATED_SENSOR_VISIBILITY";
   if (report.draftId !== draft.draftId || report.canonicalFrameId !== draft.canonicalFrameId
-    || binding.coordinateFrameId !== report.canonicalFrameId || binding.inputBindings.length !== 2
+    || binding.coordinateFrameId !== report.canonicalFrameId || !visibilityValid
     || inputs.get(report.baseline?.bindingId) !== report.baseline?.sha256
     || inputs.get(report.observations?.bindingId) !== report.observations?.sha256
     || !Array.isArray(report.changes)) integrityFailure(binding.bindingId);
@@ -928,8 +982,37 @@ function assetRevisionBindingId(draftId, predecessor) {
   return `twin-assets-${sha256(slot).slice(0, 20)}`;
 }
 
-function insideEnvelope(position, minimum, maximum) {
-  return position.every((coordinate, axis) => coordinate >= minimum[axis] && coordinate <= maximum[axis]);
+function visibilityEvidenceAt(position, visibility) {
+  const matches = visibility.coverage.cells.filter((cell) => (
+    cell.visibilityConfidence >= visibility.qualification.minimumVisibilityConfidence
+    && position[2] >= cell.minimumZ
+    && position[2] <= cell.maximumZ
+    && pointInsidePolygon(position, cell.footprint)
+  )).sort((left, right) => right.visibilityConfidence - left.visibilityConfidence
+    || left.cellId.localeCompare(right.cellId));
+  const best = matches[0];
+  return best ? Object.freeze({ cellId: best.cellId, confidence: best.visibilityConfidence }) : null;
+}
+
+function pointInsidePolygon(position, polygon) {
+  const [x, y] = position;
+  let inside = false;
+  for (let current = 0, previous = polygon.length - 1; current < polygon.length; previous = current, current += 1) {
+    const [cx, cy] = polygon[current];
+    const [px, py] = polygon[previous];
+    if (pointOnSegment(x, y, px, py, cx, cy)) return true;
+    if (((cy > y) !== (py > y))
+      && x < ((px - cx) * (y - cy)) / (py - cy) + cx) inside = !inside;
+  }
+  return inside;
+}
+
+function pointOnSegment(x, y, x1, y1, x2, y2) {
+  const cross = (x - x1) * (y2 - y1) - (y - y1) * (x2 - x1);
+  if (Math.abs(cross) > 1e-9) return false;
+  const dot = (x - x1) * (x2 - x1) + (y - y1) * (y2 - y1);
+  if (dot < -1e-9) return false;
+  return dot <= ((x2 - x1) ** 2 + (y2 - y1) ** 2) + 1e-9;
 }
 
 function euclidean(left, right) {

@@ -15,6 +15,7 @@ import type {
   SurveyQualityRecord,
   SurveyRegistrationControlPoint,
   SurveyRegistrationRecord,
+  SensorVisibilityRecord,
   ValidationJob,
 } from "../../api/types";
 import { useI18n } from "../../i18n/i18n";
@@ -77,6 +78,11 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
     queryFn: ({ signal }) => api.listSemanticCandidateSets(draftId, signal),
     enabled: draftId !== "",
   });
+  const sensorVisibilityReports = useQuery({
+    queryKey: ["sensor-visibility", draftId],
+    queryFn: ({ signal }) => api.listSensorVisibilityReports(draftId, signal),
+    enabled: draftId !== "",
+  });
   const twinAssetSets = useQuery({
     queryKey: ["twin-assets", draftId],
     queryFn: ({ signal }) => api.listDraftTwinAssetSets(draftId, signal),
@@ -126,6 +132,10 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
     () => latestSemanticCandidateSet(semanticCandidateSets.data ?? []),
     [semanticCandidateSets.data],
   );
+  const latestVisibility = useMemo(
+    () => latestSensorVisibility(sensorVisibilityReports.data ?? []),
+    [sensorVisibilityReports.data],
+  );
   const latestAssetSet = useMemo(() => latestTwinAssetSet(twinAssetSets.data ?? []), [twinAssetSets.data]);
   const latestChangeSet = useMemo(() => latestAssetChangeSet(assetChangeSets.data ?? []), [assetChangeSets.data]);
   const promotableCandidateSet = useMemo(() => {
@@ -151,6 +161,18 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
       && !compared.has(candidateSet.report.candidateSetId)
     )) ?? null;
   }, [assetChangeSets.data, latestAssetSet, semanticCandidateSets.data, twinAssetSets.data]);
+  const changeVisibility = useMemo(() => {
+    if (!changeCandidateSet) return null;
+    return [...(sensorVisibilityReports.data ?? [])].reverse().find((visibility) => (
+      visibility.report.registrationId === changeCandidateSet.report.registrationId
+      && visibility.report.registrationAcceptance.bindingId
+        === changeCandidateSet.report.registrationAcceptance.bindingId
+      && visibility.report.registrationAcceptance.sha256
+        === changeCandidateSet.report.registrationAcceptance.sha256
+      && visibility.report.observations.semanticObservationSetId
+        === changeCandidateSet.report.observations.observationSetId
+    )) ?? null;
+  }, [changeCandidateSet, sensorVisibilityReports.data]);
   const createQuality = useMutation({
     mutationFn: () => api.createSurveyQualityReview(draftId, {
       materializationJobId: latestMaterialization!.jobId,
@@ -199,6 +221,17 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
     ),
     onSuccess: async () => queryClient.invalidateQueries({ queryKey: ["semantic-candidates", draftId] }),
   });
+  const createVisibility = useMutation({
+    mutationFn: (observationBindingId: string) => api.createSensorVisibilityReport(draftId, {
+      registrationId: latestRegistration!.report.registrationId,
+      observationBindingId,
+      operatorId: identity.subject,
+    }),
+    onSuccess: async () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["sensor-visibility", draftId] }),
+      queryClient.invalidateQueries({ queryKey: ["draft-artifacts", draftId] }),
+    ]),
+  });
   const promoteAssets = useMutation({
     mutationFn: () => api.promoteDraftTwinAssets(draftId, {
       candidateSetId: promotableCandidateSet!.report.candidateSetId,
@@ -212,6 +245,7 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
   const detectChanges = useMutation({
     mutationFn: () => api.detectDraftAssetChanges(draftId, {
       candidateSetId: changeCandidateSet!.report.candidateSetId,
+      visibilityReportId: changeVisibility!.report.visibilityReportId,
       operatorId: identity.subject,
     }),
     onSuccess: async () => Promise.all([
@@ -247,6 +281,15 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
   const semanticObservationBindings = useMemo(() => (draftArtifacts.data ?? []).filter(
     (artifact) => artifact.role === "SEMANTIC_OBSERVATIONS",
   ), [draftArtifacts.data]);
+  const visibilityObservationBindings = useMemo(() => (draftArtifacts.data ?? []).filter(
+    (artifact) => artifact.role === "SENSOR_VISIBILITY_OBSERVATIONS",
+  ), [draftArtifacts.data]);
+  const pendingVisibilityObservationBindings = useMemo(() => {
+    const transformedBindings = new Set((sensorVisibilityReports.data ?? []).map(
+      (visibility) => visibility.report.observations.bindingId,
+    ));
+    return visibilityObservationBindings.filter((binding) => !transformedBindings.has(binding.bindingId));
+  }, [sensorVisibilityReports.data, visibilityObservationBindings]);
   const firstError = [sites.error, floors.error, families.error, drafts.error].find(Boolean);
   const initialLoading = sites.isPending;
 
@@ -323,6 +366,7 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
               surveyRegistration={latestRegistration?.report ?? null}
               surveyQuality={latestQuality?.report ?? null}
               semanticCandidateSet={latestCandidateSet}
+              sensorVisibility={latestVisibility}
               twinAssetSet={latestAssetSet}
               assetChangeSet={latestChangeSet}
             />
@@ -369,9 +413,18 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
               onCreate={(observationBindingId) => createCandidateSet.mutateAsync(observationBindingId)}
               onReview={(input) => reviewCandidateSet.mutateAsync(input)}
             />
+            <SensorVisibilityPanel
+              registration={latestRegistration}
+              visibility={latestVisibility}
+              observationBindings={pendingVisibilityObservationBindings}
+              busy={createVisibility.isPending}
+              error={createVisibility.error instanceof Error ? createVisibility.error.message : null}
+              onCreate={(observationBindingId) => createVisibility.mutateAsync(observationBindingId)}
+            />
             <TwinAssetsPanel
               assetSet={latestAssetSet}
               changeSet={latestChangeSet}
+              visibility={changeVisibility}
               promotableCandidateSet={promotableCandidateSet}
               changeCandidateSet={changeCandidateSet}
               busy={promoteAssets.isPending || detectChanges.isPending || reviewChanges.isPending || applyChanges.isPending}
@@ -386,7 +439,7 @@ export function WorkspacePage({ api }: { api: TwinApiClient }) {
             <ValidationPanel job={latestValidation} loading={validationJobs.isPending && draftId !== ""} />
             <section className="panel release-panel">
               <div className="panel-heading compact">
-                <div><p className="section-index">10 / OUTPUT</p><h3>{t("latestReleases")}</h3></div>
+                <div><p className="section-index">11 / OUTPUT</p><h3>{t("latestReleases")}</h3></div>
                 <span className="count-chip">{releases.data?.length ?? 0}</span>
               </div>
               {(releases.data?.length ?? 0) === 0 ? <p className="muted-copy">{t("noReleases")}</p> : (
@@ -445,9 +498,81 @@ function DraftPanel({ draft }: { draft: MapDraft | null }) {
   );
 }
 
+function SensorVisibilityPanel({
+  registration,
+  visibility,
+  observationBindings,
+  busy,
+  error,
+  onCreate,
+}: {
+  registration: SurveyRegistrationRecord | null;
+  visibility: SensorVisibilityRecord | null;
+  observationBindings: DraftArtifactBinding[];
+  busy: boolean;
+  error: string | null;
+  onCreate(observationBindingId: string): Promise<unknown>;
+}) {
+  const { t } = useI18n();
+  const [observationBindingId, setObservationBindingId] = useState("");
+  const registrationApproved = registration?.acceptance?.report.decision === "APPROVED";
+  useEffect(() => {
+    setObservationBindingId((current) => observationBindings.some(
+      (binding) => binding.bindingId === current,
+    ) ? current : observationBindings[0]?.bindingId ?? "");
+  }, [observationBindings]);
+  return (
+    <section className="panel sensor-visibility-panel">
+      <div className="panel-heading compact">
+        <div><p className="section-index">08 / VISIBILITY</p><h3>{t("sensorVisibility")}</h3></div>
+        {visibility && <span className={`job-state job-${visibility.report.qualification.outcome === "QUALIFIED" ? "succeeded" : "failed"}`}>
+          {visibility.report.qualification.outcome}
+        </span>}
+      </div>
+      {visibility && (
+        <>
+          <dl className="metadata-list">
+            <div><dt>{t("visibilityCells")}</dt><dd>{visibility.report.coverage.qualifiedCellCount}/{visibility.report.coverage.cellCount}</dd></div>
+            <div><dt>{t("visibilityArea")}</dt><dd>{visibility.report.coverage.summedCellAreaSquareMeters.toFixed(1)} m²</dd></div>
+            <div className="metadata-wide"><dt>{t("visibilityEvidence")}</dt><dd>{visibility.report.evidence.map((item) => item.kind).join(" · ")}</dd></div>
+          </dl>
+          {visibility.report.qualification.issues.length > 0 && (
+            <ul className="quality-issue-list">{visibility.report.qualification.issues.map((issue) => <li key={issue}>{issue}</li>)}</ul>
+          )}
+          <p className="muted-copy">{t("visibilityEvidenceNotice")}</p>
+        </>
+      )}
+      {!registrationApproved && !visibility ? (
+        <p className="muted-copy">{t("visibilityNeedsRegistration")}</p>
+      ) : registrationApproved && observationBindings.length === 0 && !visibility ? (
+        <p className="muted-copy">{t("visibilityNeedsObservations")}</p>
+      ) : registrationApproved && observationBindings.length > 0 ? (
+        <>
+          <label className="registration-target-select">
+            <span>{t("visibilityObservationSource")}</span>
+            <select value={observationBindingId} onChange={(event) => setObservationBindingId(event.target.value)}>
+              {observationBindings.map((binding) => (
+                <option key={binding.bindingId} value={binding.bindingId}>{binding.bindingId}</option>
+              ))}
+            </select>
+          </label>
+          <button
+            className="registration-submit"
+            type="button"
+            disabled={busy || observationBindingId === ""}
+            onClick={() => void onCreate(observationBindingId)}
+          >{t("createVisibilityReport")}</button>
+        </>
+      ) : null}
+      {error && <p className="registration-error" role="alert">{error}</p>}
+    </section>
+  );
+}
+
 function TwinAssetsPanel({
   assetSet,
   changeSet,
+  visibility,
   promotableCandidateSet,
   changeCandidateSet,
   busy,
@@ -459,6 +584,7 @@ function TwinAssetsPanel({
 }: {
   assetSet: DraftTwinAssetSetRecord | null;
   changeSet: AssetChangeSetRecord | null;
+  visibility: SensorVisibilityRecord | null;
   promotableCandidateSet: AssetCandidateSetRecord | null;
   changeCandidateSet: AssetCandidateSetRecord | null;
   busy: boolean;
@@ -526,10 +652,11 @@ function TwinAssetsPanel({
   }
 
   const changeApplied = Boolean(changeSet && assetSet?.report.sourceChangeSet?.changeSetId === changeSet.report.changeSetId);
+  const legacyCoverage = changeSet?.report.schemaVersion === "brash.asset-change-report/v1";
   return (
     <section className="panel twin-assets-panel">
       <div className="panel-heading compact">
-        <div><p className="section-index">08 / TWIN ASSETS</p><h3>{t("twinAssets")}</h3></div>
+        <div><p className="section-index">09 / TWIN ASSETS</p><h3>{t("twinAssets")}</h3></div>
         {assetSet && <span className="job-state job-succeeded">r{assetSet.report.revision}</span>}
       </div>
       {!assetSet && !promotableCandidateSet ? (
@@ -548,10 +675,13 @@ function TwinAssetsPanel({
               {assetSet ? t("promoteAssetRevision") : t("promoteTwinAssets")}
             </button>
           )}
-          {assetSet && changeCandidateSet && (
+          {assetSet && changeCandidateSet && visibility && (
             <button className="registration-submit" type="button" disabled={busy} onClick={() => void onDetectChanges()}>
               {t("detectAssetChanges")}
             </button>
+          )}
+          {assetSet && changeCandidateSet && !visibility && (
+            <p className="muted-copy">{t("assetChangesNeedVisibility")}</p>
           )}
           {assetSet && !changeCandidateSet && !changeSet && <p className="muted-copy">{t("assetChangesNeedLaterScan")}</p>}
         </>
@@ -566,6 +696,8 @@ function TwinAssetsPanel({
             <div><dt>{t("missingAssets")}</dt><dd>{changeSet.report.summary.missingCount}</dd></div>
             <div><dt>{t("appearedAssets")}</dt><dd>{changeSet.report.summary.appearedCount}</dd></div>
             <div><dt>{t("unchangedAssets")}</dt><dd>{changeSet.report.summary.unchangedCount}</dd></div>
+            {!legacyCoverage && <div><dt>{t("visibilityQualification")}</dt><dd>{changeSet.report.coverage.qualificationOutcome}</dd></div>}
+            {!legacyCoverage && <div><dt>{t("visibilityCells")}</dt><dd>{changeSet.report.coverage.cellCount}</dd></div>}
           </dl>
           {changeSet.review ? (
             <>
@@ -612,7 +744,7 @@ function TwinAssetsPanel({
                   </article>
                 );
               })}</div>
-              {changeSet.report.changes.some((change) => change.changeType === "MISSING"
+              {legacyCoverage && changeSet.report.changes.some((change) => change.changeType === "MISSING"
                 && decisionDrafts[change.changeId]?.decision === "CONFIRMED") && (
                 <label className="registration-target-select">
                   <input type="checkbox" checked={coverageAcknowledged} onChange={(event) => setCoverageAcknowledged(event.target.checked)} />
@@ -625,7 +757,7 @@ function TwinAssetsPanel({
               </div>
             </>
           )}
-          <p className="muted-copy">{t("assetChangeEnvelopeNotice")}</p>
+          <p className="muted-copy">{t(legacyCoverage ? "assetChangeEnvelopeNotice" : "assetChangeVisibilityNotice")}</p>
         </div>
       )}
       {(formError ?? error) && <p className="registration-error" role="alert">{formError ?? error}</p>}
@@ -639,7 +771,7 @@ function ValidationPanel({ job, loading }: { job: ValidationJob | null; loading:
   return (
     <section className="panel validation-panel">
       <div className="panel-heading compact">
-        <div><p className="section-index">09 / VALIDATE</p><h3>{t("validation")}</h3></div>
+        <div><p className="section-index">10 / VALIDATE</p><h3>{t("validation")}</h3></div>
         {job && <span className={`job-state job-${job.status.toLowerCase()}`}>{job.status}</span>}
       </div>
       {loading ? <div className="skeleton-row" /> : job ? (
@@ -1067,6 +1199,10 @@ function latestSemanticCandidateSet(candidateSets: AssetCandidateSetRecord[]): A
   return [...candidateSets]
     .sort((left, right) => right.report.createdAt.localeCompare(left.report.createdAt)
       || right.report.candidateSetId.localeCompare(left.report.candidateSetId))[0] ?? null;
+}
+
+function latestSensorVisibility(reports: SensorVisibilityRecord[]): SensorVisibilityRecord | null {
+  return [...reports].sort((left, right) => right.report.createdAt.localeCompare(left.report.createdAt))[0] ?? null;
 }
 
 function latestTwinAssetSet(assetSets: DraftTwinAssetSetRecord[]): DraftTwinAssetSetRecord | null {

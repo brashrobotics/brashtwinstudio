@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.brashrobotics.com/twin/sensor-visibility-report.v1.schema.json",
+  "title": "Brash Sensor Visibility Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "visibilityReportId", "draftId", "registrationId", "registrationAcceptance", "observations", "canonicalFrameId", "transformation", "qualification", "evidence", "coverage", "createdBy", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "brash.sensor-visibility-report/v1" },
+    "visibilityReportId": { "$ref": "#/$defs/identifier" },
+    "draftId": { "$ref": "#/$defs/identifier" },
+    "registrationId": { "$ref": "#/$defs/identifier" },
+    "registrationAcceptance": { "$ref": "#/$defs/identity" },
+    "observations": {
+      "type": "object", "additionalProperties": false,
+      "required": ["bindingId", "sha256", "visibilitySetId", "semanticObservationSetId", "sourceFrameId"],
+      "properties": {
+        "bindingId": { "$ref": "#/$defs/identifier" }, "sha256": { "$ref": "#/$defs/sha256" },
+        "visibilitySetId": { "$ref": "#/$defs/identifier" },
+        "semanticObservationSetId": { "$ref": "#/$defs/identifier" },
+        "sourceFrameId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "canonicalFrameId": { "type": "string", "minLength": 1 },
+    "transformation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "version", "transformSha256"],
+      "properties": {
+        "name": { "const": "brash-sensor-visibility-transformer" }, "version": { "const": "1.0.0" },
+        "transformSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "qualification": {
+      "type": "object", "additionalProperties": false,
+      "required": ["outcome", "calibrated", "poseSynchronized", "occlusionAware", "minimumVisibilityConfidence", "requiredMinimumConfidence", "issues"],
+      "properties": {
+        "outcome": { "enum": ["QUALIFIED", "UNQUALIFIED"] },
+        "calibrated": { "type": "boolean" }, "poseSynchronized": { "type": "boolean" }, "occlusionAware": { "type": "boolean" },
+        "minimumVisibilityConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "requiredMinimumConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "issues": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+      }
+    },
+    "evidence": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "$ref": "#/$defs/evidence" } },
+    "coverage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["cellCount", "qualifiedCellCount", "summedCellAreaSquareMeters", "cells"],
+      "properties": {
+        "cellCount": { "type": "integer", "minimum": 1, "maximum": 20000 },
+        "qualifiedCellCount": { "type": "integer", "minimum": 0, "maximum": 20000 },
+        "summedCellAreaSquareMeters": { "type": "number", "exclusiveMinimum": 0 },
+        "cells": {
+          "type": "array", "minItems": 1, "maxItems": 20000,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["cellId", "footprint", "minimumZ", "maximumZ", "visibilityConfidence", "sampleCount", "areaSquareMeters"],
+            "properties": {
+              "cellId": { "$ref": "#/$defs/identifier" },
+              "footprint": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "$ref": "#/$defs/vector2" } },
+              "minimumZ": { "type": "number" }, "maximumZ": { "type": "number" },
+              "visibilityConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+              "sampleCount": { "type": "integer", "minimum": 1 }, "areaSquareMeters": { "type": "number", "exclusiveMinimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "createdBy": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "identifier": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "vector2": { "type": "array", "prefixItems": [{ "type": "number" }, { "type": "number" }], "items": false },
+    "identity": {
+      "type": "object", "additionalProperties": false, "required": ["bindingId", "sha256"],
+      "properties": { "bindingId": { "$ref": "#/$defs/identifier" }, "sha256": { "$ref": "#/$defs/sha256" } }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "bindingId", "artifactSha256"],
+      "properties": {
+        "kind": { "enum": ["CALIBRATION", "SENSOR_POSES", "OCCLUSION_GEOMETRY"] },
+        "bindingId": { "$ref": "#/$defs/identifier" }, "artifactSha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

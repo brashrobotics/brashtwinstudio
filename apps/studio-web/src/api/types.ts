@@ -481,6 +481,62 @@ export interface DraftTwinAssetSetRecord {
   report: DraftTwinAssetSetReport;
 }
 
+export interface SensorVisibilityCell {
+  cellId: string;
+  footprint: Array<[number, number]>;
+  minimumZ: number;
+  maximumZ: number;
+  visibilityConfidence: number;
+  sampleCount: number;
+  areaSquareMeters: number;
+}
+
+export interface SensorVisibilityReport {
+  schemaVersion: "brash.sensor-visibility-report/v1";
+  visibilityReportId: string;
+  draftId: string;
+  registrationId: string;
+  registrationAcceptance: { bindingId: string; sha256: string };
+  observations: {
+    bindingId: string;
+    sha256: string;
+    visibilitySetId: string;
+    semanticObservationSetId: string;
+    sourceFrameId: string;
+  };
+  canonicalFrameId: string;
+  transformation: { name: "brash-sensor-visibility-transformer"; version: "1.0.0"; transformSha256: string };
+  qualification: {
+    outcome: "QUALIFIED" | "UNQUALIFIED";
+    calibrated: boolean;
+    poseSynchronized: boolean;
+    occlusionAware: boolean;
+    minimumVisibilityConfidence: number;
+    requiredMinimumConfidence: number;
+    issues: string[];
+  };
+  evidence: Array<{
+    kind: "CALIBRATION" | "SENSOR_POSES" | "OCCLUSION_GEOMETRY";
+    bindingId: string;
+    artifactSha256: string;
+  }>;
+  coverage: {
+    cellCount: number;
+    qualifiedCellCount: number;
+    summedCellAreaSquareMeters: number;
+    cells: SensorVisibilityCell[];
+  };
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface SensorVisibilityRecord {
+  reportBindingId: string;
+  reportUploadId: string;
+  reportSha256: string;
+  report: SensorVisibilityReport;
+}
+
 export type AssetChangeType = "MOVED" | "MISSING" | "APPEARED";
 
 export interface AssetChange {
@@ -493,23 +549,33 @@ export interface AssetChange {
   fromPosition: [number, number, number] | null;
   toPosition: [number, number, number] | null;
   distanceMeters: number | null;
+  visibilityEvidence?: { cellId: string; confidence: number } | null;
   reviewStatus: "REVIEW_REQUIRED";
 }
 
 export interface AssetChangeSetReport {
-  schemaVersion: "brash.asset-change-report/v1";
+  schemaVersion: "brash.asset-change-report/v1" | "brash.asset-change-report/v2";
   changeSetId: string;
   draftId: string;
   canonicalFrameId: string;
   baseline: { assetSetId: string; revision: number; bindingId: string; sha256: string };
   observations: { candidateSetId: string; bindingId: string; sha256: string };
+  visibility?: { visibilityReportId: string; bindingId: string; sha256: string };
   policy: {
     matchingAlgorithm: "CLASS_NEAREST_NEIGHBOR";
     maximumMatchDistanceMeters: number;
-    coverageMode: "OBSERVED_ENVELOPE";
-    coveragePaddingMeters: number;
+    coverageMode: "OBSERVED_ENVELOPE" | "CALIBRATED_SENSOR_VISIBILITY";
+    coveragePaddingMeters?: number;
+    minimumVisibilityConfidence?: number;
   };
-  coverage: { minimum: [number, number, number]; maximum: [number, number, number]; baselineAssetsEvaluated: number };
+  coverage: {
+    minimum?: [number, number, number];
+    maximum?: [number, number, number];
+    qualificationOutcome?: "QUALIFIED" | "UNQUALIFIED";
+    cellCount?: number;
+    baselineAssetsEvaluated: number;
+    baselineAssetsOutsideVisibility?: number;
+  };
   summary: {
     movedCount: number;
     missingCount: number;
@@ -562,7 +628,7 @@ export interface AssetChangeReviewRecord {
 
 export interface ReviewAssetChangesInput {
   reviewerId: string;
-  coverageQualificationAcknowledged: boolean;
+  coverageQualificationAcknowledged?: boolean;
   note?: string;
   decisions: Array<{
     changeId: string;

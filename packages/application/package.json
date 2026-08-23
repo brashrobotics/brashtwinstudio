@@ -11,6 +11,7 @@
     "./survey-materializations": "./survey-materializations.js",
     "./survey-quality-reviews": "./survey-quality-reviews.js",
     "./semantic-candidates": "./semantic-candidates.js",
+    "./sensor-visibility": "./sensor-visibility.js",
     "./twin-assets": "./twin-assets.js",
     "./survey-registrations": "./survey-registrations.js",
     "./uploads": "./uploads.js",

@@ -60,6 +60,16 @@ The schemas in this directory define Twin Studio file and integration boundaries
 - `asset-change-report.v1.schema.json`: Later-observation comparison against one
   asset baseline, including bounded coverage and review-required moved, missing,
   and appeared candidates.
+- `sensor-visibility-observations.v1.schema.json`: Externally produced bounded
+  source-frame coverage cells correlated to one semantic observation set, with
+  calibrated sensor, synchronized pose, occlusion, producer, and input
+  provenance assertions.
+- `sensor-visibility-report.v1.schema.json`: Immutable canonical-frame
+  visibility cells, qualification outcome, policy threshold, approved
+  registration identity, and exact calibration/pose/occlusion evidence.
+- `asset-change-report.v2.schema.json`: Backward-readable change comparison that
+  requires one correlated sensor-visibility report and attaches qualifying cell
+  evidence to every `MISSING` result.
 - `asset-change-review.v1.schema.json`: Immutable independent confirmation or
   dismissal for every detected change, appeared-asset metadata, summary, and
   explicit acknowledgement of approximate missing coverage.

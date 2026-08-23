@@ -122,6 +122,8 @@ async function main() {
       materializationJobId: materialization.job.jobId,
       previewBindingId: materialization.job.output.previewBindingId,
       qualityReviewId: "grandtour-eth2-quality",
+      sensorVisibilityEligible: false,
+      sensorVisibilityReason: "The pinned subset has no calibrated sensor model or synchronized raw sensor observations, so it cannot produce calibrated MISSING evidence.",
       summary: exported.summary,
       studioUrl: "http://127.0.0.1:4390/",
     }, null, 2));

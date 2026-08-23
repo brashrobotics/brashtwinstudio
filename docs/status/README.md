@@ -1,16 +1,16 @@
 # Implementation Status
 
-Last updated: August 15, 2026
+Last updated: August 23, 2026
 
 ## Active phase
 
-Phase 2 — Survey review and semantic evidence.
+Phase 4 — Change detection and notification.
 
 ## Completed
 
 - Independent Node.js workspace and local package linking
 - Repository syntax and JSON quality checks
-- Twenty-nine published versioned JSON Schemas
+- Thirty-two published versioned JSON Schemas
 - Coordinate-frame graph and 3D transform mathematics
 - `MapDraft -> review -> validated -> immutable release` domain flow
 - Twin Map Bundle semantic and integrity validator
@@ -21,7 +21,7 @@ Phase 2 — Survey review and semantic evidence.
 - Symlink artifact protection
 - SHA-256 content-addressed local artifact store with deduplication
 - Immutable store preventing reuse of a release identity
-- Seventeen forward-only PostgreSQL metadata migrations
+- Eighteen forward-only PostgreSQL metadata migrations
 - Database-level immutability triggers for release records
 - In-memory catalog repository adapter
 - Driver-independent PostgreSQL repository adapter using parameterized SQL
@@ -265,17 +265,32 @@ Phase 2 — Survey review and semantic evidence.
 - Studio change-review controls, revision application, dismissed-marker hiding,
   and applied 2D/3D asset geometry
 - PostgreSQL migration 017 and managed API protection for change-review evidence
+- Versioned bounded sensor-visibility observations correlated to one semantic
+  observation set, with distinct calibration, synchronized pose, occlusion
+  geometry, producer, and same-draft input provenance
+- Immutable canonical sensor-visibility reports derived through a passed,
+  independently approved registration with a production confidence floor
+- Asset-change report v2 requiring matching visibility and semantic observation
+  identities, suppressing `MISSING` outside qualified cells, and sealing the
+  qualifying cell ID/confidence with each missing result
+- Studio visibility qualification, evidence summary, repeated-scan report
+  creation, matching-evidence selection, and canonical 2D/3D coverage overlay
+- PostgreSQL migration 018 and managed API protection for visibility reports
+- GrandTour selection reverified at 290,764,702 bytes and explicitly marked
+  ineligible for calibrated visibility instead of fabricating line-of-sight or
+  `MISSING` evidence
 
 ## Next development increment
 
-Phase 2 continues with production-grade visibility and notification delivery:
+Phase 4 continues with durable manager notification delivery:
 
-1. Add an explicit sensor visibility/coverage contract derived from calibrated
-   camera/LiDAR poses instead of relying on the observed-envelope heuristic.
-2. Permit production `MISSING` alerts only when that sealed visibility evidence
-   proves the asset location was observed with sufficient quality.
-3. Add a notification adapter that consumes `TwinAssetChangesApplied.v1` with
+1. Add a notification adapter that consumes `TwinAssetChangesApplied.v1` with
    retry, delivery evidence, and manager routing without coupling it to Fleet Control.
+2. Expose notification attempts, terminal delivery state, and operator-visible
+   failures without turning message delivery into a prerequisite for committing
+   a reviewed Twin asset revision.
+3. Add deterministic adapter tests for routing, retry, idempotency, and redacted
+   payloads before connecting any external email or messaging provider.
 
 ## Deliberately deferred
 
@@ -292,10 +307,10 @@ lifecycle are stable.
 
 ```text
 npm run check
-syntax/json: 270 files passed
-backend tests: 120 total, 117 passed, 3 conditionally skipped, 0 failed
-web tests: 44/44 passed with strict TypeScript and production build
-latest migration contract: schema version 17; last live PostgreSQL 16 gate passed with schema version 12
+syntax/json: 278 files passed
+backend tests: 125 total, 122 passed, 3 conditionally skipped, 0 failed
+web tests: 45/45 passed with strict TypeScript and production build
+latest migration contract: schema version 18; last live PostgreSQL 16 gate passed with schema version 12
 live GrandTour ETH-2 SHA-256/preview gate: passed against the 290,764,702-byte base selection
 ConSLAM/IfcOpenShell gate: last passed August 13, 2026 and remains opt-in
 fixture: demo-plant@1 valid
@@ -320,6 +335,7 @@ survey registration: explicit design-target lineage, report v2 quality policy, i
 survey quality: deterministic coverage/trajectory/frame/reconstruction evidence, immutable independent review, registration gate, and 2D/3D coverage-layer QA verified
 semantic candidates: approved-registration transform, immutable operator decisions, HTTP lifecycle, and 2D/3D Assets-layer tests verified
 twin asset changes: independent review, qualification acknowledgement, stable-identity v2 application, atomic outbox rollback, HTTP lifecycle, and 2D/3D marker behavior verified
+sensor visibility: calibrated/pose/occlusion provenance, canonical transformation, qualification, correlated v2 missing gate, HTTP lifecycle, and 2D/3D coverage overlay verified
 dataset: ConSLAM IFC/GT checksum, geometry and trajectory validation verified
 GrandTour: pinned SHA-256, safe Zarr/PLY bounds, real trajectory/TF/map metrics, raw outlier disclosure, and focused plan preview verified
 GrandTour seed: real 290,764,702-byte selection imported into a live Twin API and materialized as a 22.4 x 80.5 m Studio showcase

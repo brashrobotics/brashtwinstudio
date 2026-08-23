@@ -25,6 +25,7 @@ test("metadata migrations are ordered, transactional, and forward-only", async (
     "015_semantic_asset_candidates.sql",
     "016_twin_asset_promotion_changes.sql",
     "017_asset_change_review.sql",
+    "018_sensor_visibility_evidence.sql",
   ]);
 
   for (const file of files) {
@@ -33,6 +34,14 @@ test("metadata migrations are ordered, transactional, and forward-only", async (
     assert.match(sql, /COMMIT;\s*$/);
     assert.doesNotMatch(sql, /\b(?:DROP\s+TABLE|TRUNCATE|DELETE\s+FROM)\b/i);
   }
+});
+
+test("calibrated sensor visibility extends immutable spatial provenance", async () => {
+  const sql = await readFile(`${migrationDirectory}/018_sensor_visibility_evidence.sql`, "utf8");
+  assert.match(sql, /'SENSOR_VISIBILITY_OBSERVATIONS'/);
+  assert.match(sql, /'SENSOR_VISIBILITY_REPORT'/);
+  assert.match(sql, /artifact_kind = 'DERIVED'/);
+  assert.match(sql, /twin_draft_artifacts_spatial_frame_check/);
 });
 
 test("asset change reviews are protected as immutable derived provenance", async () => {

@@ -20,6 +20,7 @@ import type {
   DraftTwinAssetSetRecord,
   AssetChangeSetRecord,
   AssetChangeReviewRecord,
+  SensorVisibilityRecord,
   ReviewAssetChangesInput,
   TwinApiErrorBody,
   ValidationJob,
@@ -55,10 +56,12 @@ export interface TwinApiClient {
   listSemanticCandidateSets(draftId: string, signal?: AbortSignal): Promise<AssetCandidateSetRecord[]>;
   createSemanticCandidateSet(draftId: string, input: { registrationId: string; observationBindingId: string; operatorId: string }, signal?: AbortSignal): Promise<AssetCandidateSetRecord>;
   reviewSemanticCandidateSet(draftId: string, candidateSetId: string, input: ReviewAssetCandidateSetInput, signal?: AbortSignal): Promise<AssetCandidateReviewRecord>;
+  listSensorVisibilityReports(draftId: string, signal?: AbortSignal): Promise<SensorVisibilityRecord[]>;
+  createSensorVisibilityReport(draftId: string, input: { registrationId: string; observationBindingId: string; operatorId: string }, signal?: AbortSignal): Promise<SensorVisibilityRecord>;
   listDraftTwinAssetSets(draftId: string, signal?: AbortSignal): Promise<DraftTwinAssetSetRecord[]>;
   promoteDraftTwinAssets(draftId: string, input: { candidateSetId: string; operatorId: string }, signal?: AbortSignal): Promise<DraftTwinAssetSetRecord>;
   listDraftAssetChangeSets(draftId: string, signal?: AbortSignal): Promise<AssetChangeSetRecord[]>;
-  detectDraftAssetChanges(draftId: string, input: { candidateSetId: string; operatorId: string }, signal?: AbortSignal): Promise<AssetChangeSetRecord>;
+  detectDraftAssetChanges(draftId: string, input: { candidateSetId: string; visibilityReportId: string; operatorId: string }, signal?: AbortSignal): Promise<AssetChangeSetRecord>;
   reviewDraftAssetChanges(draftId: string, changeSetId: string, input: ReviewAssetChangesInput, signal?: AbortSignal): Promise<AssetChangeReviewRecord>;
   applyDraftAssetChanges(draftId: string, changeSetId: string, input: { operatorId: string }, signal?: AbortSignal): Promise<DraftTwinAssetSetRecord>;
   listReleases(signal?: AbortSignal): Promise<ReleaseManifest[]>;
@@ -205,6 +208,19 @@ export function createTwinApiClient({
         { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) },
       )
     ).review,
+    listSensorVisibilityReports: async (draftId, signal) => (
+      await request<{ visibilityReports: SensorVisibilityRecord[] }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/sensor-visibility`,
+        signal,
+      )
+    ).visibilityReports,
+    createSensorVisibilityReport: async (draftId, input, signal) => (
+      await request<{ visibilityReport: SensorVisibilityRecord }>(
+        `/api/v1/map-drafts/${encodeURIComponent(draftId)}/sensor-visibility`,
+        signal,
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) },
+      )
+    ).visibilityReport,
     listDraftTwinAssetSets: async (draftId, signal) => (
       await request<{ assetSets: DraftTwinAssetSetRecord[] }>(
         `/api/v1/map-drafts/${encodeURIComponent(draftId)}/twin-assets`,

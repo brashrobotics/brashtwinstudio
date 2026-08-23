@@ -521,6 +521,34 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/Conflict"
+  /api/v1/map-drafts/{draftId}/sensor-visibility:
+    parameters:
+      - $ref: "#/components/parameters/DraftId"
+    get:
+      operationId: listSensorVisibilityReports
+      responses:
+        "200":
+          description: Immutable canonical visibility reports and their qualification evidence.
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createSensorVisibilityReport
+      description: Transforms calibrated source-frame visibility cells through an approved registration and seals qualification evidence.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSensorVisibilityReport"
+      responses:
+        "201":
+          description: Immutable canonical visibility report created.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /api/v1/map-drafts/{draftId}/twin-assets:
     parameters:
       - $ref: "#/components/parameters/DraftId"
@@ -1142,6 +1170,20 @@ components:
         note:
           type: string
           maxLength: 2000
+    CreateSensorVisibilityReport:
+      type: object
+      additionalProperties: false
+      required: [registrationId, observationBindingId, operatorId]
+      properties:
+        visibilityReportId:
+          $ref: "#/components/schemas/Identifier"
+        registrationId:
+          $ref: "#/components/schemas/Identifier"
+        observationBindingId:
+          $ref: "#/components/schemas/Identifier"
+        operatorId:
+          type: string
+          minLength: 1
     PromoteDraftTwinAssets:
       type: object
       additionalProperties: false
@@ -1157,11 +1199,13 @@ components:
     DetectDraftAssetChanges:
       type: object
       additionalProperties: false
-      required: [candidateSetId, operatorId]
+      required: [candidateSetId, visibilityReportId, operatorId]
       properties:
         changeSetId:
           $ref: "#/components/schemas/Identifier"
         candidateSetId:
+          $ref: "#/components/schemas/Identifier"
+        visibilityReportId:
           $ref: "#/components/schemas/Identifier"
         operatorId:
           type: string
@@ -1232,6 +1276,8 @@ components:
         - SURVEY_QUALITY_REPORT
         - SURVEY_QUALITY_ACCEPTANCE
         - SEMANTIC_OBSERVATIONS
+        - SENSOR_VISIBILITY_OBSERVATIONS
+        - SENSOR_VISIBILITY_REPORT
         - ASSET_CANDIDATE_REPORT
         - ASSET_CANDIDATE_REVIEW
         - TWIN_ASSETS
@@ -1257,6 +1303,7 @@ components:
         - CALIBRATION_SOURCE
         - SURVEY_SOURCE
         - SEMANTIC_OBSERVATIONS
+        - SENSOR_VISIBILITY_OBSERVATIONS
         - REGISTERED_POINT_CLOUD
         - RECONSTRUCTED_MESH
         - OCCUPANCY

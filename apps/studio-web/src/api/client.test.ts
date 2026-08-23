@@ -174,7 +174,11 @@ describe("Twin API client", () => {
     const promoteInput = { candidateSetId: "candidates-2", operatorId: "curator-1" };
     expect((await api.promoteDraftTwinAssets("draft / 1", promoteInput)).report.assetSetId).toBe("assets-2");
     expect((await api.listDraftAssetChangeSets("draft / 1"))[0]?.report.changeSetId).toBe("changes-1");
-    const detectInput = { candidateSetId: "candidates-3", operatorId: "worker-1" };
+    const detectInput = {
+      candidateSetId: "candidates-3",
+      visibilityReportId: "visibility-report-1",
+      operatorId: "worker-1",
+    };
     expect((await api.detectDraftAssetChanges("draft / 1", detectInput)).report.summary.movedCount).toBe(1);
     const reviewInput = {
       reviewerId: "reviewer-1",

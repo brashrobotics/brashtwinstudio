@@ -84,8 +84,15 @@ The operator interface for mapping and digital-twin workflows.
 - Explicit accepted-candidate promotion into predecessor-linked Twin asset
   revisions, rendered as canonical 2D/3D asset geometry.
 - Later-observation comparison controls and moved/missing/appeared summaries;
-  an independent operator confirms or dismisses every change, and approximate
-  missing-envelope evidence requires a visible acknowledgement.
+  an independent operator confirms or dismisses every change. Legacy reports
+  retain their approximate-envelope acknowledgement.
+- Sensor-visibility report creation from each unprocessed robot visibility
+  observation, with qualification, evidence kinds, covered area, issues, and a
+  dedicated toggleable canonical 2D/3D Sensor visibility layer.
+- Change detection selects only visibility evidence whose registration
+  acceptance and semantic observation-set identity match the candidate scan.
+  Production `MISSING` results display calibrated visibility qualification and
+  never rely on the legacy observed-envelope heuristic.
 - Confirmed moves, missing assets, and appeared assets can be applied as the
   next immutable Twin asset revision. Dismissed markers disappear, and markers
   for an applied change set yield to the revised 2D/3D asset geometry.

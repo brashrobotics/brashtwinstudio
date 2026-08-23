@@ -21,7 +21,11 @@ coordinate frames, navigation topology, twin assets, scene manifest, Fleet live
 overlay, embodied survey transfer/ingest evidence, and deterministic
 draft-validation reports, semantic observations, canonical asset candidates,
 immutable candidate review, draft Twin asset revisions, and review-required
-asset-change reports. Draft Twin assets v2 adds change-application provenance
+asset-change reports. Sensor visibility observations and reports bind calibrated
+sensor poses, calibration, occlusion geometry, canonical coverage cells, and a
+correlated semantic observation set. Asset-change report v2 gates `MISSING`
+evidence on that sealed visibility identity while retaining the legacy v1
+reader contract. Draft Twin assets v2 adds change-application provenance
 while retaining the v1 promotion contract, and asset-change review v1 seals
 independent operator decisions. Survey materialization preview v2 adds a
 bounded operational-plan projection without removing the immutable v1 reader

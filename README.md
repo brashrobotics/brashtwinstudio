@@ -22,6 +22,8 @@ This project is responsible for:
   to assets.
 - Comparing new observations against a published baseline to create change
   candidates.
+- Qualifying missing-asset evidence against calibrated sensor poses and
+  occlusion-aware visibility cells from the same robot processing run.
 - Publishing immutable, versioned `Twin Map Bundle` artifacts for Fleet Control.
 
 This project is not responsible for:
@@ -171,6 +173,10 @@ The first Phase 0 increment is implemented:
   stable identities, while the asset binding and `TwinAssetChangesApplied.v1`
   notification outbox event commit atomically. Approximate missing evidence
   requires explicit reviewer acknowledgement.
+- Calibrated sensor-visibility observations now become immutable canonical
+  coverage reports tied to one approved registration and semantic observation
+  set. Asset-change report v2 emits `MISSING` only inside qualified cells and
+  preserves the cell ID and confidence as review evidence.
 - A compact local demo seed that exercises upload, intake, verification,
   materialization, artifact lineage, registration, semantic review, asset
   promotion, change review, and confirmed revision application without
@@ -179,6 +185,9 @@ The first Phase 0 increment is implemented:
   all 4,305 DLIO poses to the standard TUM boundary, preserves the original
   17-million-point PLY as source evidence, and opens it as a separate Studio
   draft without claiming a CAD registration.
+  The bounded subset is explicitly marked ineligible for calibrated visibility
+  because it lacks synchronized raw sensor observations; it never invents
+  `MISSING` evidence.
 
 Run the local quality gate:
 

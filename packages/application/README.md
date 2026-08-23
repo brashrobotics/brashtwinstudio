@@ -57,15 +57,29 @@ observation into the canonical draft frame. Its candidate report remains
 separate from the immutable operator review; accepted names, types, and scalar
 properties are review evidence and are not promoted to Twin assets yet.
 
+`sensor-visibility.js` reads bounded `SENSOR_VISIBILITY_OBSERVATIONS` produced
+outside Twin Studio from calibrated sensor poses and occlusion geometry. It
+requires a passed, independently approved registration, verifies the exact
+calibration/pose/occlusion input lineage and producer identity, transforms the
+coverage cells into the draft canonical frame, and stores an immutable
+`SENSOR_VISIBILITY_REPORT`. A report is production-qualified only when all
+three evidence assertions are true, its confidence policy is at least `0.8`,
+and at least one cell meets that policy. The report is correlated to the
+semantic observation-set identity from the same robot processing run.
+
 `twin-assets.js` performs that promotion only through an explicit command over
 sealed candidate-report and candidate-review identities. Every promotion writes
 a new immutable `TWIN_ASSETS` revision and links its predecessor instead of
 editing an existing catalog. The same service compares a later canonical
 candidate report with the latest baseline, emitting review-required `MOVED`,
 `MISSING`, and `APPEARED` evidence. Missing detection is deliberately bounded to
-the observed spatial envelope and requires an explicit qualification
-acknowledgement before a reviewer may confirm it. The detector and reviewer must
-be different operators, and every detected change receives exactly one sealed
+the qualified cells of a sealed visibility report from the same approved
+registration and semantic observation set. Assets outside those cells, or all
+assets under an unqualified report, cannot become `MISSING`. Each emitted
+missing change carries its cell ID and visibility confidence. Legacy v1 change
+reports retain the explicit approximate-envelope acknowledgement, while v2
+reports no longer rely on that heuristic. The detector and reviewer must be
+different operators, and every detected change receives exactly one sealed
 confirmation or dismissal.
 Candidate sets already used by change detection are blocked from direct
 promotion so a moved observation cannot silently become a duplicate asset.

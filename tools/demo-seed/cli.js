@@ -97,7 +97,7 @@ if (!registration.acceptance) {
     { decision: "APPROVED", reviewerId: "demo-registration-reviewer" },
   );
 }
-await ensureSemanticCandidates(materialization.job.output);
+await ensureSemanticCandidates(materialization.job.output, sources);
 
 async function ensureRegistrationTarget() {
   const content = await readFile(resolve("tests/fixtures/floorplans/demo-floorplan.svg"));
@@ -113,7 +113,7 @@ async function ensureRegistrationTarget() {
   });
 }
 
-async function ensureSemanticCandidates(materializationOutput) {
+async function ensureSemanticCandidates(materializationOutput, surveySources) {
   const model = {
     name: "brash-demo-semantic-fixture",
     version: "1.0.0",
@@ -186,15 +186,17 @@ async function ensureSemanticCandidates(materializationOutput) {
       "/api/v1/map-drafts/demo-draft-1/semantic-candidates/demo-candidate-set-1/review",
       {
         reviewerId: "demo-asset-reviewer",
-        decisions: baselineCandidates.report.candidates.map((candidate) => (
-          candidate.sourceObservationId === "electrical-panel-1" ? {
+        decisions: baselineCandidates.report.candidates.map((candidate) => ({
             candidateId: candidate.candidateId,
             decision: "ACCEPTED",
-            displayName: "Main Electrical Panel",
-            assetType: "electrical-panel",
-            properties: { voltage: 400, critical: true },
-          } : { candidateId: candidate.candidateId, decision: "REJECTED" }
-        )),
+            displayName: candidate.sourceObservationId === "electrical-panel-1"
+              ? "Main Electrical Panel"
+              : "Packing Line Conveyor",
+            assetType: candidate.suggestedClass,
+            properties: candidate.sourceObservationId === "electrical-panel-1"
+              ? { voltage: 400, critical: true }
+              : { line: "packing", critical: false },
+          })),
       },
     );
   }
@@ -259,11 +261,13 @@ async function ensureSemanticCandidates(materializationOutput) {
       operatorId: "demo-semantic-operator",
     });
   }
+  await ensureVisibilityReport(materializationOutput, surveySources);
   const changeSets = await request("GET", "/api/v1/map-drafts/demo-draft-1/asset-changes");
   if (!changeSets.changeSets.some(({ report }) => report.changeSetId === "demo-change-set-1")) {
     await request("POST", "/api/v1/map-drafts/demo-draft-1/asset-changes", {
       changeSetId: "demo-change-set-1",
       candidateSetId: "demo-candidate-set-2",
+      visibilityReportId: "demo-visibility-report-1",
       operatorId: "demo-change-worker",
     });
   }
@@ -298,6 +302,76 @@ async function ensureSemanticCandidates(materializationOutput) {
   }
 }
 
+async function ensureVisibilityReport(materializationOutput, surveySources) {
+  const artifacts = await request("GET", "/api/v1/map-drafts/demo-draft-1/artifacts");
+  const evidenceSpecs = [
+    ["CALIBRATION", "CALIBRATION"],
+    ["SENSOR_POSES", "TRAJECTORY"],
+    ["OCCLUSION_GEOMETRY", "POINT_CLOUD_MAP"],
+  ];
+  const evidence = evidenceSpecs.map(([kind, role]) => {
+    const source = surveySources.find((candidate) => candidate.role === role);
+    const binding = artifacts.artifacts.find((candidate) => (
+      candidate.role === "SURVEY_SOURCE" && candidate.artifactSha256 === source?.sha256
+    ));
+    if (!source || !binding) throw new Error(`Demo visibility evidence ${role} is unavailable.`);
+    return { kind, bindingId: binding.bindingId, artifactSha256: binding.artifactSha256 };
+  });
+  const model = {
+    name: "brash-demo-visibility-fixture",
+    version: "1.0.0",
+    parametersSha256: "6".repeat(64),
+  };
+  const observations = Buffer.from(`${JSON.stringify({
+    schemaVersion: "brash.sensor-visibility-observations/v1",
+    visibilitySetId: "demo-visibility-set-1",
+    semanticObservationSetId: "demo-observations-2",
+    sourceFrameId: materializationOutput.sourceFrameId,
+    model,
+    coverageModel: {
+      method: "CALIBRATED_SENSOR_VISIBILITY_GRID",
+      calibrated: true,
+      poseSynchronized: true,
+      occlusionAware: true,
+      minimumVisibilityConfidence: 0.9,
+    },
+    evidence,
+    cells: [{
+      cellId: "assembly-cell-1",
+      minimum: [-4, -3, -0.5],
+      maximum: [4, 3, 2.5],
+      visibilityConfidence: 0.95,
+      sampleCount: 128,
+    }],
+  }, null, 2)}\n`);
+  await upload(
+    "demo-visibility-observations",
+    observations,
+    "application/json",
+    "demo-visibility-observations.json",
+  );
+  if (!artifacts.artifacts.some(({ bindingId }) => bindingId === "demo-visibility-observations")) {
+    await request("POST", "/api/v1/map-drafts/demo-draft-1/artifacts", {
+      bindingId: "demo-visibility-observations",
+      uploadId: "demo-visibility-observations",
+      role: "SENSOR_VISIBILITY_OBSERVATIONS",
+      coordinateFrameId: materializationOutput.sourceFrameId,
+      inputBindingIds: evidence.map((item) => item.bindingId),
+      producer: model,
+      operatorId: "demo-visibility-worker",
+    });
+  }
+  const reports = await request("GET", "/api/v1/map-drafts/demo-draft-1/sensor-visibility");
+  if (!reports.visibilityReports.some(({ report }) => report.visibilityReportId === "demo-visibility-report-1")) {
+    await request("POST", "/api/v1/map-drafts/demo-draft-1/sensor-visibility", {
+      visibilityReportId: "demo-visibility-report-1",
+      registrationId: "demo-registration-1",
+      observationBindingId: "demo-visibility-observations",
+      operatorId: "demo-visibility-operator",
+    });
+  }
+}
+
 console.log(JSON.stringify({
   siteId: "demo-site",
   draftId: "demo-draft-1",
@@ -308,6 +382,7 @@ console.log(JSON.stringify({
   candidateSetId: "demo-candidate-set-1",
   assetSetId: "demo-asset-set-1",
   changeCandidateSetId: "demo-candidate-set-2",
+  visibilityReportId: "demo-visibility-report-1",
   changeSetId: "demo-change-set-1",
   changeReviewId: "demo-change-review-1",
   appliedAssetSetId: "demo-asset-set-2",

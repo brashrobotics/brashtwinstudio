@@ -43,6 +43,7 @@ must not run in it.
 - `POST /api/v1/map-drafts/:draftId/survey-registrations/:registrationId/acceptance`
 - `GET|POST /api/v1/map-drafts/:draftId/semantic-candidates`
 - `POST /api/v1/map-drafts/:draftId/semantic-candidates/:candidateSetId/review`
+- `GET|POST /api/v1/map-drafts/:draftId/sensor-visibility`
 - `GET|POST /api/v1/map-drafts/:draftId/twin-assets`
 - `GET|POST /api/v1/map-drafts/:draftId/asset-changes`
 - `POST /api/v1/map-drafts/:draftId/asset-changes/:changeSetId/review`
@@ -60,7 +61,7 @@ must not run in it.
 The generic artifact binding endpoint accepts source data and externally
 produced map derivatives. Workflow evidence roles such as survey previews,
 quality decisions, registration decisions, semantic candidate reports/reviews,
-Twin asset revisions, change reports/reviews, and validation reports are
+sensor visibility reports, Twin asset revisions, change reports/reviews, and validation reports are
 system-managed and can only be created by their dedicated application
 workflows. This prevents clients from forging evidence used by later gates.
 
@@ -69,10 +70,19 @@ derived artifact: it must name same-draft camera/LiDAR/survey inputs and carry a
 model producer/configuration identity. The semantic-candidate workflow verifies
 those inputs and an approved registration before emitting canonical candidates.
 Review records operator decisions but does not create permanent Twin assets.
+`SENSOR_VISIBILITY_OBSERVATIONS` is the companion externally produced artifact
+for the same processing run. It must bind distinct calibration, synchronized
+sensor-pose, and occlusion-geometry evidence. The dedicated endpoint verifies
+those inputs and the approved registration, transforms bounded coverage cells
+into the canonical frame, and stores a system-managed qualification report.
 The dedicated promotion command creates a new immutable draft asset revision
 from accepted decisions. Change detection reads a later approved-registration
 candidate report, compares it with the latest revision, and emits only
-review-required evidence; it never edits that baseline. Change application uses
+review-required evidence; it never edits that baseline. The detection command
+requires the visibility report ID and rejects evidence from a different
+registration or semantic observation set. `MISSING` is emitted only for a
+baseline asset inside a qualified cell at the sealed confidence threshold;
+unqualified or out-of-cell coverage suppresses it. Change application uses
 the same database transaction for the new `TWIN_ASSETS` binding and its
 `TwinAssetChangesApplied.v1` outbox event. The API never applies unreviewed or
 dismissed detections.

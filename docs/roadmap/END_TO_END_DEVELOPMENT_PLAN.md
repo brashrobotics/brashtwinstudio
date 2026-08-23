@@ -1727,6 +1727,29 @@ streaming plan projection, backward-readable v1 UI types, deterministic adapter
 and viewer tests, and a live 17,388,758-point ETH-2 import produce a 22.4 x 80.5 m
 operator view with 0.70 m resolution and the complete 210.6 m ANYmal route.
 
+### Increment 24 — Calibrated sensor visibility and production missing gate
+
+- Accept bounded sensor-visibility observations only with distinct calibration,
+  synchronized sensor-pose, and occlusion-geometry input provenance
+- Correlate each visibility input to the semantic observation-set identity from
+  the same external robot processing run
+- Transform source-frame coverage cells through one passed, independently
+  approved registration and seal the canonical result as immutable evidence
+- Qualify production coverage only when calibration, time synchronization,
+  occlusion modeling, confidence policy, and qualified cells all pass
+- Require the matching visibility report for change detection and emit
+  `MISSING` only for assets inside a qualified cell, preserving cell identity
+  and confidence in asset-change report v2
+- Render qualification and canonical cells in Studio while retaining legacy v1
+  change-report reading and leaving robot-side SLAM outside this repository
+
+**Status:** Completed on August 23, 2026. JSON Schemas, OpenAPI, PostgreSQL
+migration 018, application/API/Studio boundaries, deterministic integration and
+HTTP tests, and the local factory demo cover the full visibility-to-reviewed
+revision flow. The pinned GrandTour subset is explicitly ineligible because it
+lacks the calibrated synchronized raw sensor evidence required for line-of-sight
+and occlusion claims; no coverage or `MISSING` evidence is fabricated.
+
 ---
 
 ## 30. Karar kapıları
@@ -1791,6 +1814,5 @@ olması bundle/live-overlay demo ölçümünden sonra kararlaştırılır.
 - Kabul ölçütü sessizce gevşetilmez; waiver açık audit kararıdır.
 - Fleet Control entegrasyon kapsamı yalnız ortak contract kararıyla genişletilir.
 
-The next active work adds calibrated sensor visibility evidence for production
-missing-asset decisions, then connects applied critical changes to a durable
+The next active work connects applied critical changes to a durable
 manager-notification adapter without coupling Twin Studio to Fleet Control.

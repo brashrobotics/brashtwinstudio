@@ -6,6 +6,7 @@ import { SurveyIntakeError } from "@brash-twin/application/survey-intakes";
 import { SurveyMaterializationError } from "@brash-twin/application/survey-materializations";
 import { SurveyQualityReviewError } from "@brash-twin/application/survey-quality-reviews";
 import { SemanticCandidateError } from "@brash-twin/application/semantic-candidates";
+import { SensorVisibilityError } from "@brash-twin/application/sensor-visibility";
 import { TwinAssetError } from "@brash-twin/application/twin-assets";
 import { SurveyRegistrationError } from "@brash-twin/application/survey-registrations";
 import { ArtifactStoreError } from "@brash-twin/artifact-store";
@@ -18,6 +19,7 @@ const MANAGED_ARTIFACT_ROLES = new Set([
   "REGISTRATION_ACCEPTANCE",
   "ASSET_CANDIDATE_REPORT",
   "ASSET_CANDIDATE_REVIEW",
+  "SENSOR_VISIBILITY_REPORT",
   "TWIN_ASSETS",
   "ASSET_CHANGE_REPORT",
   "ASSET_CHANGE_REVIEW",
@@ -33,6 +35,7 @@ export class TwinApi {
   #surveyQualityReviews;
   #surveyRegistrations;
   #semanticCandidates;
+  #sensorVisibility;
   #twinAssets;
   #validationJobs;
   #releaseStore;
@@ -47,6 +50,7 @@ export class TwinApi {
     surveyQualityReviews,
     surveyRegistrations,
     semanticCandidates,
+    sensorVisibility,
     twinAssets,
     validationJobs,
     releaseStore,
@@ -60,6 +64,7 @@ export class TwinApi {
     if (!surveyQualityReviews) throw new TypeError("Survey quality review service is required.");
     if (!surveyRegistrations) throw new TypeError("Survey registration service is required.");
     if (!semanticCandidates) throw new TypeError("Semantic candidate service is required.");
+    if (!sensorVisibility) throw new TypeError("Sensor visibility service is required.");
     if (!twinAssets) throw new TypeError("Twin asset service is required.");
     if (!validationJobs) throw new TypeError("Validation job service is required.");
     if (!releaseStore) throw new TypeError("Release store is required.");
@@ -72,6 +77,7 @@ export class TwinApi {
     this.#surveyQualityReviews = surveyQualityReviews;
     this.#surveyRegistrations = surveyRegistrations;
     this.#semanticCandidates = semanticCandidates;
+    this.#sensorVisibility = sensorVisibility;
     this.#twinAssets = twinAssets;
     this.#validationJobs = validationJobs;
     this.#releaseStore = releaseStore;
@@ -327,6 +333,22 @@ export class TwinApi {
       return response(201, { review });
     }
 
+    const sensorVisibilityMatch = pathname.match(
+      /^\/api\/v1\/map-drafts\/([^/]+)\/sensor-visibility$/,
+    );
+    if (sensorVisibilityMatch) {
+      const draftId = segment(sensorVisibilityMatch[1]);
+      if (method === "GET") {
+        return response(200, { visibilityReports: await this.#sensorVisibility.list(draftId) });
+      }
+      if (method === "POST") {
+        const visibilityReport = await this.#sensorVisibility.create(draftId, objectBody(body, [
+          "visibilityReportId", "registrationId", "observationBindingId", "operatorId",
+        ]));
+        return response(201, { visibilityReport });
+      }
+    }
+
     const twinAssetsMatch = pathname.match(/^\/api\/v1\/map-drafts\/([^/]+)\/twin-assets$/);
     if (twinAssetsMatch) {
       const draftId = segment(twinAssetsMatch[1]);
@@ -347,7 +369,7 @@ export class TwinApi {
       if (method === "POST") {
         const changeSet = await this.#twinAssets.detectChanges(
           draftId,
-          objectBody(body, ["changeSetId", "candidateSetId", "operatorId"]),
+          objectBody(body, ["changeSetId", "candidateSetId", "visibilityReportId", "operatorId"]),
         );
         return response(201, { changeSet });
       }
@@ -583,6 +605,11 @@ function errorResponse(error) {
       error: { code: error.code, message: error.message },
     });
   }
+  if (error instanceof SensorVisibilityError) {
+    return response(statusForSensorVisibilityError(error.code), {
+      error: { code: error.code, message: error.message },
+    });
+  }
   if (error instanceof TwinAssetError) {
     return response(statusForTwinAssetError(error.code), {
       error: { code: error.code, message: error.message },
@@ -728,8 +755,23 @@ function statusForSemanticCandidateError(code) {
   return 400;
 }
 
+function statusForSensorVisibilityError(code) {
+  if (code === "SENSOR_VISIBILITY_OBSERVATIONS_NOT_FOUND") return 404;
+  if ([
+    "SENSOR_VISIBILITY_CONFLICT",
+    "SENSOR_VISIBILITY_DRAFT_LOCKED",
+    "SENSOR_VISIBILITY_REGISTRATION_REQUIRED",
+  ].includes(code)) return 409;
+  if (code === "SENSOR_VISIBILITY_INTEGRITY_FAILED") return 422;
+  return 400;
+}
+
 function statusForTwinAssetError(code) {
-  if (["TWIN_ASSET_CANDIDATE_NOT_FOUND", "TWIN_ASSET_CHANGE_NOT_FOUND"].includes(code)) return 404;
+  if ([
+    "TWIN_ASSET_CANDIDATE_NOT_FOUND",
+    "TWIN_ASSET_CHANGE_NOT_FOUND",
+    "TWIN_ASSET_VISIBILITY_REQUIRED",
+  ].includes(code)) return 404;
   if ([
     "TWIN_ASSET_PROMOTION_CONFLICT",
     "TWIN_ASSET_CHANGE_CONFLICT",
@@ -738,6 +780,7 @@ function statusForTwinAssetError(code) {
     "TWIN_ASSET_ACCEPTED_CANDIDATE_REQUIRED",
     "TWIN_ASSET_BASELINE_REQUIRED",
     "TWIN_ASSET_CHANGE_INPUT_INVALID",
+    "TWIN_ASSET_VISIBILITY_CONTEXT_MISMATCH",
     "TWIN_ASSET_CHANGE_WORKFLOW_REQUIRED",
     "TWIN_ASSET_CHANGE_REVIEW_CONFLICT",
     "TWIN_ASSET_CHANGE_REVIEWER_CONFLICT",

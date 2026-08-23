@@ -56,6 +56,10 @@ Published releases and audit history must never be deleted during migration.
   graph.
 - `017_asset_change_review.sql`: Immutable derived `ASSET_CHANGE_REVIEW`
   evidence, reserved for the independent change-review workflow.
+- `018_sensor_visibility_evidence.sql`: External sensor-visibility observations
+  plus workflow-managed canonical visibility reports, with spatial-frame and
+  source/derived role constraints extended without weakening append-only
+  provenance.
 
 PostgreSQL triggers prevent updates and deletes to primary release records,
 release-artifact bindings, and asset revisions linked to a release. Draft artifact
